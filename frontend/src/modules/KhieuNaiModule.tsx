@@ -11,6 +11,7 @@ import { StatusBadge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
 import { KhieuNaiForm } from "./KhieuNaiForm";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
+import { KhieuNaiCard } from "./KhieuNaiCard";
 
 const STATUS_OPTIONS = [
   { value: "Cho tiep nhan", label: "Chờ tiếp nhận" },
@@ -118,12 +119,20 @@ export function KhieuNaiModule({ user }: { user: AppUser }) {
         {query.isError && <p className="py-8 text-center text-sm text-red-600">Không thể tải dữ liệu.</p>}
         {query.data && (
           <>
-            <Table
-              columns={columns}
-              rows={query.data.items}
-              rowKey={(r) => r.id}
-              onRowClick={(r) => setDetailId(r.id)}
-            />
+            <div className="flex flex-col gap-2 md:hidden">
+              {query.data.items.length === 0 && <p className="py-8 text-center text-sm text-ink-soft">Không có dữ liệu</p>}
+              {query.data.items.map((r) => (
+                <KhieuNaiCard key={r.id} kn={r} onClick={() => setDetailId(r.id)} />
+              ))}
+            </div>
+            <div className="hidden md:block">
+              <Table
+                columns={columns}
+                rows={query.data.items}
+                rowKey={(r) => r.id}
+                onRowClick={(r) => setDetailId(r.id)}
+              />
+            </div>
             <div className="mt-4 flex items-center justify-between text-sm text-ink-soft">
               <span>
                 Tổng {total} khiếu nại — Trang {page}/{totalPages}

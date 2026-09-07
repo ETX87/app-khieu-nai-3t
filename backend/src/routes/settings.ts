@@ -16,10 +16,19 @@ app.get("/options", async (c) => {
   return c.json({ items: rows.results });
 });
 
-app.post("/options", requireRole("Admin"), async (c) => {
+// Cac nhom "nguoi dung tu tao list va tai su dung" theo dac ta Ma tran goc - moi vai tro
+// (tru Viewer) duoc tu them gia tri moi ngay khi nhap lieu, khong can vao Cau hinh.
+const USER_CREATABLE_GROUPS = new Set(["sale_khu_vuc", "hang", "tinh", "quan_huyen", "phuong_xa"]);
+
+app.post("/options", async (c) => {
   const user = c.get("user");
   const body = await c.req.json();
   if (!body.nhom || !body.gia_tri) return c.json({ error: "MISSING_FIELDS" }, 400);
+
+  const isUserCreatable = USER_CREATABLE_GROUPS.has(body.nhom);
+  const allowed = user.vai_tro === "Admin" || (isUserCreatable && !!user.vai_tro && user.vai_tro !== "Viewer");
+  if (!allowed) return c.json({ error: "FORBIDDEN_ROLE" }, 403);
+
   await c.env.DB.prepare("INSERT OR IGNORE INTO settings_option (nhom, gia_tri, parent, created_by) VALUES (?, ?, ?, ?)")
     .bind(body.nhom, body.gia_tri, body.parent ?? null, user.email)
     .run();

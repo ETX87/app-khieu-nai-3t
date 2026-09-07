@@ -2,11 +2,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
 import type { AppUser, DanhGia3, KhieuNai, TienTrinh } from "../api/types";
-import { useSettingsOptions } from "../api/useSettingsOptions";
+import { useCreateSettingsOption, useSettingsOptions } from "../api/useSettingsOptions";
 import { Card } from "../components/ui/Card";
 import { Btn } from "../components/ui/Btn";
 import { Field, Input, Textarea } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
+import { Combobox } from "../components/ui/Combobox";
 import { StatusBadge } from "../components/ui/Badge";
 import { useToast } from "../components/ui/Toast";
 
@@ -116,6 +117,11 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
   const tinhOpts = useSettingsOptions("tinh");
   const quanHuyenOpts = useSettingsOptions("quan_huyen");
   const phuongXaOpts = useSettingsOptions("phuong_xa");
+  const createSaleKhuVuc = useCreateSettingsOption("sale_khu_vuc");
+  const createHang = useCreateSettingsOption("hang");
+  const createTinh = useCreateSettingsOption("tinh");
+  const createQuanHuyen = useCreateSettingsOption("quan_huyen");
+  const createPhuongXa = useCreateSettingsOption("phuong_xa");
 
   const [form, setForm] = useState({
     ten_khach: kn.ten_khach ?? "",
@@ -198,98 +204,97 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
         <Field label="ID Lada">
           <Input value={form.id_lada} onChange={(e) => setField("id_lada", e.target.value)} />
         </Field>
-        <Field label="Sale khu vực">
-          <Select
+        <Field label="Sale khu vực" hint="Gõ để tìm hoặc thêm mới">
+          <Combobox
             options={(saleKhuVucOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
             value={form.sale_khu_vuc}
-            onChange={(e) => setField("sale_khu_vuc", e.target.value)}
+            onChange={(v) => setField("sale_khu_vuc", v)}
+            creatable
+            onCreate={createSaleKhuVuc}
           />
         </Field>
         <Field label="Người báo">
           <Input value={form.nguoi_bao} onChange={(e) => setField("nguoi_bao", e.target.value)} />
         </Field>
-        <Field label="Tỉnh">
-          <Select
+        <Field label="Tỉnh" hint="Gõ để tìm hoặc thêm mới">
+          <Combobox
             options={(tinhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
             value={form.tinh}
-            onChange={(e) => setField("tinh", e.target.value)}
+            onChange={(v) => setField("tinh", v)}
+            creatable
+            onCreate={createTinh}
           />
         </Field>
-        <Field label="Quận/Huyện">
-          <Select
+        <Field label="Quận/Huyện" hint="Gõ để tìm hoặc thêm mới">
+          <Combobox
             options={(quanHuyenOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
             value={form.quan_huyen}
-            onChange={(e) => setField("quan_huyen", e.target.value)}
+            onChange={(v) => setField("quan_huyen", v)}
+            creatable
+            onCreate={createQuanHuyen}
           />
         </Field>
-        <Field label="Phường/Xã">
-          <Select
+        <Field label="Phường/Xã" hint="Gõ để tìm hoặc thêm mới">
+          <Combobox
             options={(phuongXaOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
             value={form.phuong_xa}
-            onChange={(e) => setField("phuong_xa", e.target.value)}
+            onChange={(v) => setField("phuong_xa", v)}
+            creatable
+            onCreate={createPhuongXa}
           />
         </Field>
         <Field label="Model">
-          <Select
+          <Combobox
             options={(modelOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
             value={form.model}
-            onChange={(e) => setField("model", e.target.value)}
+            onChange={(v) => setField("model", v)}
           />
         </Field>
-        <Field label="Hãng">
-          <Select
+        <Field label="Hãng" hint="Gõ để tìm hoặc thêm mới">
+          <Combobox
             options={(hangOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
             value={form.hang}
-            onChange={(e) => setField("hang", e.target.value)}
+            onChange={(v) => setField("hang", v)}
+            creatable
+            onCreate={createHang}
           />
         </Field>
         <Field label="Mức độ">
-          <Select
+          <Combobox
             options={(mucDoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
             value={form.muc_do}
-            onChange={(e) => setField("muc_do", e.target.value)}
+            onChange={(v) => setField("muc_do", v)}
           />
         </Field>
         <Field label="Nhóm yêu cầu">
-          <Select
+          <Combobox
             options={(nhomYeuCauOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
             value={form.nhom_yeu_cau}
-            onChange={(e) => setField("nhom_yeu_cau", e.target.value)}
+            onChange={(v) => setField("nhom_yeu_cau", v)}
           />
         </Field>
         <Field label="Phân loại KH">
-          <Select
+          <Combobox
             options={(phanLoaiKhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
             value={form.phan_loai_kh}
-            onChange={(e) => setField("phan_loai_kh", e.target.value)}
+            onChange={(v) => setField("phan_loai_kh", v)}
           />
         </Field>
         <Field label="Nhóm vấn đề">
-          <Select
+          <Combobox
             options={(nhomVanDeOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
             value={form.nhom_van_de}
-            onChange={(e) => {
-              setField("nhom_van_de", e.target.value);
+            onChange={(v) => {
+              setField("nhom_van_de", v);
               setField("van_de_dau_vao", "");
             }}
           />
         </Field>
         <Field label="Vấn đề đầu vào">
-          <Select
+          <Combobox
             options={filteredVanDeDauVao.map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
             value={form.van_de_dau_vao}
-            onChange={(e) => setField("van_de_dau_vao", e.target.value)}
+            onChange={(v) => setField("van_de_dau_vao", v)}
             disabled={!form.nhom_van_de}
           />
         </Field>
@@ -641,11 +646,10 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
     <Card title="Nhánh đổi máy">
       <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Field label="Bộ phận bàn giao">
-          <Select
+          <Combobox
             options={(boPhanBanGiaoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
             value={form.bo_phan_ban_giao}
-            onChange={(e) => setField("bo_phan_ban_giao", e.target.value)}
+            onChange={(v) => setField("bo_phan_ban_giao", v)}
           />
         </Field>
         <Field label="Mã duyệt đổi linh kiện">
@@ -676,21 +680,19 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
         </Field>
         <div className="sm:col-span-3">
           <Field label="Ghi chú lý do chậm" hint="Chọn lý do chậm từ danh mục">
-            <Select
+            <Combobox
               options={(lyDoChamOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-              placeholder="— Chọn —"
               value={form.ghi_chu_ly_do_cham}
-              onChange={(e) => setField("ghi_chu_ly_do_cham", e.target.value)}
+              onChange={(v) => setField("ghi_chu_ly_do_cham", v)}
             />
           </Field>
         </div>
         <div className="sm:col-span-3">
           <Field label="Giải trình chậm đổi máy" hint="Chọn lý do chậm từ danh mục">
-            <Select
+            <Combobox
               options={(lyDoChamOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-              placeholder="— Chọn —"
               value={form.giai_trinh_cham_doi_may}
-              onChange={(e) => setField("giai_trinh_cham_doi_may", e.target.value)}
+              onChange={(v) => setField("giai_trinh_cham_doi_may", v)}
             />
           </Field>
         </div>

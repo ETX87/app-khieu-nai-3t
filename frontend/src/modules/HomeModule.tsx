@@ -6,6 +6,7 @@ import { Table, type TableColumn } from "../components/ui/Table";
 import { StatusBadge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
+import { KhieuNaiCard } from "./KhieuNaiCard";
 import { useState } from "react";
 import type { AppUser } from "../api/types";
 
@@ -77,13 +78,25 @@ export function HomeModule({ user }: { user: AppUser }) {
         <Card title="Khiếu nại đang xử lý" className="lg:col-span-2">
           {activeQuery.isLoading && <p className="py-6 text-center text-sm text-ink-soft">Đang tải...</p>}
           {activeQuery.data && (
-            <Table
-              columns={columns}
-              rows={activeQuery.data.items}
-              rowKey={(r) => r.id}
-              onRowClick={(r) => setDetailId(r.id)}
-              emptyText="Không có khiếu nại đang xử lý."
-            />
+            <>
+              <div className="flex flex-col gap-2 md:hidden">
+                {activeQuery.data.items.length === 0 && (
+                  <p className="py-6 text-center text-sm text-ink-soft">Không có khiếu nại đang xử lý.</p>
+                )}
+                {activeQuery.data.items.map((r) => (
+                  <KhieuNaiCard key={r.id} kn={r} onClick={() => setDetailId(r.id)} />
+                ))}
+              </div>
+              <div className="hidden md:block">
+                <Table
+                  columns={columns}
+                  rows={activeQuery.data.items}
+                  rowKey={(r) => r.id}
+                  onRowClick={(r) => setDetailId(r.id)}
+                  emptyText="Không có khiếu nại đang xử lý."
+                />
+              </div>
+            </>
           )}
         </Card>
 
