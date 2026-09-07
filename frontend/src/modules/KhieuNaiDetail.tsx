@@ -30,6 +30,8 @@ const CAM_CO_OPTIONS = [
 const CRM_WARNING_MESSAGES: Record<string, string> = {
   DVBH_NOT_FOUND: "Không tìm thấy case trên CRM Karofi",
   DVBH_LOOKUP_FAILED: "Không thể kết nối CRM Karofi lúc này",
+  CASE_CLOSED: "Khiếu nại đã kết thúc, không thể đồng bộ lại",
+  RESYNC_TOO_SOON: "Vui lòng đợi ít nhất 5 giây giữa 2 lần đồng bộ",
 };
 
 function ReadField({ label, value }: { label: string; value: string | number | null | undefined }) {
@@ -74,6 +76,9 @@ export function KhieuNaiDetail({
   const isCskh = user.vai_tro === "CSKH" || user.vai_tro === "Admin";
   const isTnCskh = user.vai_tro === "TN CSKH" || user.vai_tro === "Admin";
   const isQl = user.vai_tro === "QL" || user.vai_tro === "Admin";
+  const canDanhGia4Loi = isCskh || isTnCskh || isQl;
+  const canXuLyDoiMay = isCskh || isTnCskh || isQl;
+  const canThemTienTrinh = isCskh || isTnCskh || isQl;
 
   return (
     <div className="flex flex-col gap-4">
@@ -85,11 +90,11 @@ export function KhieuNaiDetail({
       </div>
 
       <CustomerInfoSection kn={kn} editable={isCskh} onSaved={invalidate} />
-      <CrmSection kn={kn} editable={isCskh} onSaved={invalidate} />
-      <TnCskhSection kn={kn} editable={isTnCskh} onSaved={invalidate} />
+      <CrmSection kn={kn} user={user} onSaved={invalidate} />
+      <TnCskhSection kn={kn} editable={canDanhGia4Loi} onSaved={invalidate} />
       <QlSection kn={kn} editable={isQl} onSaved={invalidate} />
-      <DoiMaySection kn={kn} editable={isCskh} onSaved={invalidate} />
-      <TienTrinhSection id={id} items={tienTrinh} onSaved={invalidate} />
+      <DoiMaySection kn={kn} editable={canXuLyDoiMay} onSaved={invalidate} />
+      <TienTrinhSection id={id} items={tienTrinh} canThem={canThemTienTrinh} onSaved={invalidate} />
 
       <ActionBar kn={kn} user={user} onDone={() => { invalidate(); }} onError={(m) => showToast(m, "error")} onClose={onClose} />
     </div>
@@ -274,8 +279,10 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
 
 // ---------- CRM Karofi ----------
 
-function CrmSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean; onSaved: () => void }) {
+function CrmSection({ kn, user, onSaved }: { kn: KhieuNai; user: AppUser; onSaved: () => void }) {
   const { showToast } = useToast();
+  const editable = user.vai_tro === "CSKH" || user.vai_tro === "Admin";
+  const canResync = !!user.vai_tro && user.vai_tro !== "Viewer" && kn.trang_thai !== "Da ket thuc";
   const [crmId, setCrmId] = useState(kn.id_crm_karofi ?? "");
 
   useEffect(() => setCrmId(kn.id_crm_karofi ?? ""), [kn.id_crm_karofi]);
@@ -322,9 +329,17 @@ function CrmSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean
             {saveId.isPending ? "Đang lưu..." : "Lưu ID"}
           </Btn>
         )}
-        <Btn variant="secondary" size="sm" disabled={!kn.id_crm_karofi || resync.isPending} onClick={() => resync.mutate()}>
-          {resync.isPending ? "Đang đồng bộ..." : "Đồng bộ lại"}
-        </Btn>
+        {canResync && (
+          <Btn
+            variant="secondary"
+            size="sm"
+            disabled={!kn.id_crm_karofi || resync.isPending}
+            title={kn.trang_thai === "Da ket thuc" ? "Khiếu nại đã kết thúc, không thể đồng bộ lại" : undefined}
+            onClick={() => resync.mutate()}
+          >
+            {resync.isPending ? "Đang đồng bộ..." : "Đồng bộ lại"}
+          </Btn>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -440,7 +455,6 @@ function translateDanhGia(v: DanhGia3 | null): string {
 
 function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean; onSaved: () => void }) {
   const { showToast } = useToast();
-  const lyDoOpts = useSettingsOptions("ly_do_cham");
 
   const [form, setForm] = useState({
     danh_gia_ql: kn.danh_gia_ql ?? "",
@@ -498,13 +512,8 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
         <Field label="Ngày hẹn">
           <Input type="date" value={form.ql_chon_ngay_hen} onChange={(e) => setField("ql_chon_ngay_hen", e.target.value)} />
         </Field>
-        <Field label="Lý do">
-          <Select
-            options={(lyDoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
-            value={form.ql_chon_ly_do}
-            onChange={(e) => setField("ql_chon_ly_do", e.target.value)}
-          />
+        <Field label="Lý do" hint="Free text - vì sao có ngày hẹn này">
+          <Input value={form.ql_chon_ly_do} onChange={(e) => setField("ql_chon_ly_do", e.target.value)} />
         </Field>
         <ReadField label="Người đánh giá" value={kn.ql_nguoi_danh_gia} />
         <ReadField label="Ngày đánh giá" value={kn.ngay_ql_danh_gia} />
@@ -520,8 +529,17 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
 
 // ---------- Nhánh đổi máy ----------
 
+const KET_QUA_DOI_MAY_OPTIONS = [
+  { value: "Khong co", label: "Không có" },
+  { value: "Dang xu ly", label: "Đang xử lý" },
+  { value: "Doi thanh cong", label: "Đổi thành công" },
+  { value: "Huy bo", label: "Hủy bỏ" },
+  { value: "Doi khong thanh cong", label: "Đổi không thành công" },
+];
+
 function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean; onSaved: () => void }) {
   const { showToast } = useToast();
+  const lyDoChamOpts = useSettingsOptions("ly_do_cham");
   const [form, setForm] = useState({
     bo_phan_ban_giao: kn.bo_phan_ban_giao ?? "",
     ma_duyet_doi_linh_kien: kn.ma_duyet_doi_linh_kien ?? "",
@@ -598,19 +616,34 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
           <Input type="date" value={form.ngay_dong_doi_may} onChange={(e) => setField("ngay_dong_doi_may", e.target.value)} />
         </Field>
         <Field label="Kết quả đổi máy">
-          <Input value={form.ket_qua_doi_may} onChange={(e) => setField("ket_qua_doi_may", e.target.value)} />
+          <Select
+            options={KET_QUA_DOI_MAY_OPTIONS}
+            placeholder="— Chọn —"
+            value={form.ket_qua_doi_may}
+            onChange={(e) => setField("ket_qua_doi_may", e.target.value)}
+          />
         </Field>
         <Field label="Người xác nhận đổi máy">
           <Input value={form.nguoi_xac_nhan_doi_may} onChange={(e) => setField("nguoi_xac_nhan_doi_may", e.target.value)} />
         </Field>
         <div className="sm:col-span-3">
-          <Field label="Ghi chú lý do chậm">
-            <Textarea rows={2} value={form.ghi_chu_ly_do_cham} onChange={(e) => setField("ghi_chu_ly_do_cham", e.target.value)} />
+          <Field label="Ghi chú lý do chậm" hint="Chọn lý do chậm từ danh mục">
+            <Select
+              options={(lyDoChamOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+              placeholder="— Chọn —"
+              value={form.ghi_chu_ly_do_cham}
+              onChange={(e) => setField("ghi_chu_ly_do_cham", e.target.value)}
+            />
           </Field>
         </div>
         <div className="sm:col-span-3">
-          <Field label="Giải trình chậm đổi máy">
-            <Textarea rows={2} value={form.giai_trinh_cham_doi_may} onChange={(e) => setField("giai_trinh_cham_doi_may", e.target.value)} />
+          <Field label="Giải trình chậm đổi máy" hint="Chọn lý do chậm từ danh mục">
+            <Select
+              options={(lyDoChamOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+              placeholder="— Chọn —"
+              value={form.giai_trinh_cham_doi_may}
+              onChange={(e) => setField("giai_trinh_cham_doi_may", e.target.value)}
+            />
           </Field>
         </div>
         <div className="sm:col-span-3 flex justify-end">
@@ -625,7 +658,17 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
 // ---------- Tiến trình ----------
 
-function TienTrinhSection({ id, items, onSaved }: { id: string; items: TienTrinh[]; onSaved: () => void }) {
+function TienTrinhSection({
+  id,
+  items,
+  canThem,
+  onSaved,
+}: {
+  id: string;
+  items: TienTrinh[];
+  canThem: boolean;
+  onSaved: () => void;
+}) {
   const { showToast } = useToast();
   const [noiDung, setNoiDung] = useState("");
   const [lyDo, setLyDo] = useState("");
@@ -653,21 +696,23 @@ function TienTrinhSection({ id, items, onSaved }: { id: string; items: TienTrinh
 
   return (
     <Card title="Tiến trình xử lý">
-      <form onSubmit={submit} className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end">
-        <div className="flex-1">
-          <Field label="Nội dung ghi chép">
-            <Input value={noiDung} onChange={(e) => setNoiDung(e.target.value)} placeholder="Ghi chú xử lý..." />
-          </Field>
-        </div>
-        <div className="flex-1">
-          <Field label="Lý do xử lý chậm (nếu có)">
-            <Input value={lyDo} onChange={(e) => setLyDo(e.target.value)} placeholder="Lý do chậm..." />
-          </Field>
-        </div>
-        <Btn type="submit" variant="secondary" disabled={mutation.isPending}>
-          {mutation.isPending ? "Đang lưu..." : "Thêm ghi chú"}
-        </Btn>
-      </form>
+      {canThem && (
+        <form onSubmit={submit} className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <Field label="Nội dung ghi chép">
+              <Input value={noiDung} onChange={(e) => setNoiDung(e.target.value)} placeholder="Ghi chú xử lý..." />
+            </Field>
+          </div>
+          <div className="flex-1">
+            <Field label="Lý do xử lý chậm (nếu có)">
+              <Input value={lyDo} onChange={(e) => setLyDo(e.target.value)} placeholder="Lý do chậm..." />
+            </Field>
+          </div>
+          <Btn type="submit" variant="secondary" disabled={mutation.isPending}>
+            {mutation.isPending ? "Đang lưu..." : "Thêm ghi chú"}
+          </Btn>
+        </form>
+      )}
 
       <ul className="flex flex-col gap-3">
         {items.length === 0 && <li className="text-sm text-ink-soft">Chưa có ghi chép tiến trình.</li>}
@@ -710,7 +755,9 @@ function ActionBar({
     kn.ket_luan_khieu_nai !== null;
 
   const canChot = (user.vai_tro === "QL" || user.vai_tro === "Admin") && kn.trang_thai === "Cho chot ket thuc";
-  const canHuy = (user.vai_tro === "CSKH" || user.vai_tro === "QL" || user.vai_tro === "Admin") && kn.trang_thai !== "Da ket thuc";
+  const canHuy =
+    (user.vai_tro === "CSKH" || user.vai_tro === "TN CSKH" || user.vai_tro === "QL" || user.vai_tro === "Admin") &&
+    kn.trang_thai !== "Da ket thuc";
 
   const dongCa = useMutation({
     mutationFn: () => api.post<{ ok: true }>(`/khieu-nai/${kn.id}/dong-ca`),

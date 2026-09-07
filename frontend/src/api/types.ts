@@ -68,6 +68,7 @@ export interface KhieuNai {
   ql_chon_ly_do: string | null;
   ql_nguoi_danh_gia: string | null;
   ngay_ql_danh_gia: string | null;
+  crm_last_sync_at: string | null;
   created_at: string;
   updated_at: string;
 }
