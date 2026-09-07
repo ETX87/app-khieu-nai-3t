@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "khieu-nai-backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "backend"],
+      "port": 8787
+    },
+    {
+      "name": "khieu-nai-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "frontend"],
+      "port": 5173
+    }
+  ]
+}

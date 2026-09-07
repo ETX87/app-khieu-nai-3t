@@ -1,0 +1,17 @@
+# Copy this file to .dev.vars (repo root) and fill in real values for local development.
+# .dev.vars is gitignored and must never be committed.
+
+# Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client ID (Web application)
+GOOGLE_CLIENT_ID=
+
+# Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client ID (same client as above)
+GOOGLE_CLIENT_SECRET=
+
+# Any long random string used to sign session JWTs (e.g. `openssl rand -hex 32`); rotating it logs out all users
+SESSION_SECRET=change-me-to-a-random-string
+
+# Set to "true" to enable GET /api/auth/dev-login (logs in as BOOTSTRAP_ADMIN_EMAIL without Google OAuth) — local dev only
+LOCAL_DEV_BYPASS_AUTH=true
+
+# Issued by an Admin on the "dvbh" (cloudflare smarttrade base) system's Settings screen, under partner API keys
+DVBH_PARTNER_API_KEY=

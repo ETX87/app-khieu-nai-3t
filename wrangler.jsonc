@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tiepnhan",
+  "main": "backend/src/index.ts",
+  "compatibility_date": "2026-09-07",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "directory": "./frontend/dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "khieu-nai-db", "database_id": "fef4e5cf-fdda-4441-8383-41ec20f00fa0", "migrations_dir": "migrations" }],
+  "vars": {
+    "BOOTSTRAP_ADMIN_EMAIL": "smarttrade.vp@gmail.com",
+    "GOOGLE_REDIRECT_URI": "https://tiepnhan.dichvu3t.workers.dev/api/auth/callback",
+    "FRONTEND_URL": "https://tiepnhan.dichvu3t.workers.dev",
+    "DVBH_API_BASE": "https://dvbh.dichvu3t.workers.dev"
+  }
+}
