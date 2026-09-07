@@ -94,11 +94,17 @@ export type SettingsNhom =
   | "ly_do_cham"
   | "nhom_van_de"
   | "van_de_dau_vao"
-  | "kenh_tiep_nhan"
   | "danh_gia_cskh"
   | "phan_loai_kh"
   | "muc_do"
-  | "nhom_yeu_cau";
+  | "nhom_yeu_cau"
+  | "sale_khu_vuc"
+  | "model"
+  | "hang"
+  | "tinh"
+  | "quan_huyen"
+  | "phuong_xa"
+  | "bo_phan_ban_giao";
 
 export interface KhieuNaiStats {
   tong: number;

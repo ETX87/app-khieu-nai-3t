@@ -62,6 +62,12 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
   const phanLoaiKhOpts = useSettingsOptions("phan_loai_kh");
   const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
   const vanDeDauVaoOpts = useSettingsOptions("van_de_dau_vao");
+  const saleKhuVucOpts = useSettingsOptions("sale_khu_vuc");
+  const modelOpts = useSettingsOptions("model");
+  const hangOpts = useSettingsOptions("hang");
+  const tinhOpts = useSettingsOptions("tinh");
+  const quanHuyenOpts = useSettingsOptions("quan_huyen");
+  const phuongXaOpts = useSettingsOptions("phuong_xa");
 
   const filteredVanDeDauVao = (vanDeDauVaoOpts.data ?? []).filter(
     (o) => !form.nhom_van_de || o.parent === form.nhom_van_de,
@@ -106,25 +112,55 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
         <Input value={form.id_lada} onChange={(e) => setField("id_lada", e.target.value)} />
       </Field>
       <Field label="Sale khu vực">
-        <Input value={form.sale_khu_vuc} onChange={(e) => setField("sale_khu_vuc", e.target.value)} />
+        <Select
+          options={(saleKhuVucOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+          placeholder="— Chọn —"
+          value={form.sale_khu_vuc}
+          onChange={(e) => setField("sale_khu_vuc", e.target.value)}
+        />
       </Field>
       <Field label="Người báo">
         <Input value={form.nguoi_bao} onChange={(e) => setField("nguoi_bao", e.target.value)} />
       </Field>
       <Field label="Tỉnh">
-        <Input value={form.tinh} onChange={(e) => setField("tinh", e.target.value)} />
+        <Select
+          options={(tinhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+          placeholder="— Chọn —"
+          value={form.tinh}
+          onChange={(e) => setField("tinh", e.target.value)}
+        />
       </Field>
       <Field label="Quận/Huyện">
-        <Input value={form.quan_huyen} onChange={(e) => setField("quan_huyen", e.target.value)} />
+        <Select
+          options={(quanHuyenOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+          placeholder="— Chọn —"
+          value={form.quan_huyen}
+          onChange={(e) => setField("quan_huyen", e.target.value)}
+        />
       </Field>
       <Field label="Phường/Xã">
-        <Input value={form.phuong_xa} onChange={(e) => setField("phuong_xa", e.target.value)} />
+        <Select
+          options={(phuongXaOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+          placeholder="— Chọn —"
+          value={form.phuong_xa}
+          onChange={(e) => setField("phuong_xa", e.target.value)}
+        />
       </Field>
       <Field label="Model">
-        <Input value={form.model} onChange={(e) => setField("model", e.target.value)} />
+        <Select
+          options={(modelOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+          placeholder="— Chọn —"
+          value={form.model}
+          onChange={(e) => setField("model", e.target.value)}
+        />
       </Field>
       <Field label="Hãng">
-        <Input value={form.hang} onChange={(e) => setField("hang", e.target.value)} />
+        <Select
+          options={(hangOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+          placeholder="— Chọn —"
+          value={form.hang}
+          onChange={(e) => setField("hang", e.target.value)}
+        />
       </Field>
       <Field label="Mức độ">
         <Select

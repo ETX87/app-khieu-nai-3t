@@ -110,6 +110,12 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
   const phanLoaiKhOpts = useSettingsOptions("phan_loai_kh");
   const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
   const vanDeDauVaoOpts = useSettingsOptions("van_de_dau_vao");
+  const saleKhuVucOpts = useSettingsOptions("sale_khu_vuc");
+  const modelOpts = useSettingsOptions("model");
+  const hangOpts = useSettingsOptions("hang");
+  const tinhOpts = useSettingsOptions("tinh");
+  const quanHuyenOpts = useSettingsOptions("quan_huyen");
+  const phuongXaOpts = useSettingsOptions("phuong_xa");
 
   const [form, setForm] = useState({
     ten_khach: kn.ten_khach ?? "",
@@ -193,25 +199,55 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
           <Input value={form.id_lada} onChange={(e) => setField("id_lada", e.target.value)} />
         </Field>
         <Field label="Sale khu vực">
-          <Input value={form.sale_khu_vuc} onChange={(e) => setField("sale_khu_vuc", e.target.value)} />
+          <Select
+            options={(saleKhuVucOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+            placeholder="— Chọn —"
+            value={form.sale_khu_vuc}
+            onChange={(e) => setField("sale_khu_vuc", e.target.value)}
+          />
         </Field>
         <Field label="Người báo">
           <Input value={form.nguoi_bao} onChange={(e) => setField("nguoi_bao", e.target.value)} />
         </Field>
         <Field label="Tỉnh">
-          <Input value={form.tinh} onChange={(e) => setField("tinh", e.target.value)} />
+          <Select
+            options={(tinhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+            placeholder="— Chọn —"
+            value={form.tinh}
+            onChange={(e) => setField("tinh", e.target.value)}
+          />
         </Field>
         <Field label="Quận/Huyện">
-          <Input value={form.quan_huyen} onChange={(e) => setField("quan_huyen", e.target.value)} />
+          <Select
+            options={(quanHuyenOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+            placeholder="— Chọn —"
+            value={form.quan_huyen}
+            onChange={(e) => setField("quan_huyen", e.target.value)}
+          />
         </Field>
         <Field label="Phường/Xã">
-          <Input value={form.phuong_xa} onChange={(e) => setField("phuong_xa", e.target.value)} />
+          <Select
+            options={(phuongXaOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+            placeholder="— Chọn —"
+            value={form.phuong_xa}
+            onChange={(e) => setField("phuong_xa", e.target.value)}
+          />
         </Field>
         <Field label="Model">
-          <Input value={form.model} onChange={(e) => setField("model", e.target.value)} />
+          <Select
+            options={(modelOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+            placeholder="— Chọn —"
+            value={form.model}
+            onChange={(e) => setField("model", e.target.value)}
+          />
         </Field>
         <Field label="Hãng">
-          <Input value={form.hang} onChange={(e) => setField("hang", e.target.value)} />
+          <Select
+            options={(hangOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+            placeholder="— Chọn —"
+            value={form.hang}
+            onChange={(e) => setField("hang", e.target.value)}
+          />
         </Field>
         <Field label="Mức độ">
           <Select
@@ -455,6 +491,7 @@ function translateDanhGia(v: DanhGia3 | null): string {
 
 function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean; onSaved: () => void }) {
   const { showToast } = useToast();
+  const danhGiaQlOpts = useSettingsOptions("danh_gia_cskh");
 
   const [form, setForm] = useState({
     danh_gia_ql: kn.danh_gia_ql ?? "",
@@ -504,7 +541,12 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
     <Card title="Đánh giá QL">
       <form onSubmit={submit} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Field label="Đánh giá QL">
-          <Input value={form.danh_gia_ql} onChange={(e) => setField("danh_gia_ql", e.target.value)} />
+          <Select
+            options={(danhGiaQlOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+            placeholder="— Chọn —"
+            value={form.danh_gia_ql}
+            onChange={(e) => setField("danh_gia_ql", e.target.value)}
+          />
         </Field>
         <Field label="Giờ xử lý">
           <Input type="number" step="0.5" value={form.ql_gio_xu_ly} onChange={(e) => setField("ql_gio_xu_ly", e.target.value)} />
@@ -540,6 +582,7 @@ const KET_QUA_DOI_MAY_OPTIONS = [
 function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean; onSaved: () => void }) {
   const { showToast } = useToast();
   const lyDoChamOpts = useSettingsOptions("ly_do_cham");
+  const boPhanBanGiaoOpts = useSettingsOptions("bo_phan_ban_giao");
   const [form, setForm] = useState({
     bo_phan_ban_giao: kn.bo_phan_ban_giao ?? "",
     ma_duyet_doi_linh_kien: kn.ma_duyet_doi_linh_kien ?? "",
@@ -598,7 +641,12 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
     <Card title="Nhánh đổi máy">
       <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Field label="Bộ phận bàn giao">
-          <Input value={form.bo_phan_ban_giao} onChange={(e) => setField("bo_phan_ban_giao", e.target.value)} />
+          <Select
+            options={(boPhanBanGiaoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+            placeholder="— Chọn —"
+            value={form.bo_phan_ban_giao}
+            onChange={(e) => setField("bo_phan_ban_giao", e.target.value)}
+          />
         </Field>
         <Field label="Mã duyệt đổi linh kiện">
           <Input value={form.ma_duyet_doi_linh_kien} onChange={(e) => setField("ma_duyet_doi_linh_kien", e.target.value)} />
