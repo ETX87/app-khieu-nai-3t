@@ -37,7 +37,7 @@ export function KhieuNaiModule({ user }: { user: AppUser }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const canCreate = user.vai_tro === "CSKH" || user.vai_tro === "Admin";
+  const canCreate = !!user.vai_tro && user.vai_tro !== "Viewer";
 
   const query = useQuery({
     queryKey: ["khieu-nai", { trangThai, q, page }],

@@ -128,7 +128,7 @@ app.get("/:id", async (c) => {
   return c.json({ khieuNai, tienTrinh: tienTrinh.results });
 });
 
-app.post("/", requireRole("CSKH", "Admin"), async (c) => {
+app.post("/", requireRole("CSKH", "KTV", "TN CSKH", "QL", "Admin"), async (c) => {
   const user = c.get("user");
   const body = await c.req.json();
   const id = await generateId(c.env.DB);
