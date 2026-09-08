@@ -298,12 +298,12 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
     setRestored(false);
   };
 
-  const gridCls = "grid grid-cols-1 gap-3 sm:grid-cols-2";
-  const legendCls = "mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft";
+  const gridCls = "grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2";
+  const legendCls = "mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft";
   const fsCls = "rounded-lg border border-line p-3";
 
   return (
-    <form onSubmit={submit} onKeyDown={onFormKeyDown} className="flex flex-col gap-4">
+    <form onSubmit={submit} onKeyDown={onFormKeyDown} className="mx-auto flex w-full max-w-[1140px] flex-col gap-3">
       {restored && (
         <div className="flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-300">
           <span>Đã khôi phục nội dung nhập dở lần trước.</span>
@@ -316,21 +316,19 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
       {/* ── 1. Tra cứu ID (ưu tiên nhập đầu tiên) ───────────────────────────── */}
       <fieldset className="rounded-lg border border-accent/40 bg-accent-soft/40 p-3">
         <legend className={legendCls}>Tra cứu nhanh theo ID</legend>
-        <p className="mb-2 text-[11px] leading-tight text-ink-soft">
-          Nhập ID rồi bấm <b>Tra cứu</b> (hoặc Enter). Nếu khớp, hệ thống tự điền thông tin khách hàng &amp;
-          sản phẩm vào các ô còn trống bên dưới.
-        </p>
-        <div className={gridCls}>
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
           <div className="block">
             <span className="mb-0.5 block text-xs font-medium text-ink-soft">ID CRM Karofi</span>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <Input
+                className="w-44"
                 value={form.id_crm_karofi}
                 onChange={(e) => setField("id_crm_karofi", e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void runLookup("crm"); } }}
               />
               <Btn
                 type="button"
+                size="sm"
                 variant="secondary"
                 onClick={() => void runLookup("crm")}
                 disabled={!form.id_crm_karofi.trim() || lookupBusy === "crm"}
@@ -338,18 +336,19 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
                 {lookupBusy === "crm" ? "..." : "Tra cứu"}
               </Btn>
             </div>
-            <span className="mt-0.5 block text-[11px] leading-tight text-ink-faint">Tra cứu sang hệ thống DVBH gốc</span>
           </div>
           <div className="block">
             <span className="mb-0.5 block text-xs font-medium text-ink-soft">ID Lada</span>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <Input
+                className="w-44"
                 value={form.id_lada}
                 onChange={(e) => setField("id_lada", e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void runLookup("lada"); } }}
               />
               <Btn
                 type="button"
+                size="sm"
                 variant="secondary"
                 onClick={() => void runLookup("lada")}
                 disabled={!form.id_lada.trim() || lookupBusy === "lada"}
@@ -357,8 +356,10 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
                 {lookupBusy === "lada" ? "..." : "Tra cứu"}
               </Btn>
             </div>
-            <span className="mt-0.5 block text-[11px] leading-tight text-ink-faint">Soi trong các phản ánh cũ cùng ID Lada</span>
           </div>
+          <p className="mb-1.5 max-w-[16rem] text-[11px] leading-tight text-ink-faint">
+            Nhập ID rồi Enter / bấm Tra cứu — hệ thống tự điền vào các ô còn trống bên dưới.
+          </p>
         </div>
 
         {lookup && <LookupResult res={lookup} />}
@@ -385,10 +386,10 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
       </fieldset>
 
       {/* ── 3. Địa chỉ (cũ / mới) + 4. Sản phẩm ────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         <fieldset className={fsCls}>
           <legend className={legendCls}>Địa chính cũ (63 tỉnh)</legend>
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-2.5">
             <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới">
               <Combobox
                 options={optsFor(tinhOpts.data, "tinh")}
@@ -429,7 +430,7 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
 
         <fieldset className={fsCls}>
           <legend className={legendCls}>Địa chính mới (2025)</legend>
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-2.5">
             <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới">
               <Combobox
                 options={optsFor(tinhMoiOpts.data, "tinh_moi")}
@@ -460,7 +461,7 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
 
         <fieldset className={fsCls}>
           <legend className={legendCls}>Sản phẩm</legend>
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-2.5">
             <Field label="Hãng" hint="Gõ để tìm / thêm mới">
               <Combobox
                 options={optsFor(hangOpts.data, "hang")}
@@ -486,18 +487,18 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
       {/* ── 5. Nội dung phản ánh ───────────────────────────────────────────── */}
       <fieldset className={fsCls}>
         <legend className={legendCls}>Nội dung phản ánh</legend>
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-4 gap-y-2.5 lg:grid-cols-2">
           <Field label="Thông tin ban đầu *">
-            <Textarea rows={3} value={form.thong_tin_ban_dau} onChange={(e) => setField("thong_tin_ban_dau", e.target.value)} />
+            <Textarea rows={2} value={form.thong_tin_ban_dau} onChange={(e) => setField("thong_tin_ban_dau", e.target.value)} />
           </Field>
           <Field label="Ghi chú người tạo">
-            <Textarea rows={3} value={form.ghi_chu_nguoi_tao} onChange={(e) => setField("ghi_chu_nguoi_tao", e.target.value)} />
+            <Textarea rows={2} value={form.ghi_chu_nguoi_tao} onChange={(e) => setField("ghi_chu_nguoi_tao", e.target.value)} />
           </Field>
         </div>
       </fieldset>
 
       {/* ── 6. Phân loại vấn đề + 7. Nội bộ ────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         <fieldset className={fsCls}>
           <legend className={legendCls}>Phân loại vấn đề</legend>
           <div className={gridCls}>
@@ -553,7 +554,7 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
         </fieldset>
       </div>
 
-      <div className="sticky bottom-0 -mx-5 flex items-center justify-end gap-3 border-t border-line bg-surface px-5 py-2.5">
+      <div className="sticky bottom-0 z-10 flex items-center justify-end gap-3 border-t border-line bg-surface py-2.5">
         {pendingOpts.length > 0 && (
           <span className="mr-auto text-[11px] text-ink-soft">
             {pendingOpts.length} lựa chọn mới sẽ được lưu vào danh mục khi bấm Tạo
