@@ -12,7 +12,7 @@ interface ComboboxProps {
 }
 
 const BASE_CLS =
-  "w-full rounded-md border border-line bg-white px-2.5 py-1.5 text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:bg-gray-100 disabled:text-gray-400";
+  "w-full rounded-md border border-field-border bg-field-bg px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-2 disabled:text-ink-faint";
 
 // Combobox điều khiển hoàn toàn bằng bàn phím:
 //  - gõ để lọc; ↑/↓ di chuyển; Enter/Tab chọn mục đang tô sáng rồi cho focus đi tiếp;

@@ -63,10 +63,11 @@ const CRM_WARNING_MESSAGES: Record<string, string> = {
 };
 
 function ReadField({ label, value }: { label: string; value: string | number | null | undefined }) {
+  const empty = value === null || value === undefined || value === "";
   return (
-    <div>
-      <p className="text-xs font-medium text-ink-soft">{label}</p>
-      <p className="text-sm text-ink">{value === null || value === undefined || value === "" ? "—" : value}</p>
+    <div className="leading-tight">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">{label}</p>
+      <p className={`text-[13px] ${empty ? "text-ink-faint" : "text-ink"}`}>{empty ? "—" : value}</p>
     </div>
   );
 }
@@ -83,13 +84,15 @@ const ICON: Record<string, ReactNode> = {
 };
 
 type Accent = "slate" | "violet" | "teal" | "amber" | "rose" | "green";
-const ZONE_ACCENT: Record<Accent, { bar: string; chip: string }> = {
-  slate: { bar: "border-l-slate-400", chip: "bg-slate-100 text-slate-700" },
-  violet: { bar: "border-l-violet-400", chip: "bg-violet-100 text-violet-700" },
-  teal: { bar: "border-l-teal-400", chip: "bg-teal-100 text-teal-700" },
-  amber: { bar: "border-l-amber-400", chip: "bg-amber-100 text-amber-800" },
-  rose: { bar: "border-l-rose-400", chip: "bg-rose-100 text-rose-700" },
-  green: { bar: "border-l-green-500", chip: "bg-green-100 text-green-700" },
+// Mỗi vùng dữ liệu = 1 màu riêng: viền trái đậm + thanh tiêu đề tô nền màu nhạt
+// + icon nền màu. Thân vùng để trắng để các ô nhập (nền lõm) nổi bật lên trên đó.
+const ZONE_ACCENT: Record<Accent, { bar: string; head: string; chip: string; ring: string }> = {
+  slate: { bar: "border-l-slate-500", head: "bg-slate-50 text-slate-800 border-slate-200", chip: "bg-slate-600 text-white", ring: "ring-slate-200" },
+  violet: { bar: "border-l-violet-500", head: "bg-violet-50 text-violet-800 border-violet-200", chip: "bg-violet-600 text-white", ring: "ring-violet-200" },
+  teal: { bar: "border-l-teal-500", head: "bg-teal-50 text-teal-800 border-teal-200", chip: "bg-teal-600 text-white", ring: "ring-teal-200" },
+  amber: { bar: "border-l-amber-500", head: "bg-amber-50 text-amber-900 border-amber-200", chip: "bg-amber-500 text-white", ring: "ring-amber-200" },
+  rose: { bar: "border-l-rose-500", head: "bg-rose-50 text-rose-800 border-rose-200", chip: "bg-rose-600 text-white", ring: "ring-rose-200" },
+  green: { bar: "border-l-green-600", head: "bg-green-50 text-green-800 border-green-200", chip: "bg-green-600 text-white", ring: "ring-green-200" },
 };
 
 function Zone({
@@ -106,20 +109,20 @@ function Zone({
   const [open, setOpen] = useState(defaultOpen);
   const a = ZONE_ACCENT[accent];
   return (
-    <section className={`rounded-lg border border-l-4 border-line ${a.bar} bg-surface shadow-sm`}>
-      <header className="flex items-center gap-2 border-b border-line px-3.5 py-2">
-        <span className={`flex h-5 w-5 items-center justify-center rounded ${a.chip}`}>{icon}</span>
-        <h3 className="text-sm font-semibold text-ink">{title}</h3>
-        <div className="ml-auto flex items-center gap-2">
+    <section className={`overflow-hidden rounded-lg border border-l-4 border-line ${a.bar} bg-surface shadow-sm ring-1 ring-inset ${a.ring}`}>
+      <header className={`flex items-center gap-2 border-b px-3 py-1.5 ${a.head}`}>
+        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ${a.chip}`}>{icon}</span>
+        <h3 className="text-[13px] font-bold uppercase tracking-wide">{title}</h3>
+        <div className="ml-auto flex items-center gap-1.5">
           {actions}
           {collapsible && (
-            <button type="button" onClick={() => setOpen((v) => !v)} className="text-xs font-medium text-ink-soft hover:text-ink">
+            <button type="button" onClick={() => setOpen((v) => !v)} className="text-xs font-semibold opacity-80 hover:opacity-100">
               {open ? "Thu gọn" : "Mở rộng"}
             </button>
           )}
         </div>
       </header>
-      {open && <div className="p-3.5">{children}</div>}
+      {open && <div className="px-3 py-2.5">{children}</div>}
     </section>
   );
 }
@@ -326,8 +329,8 @@ export function KhieuNaiDetail({
   return (
     <div className="flex h-full min-h-0 flex-col bg-bg">
       {/* ===== TIÊU ĐỀ: trạng thái · kết quả · tốc độ · nút xử lý ===== */}
-      <div className="shrink-0 border-b border-line bg-surface">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
+      <div className="shrink-0 border-b border-line-strong bg-surface">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2">
           <StatusBadge trangThai={kn.trang_thai} />
           <FlagBadge value={kn.cam_co} />
           <button
@@ -359,7 +362,7 @@ export function KhieuNaiDetail({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line px-4 py-2 text-xs">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line px-3 py-1.5 text-xs">
           <NextStepChip kn={kn} />
           <NguoiPhuTrachInline kn={kn} user={user} canEdit={canPhuTrach} onSaved={invalidate} nameOf={nameOf} />
           <span className="text-ink-soft">· Tiếp nhận {fmtVN.dateTime(kn.ngay_tiep_nhan)}</span>
@@ -389,9 +392,9 @@ export function KhieuNaiDetail({
       </div>
 
       {/* ===== THÂN: DASHBOARD TRA CỨU (chỉ đọc) — nhập liệu qua nút ===== */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <div className="flex flex-col gap-3">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-bg p-2.5">
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+          <div className="flex flex-col gap-2">
             <Zone
               accent="slate"
               icon={ICON.doc}
@@ -411,7 +414,7 @@ export function KhieuNaiDetail({
             </Zone>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <Zone
               accent="teal"
               icon={ICON.sync}
@@ -443,7 +446,7 @@ export function KhieuNaiDetail({
                 </>
               }
             >
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div>
                   <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Nguyên nhân lỗi · điều kiện đóng ca</p>
                   <TnCskhSection kn={kn} editable={false} onSaved={invalidate} />
@@ -498,9 +501,9 @@ function ZoneBtn({ onClick, children }: { onClick: () => void; children: ReactNo
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md border border-line bg-white px-2 py-0.5 text-xs font-medium text-accent hover:bg-accent-soft"
+      className="rounded-md border border-black/10 bg-white/95 px-2 py-0.5 text-xs font-semibold shadow-sm hover:bg-white"
     >
-      {children}
+      ✎ {children}
     </button>
   );
 }
@@ -666,7 +669,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
   if (!editable) {
     return (
       <>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
           <ReadField label="Tên khách hàng" value={kn.ten_khach} />
           <ReadField label="Số điện thoại" value={kn.sdt_khach} />
           <ReadField label="ID Lada" value={kn.id_lada} />
@@ -683,10 +686,10 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
           <ReadField label="Nhóm vấn đề" value={kn.nhom_van_de} />
           <ReadField label="Vấn đề đầu vào" value={kn.van_de_dau_vao} />
         </div>
-        <div className="mt-3">
+        <div className="mt-2">
           <ReadField label="Thông tin ban đầu" value={kn.thong_tin_ban_dau} />
         </div>
-        <div className="mt-3">
+        <div className="mt-2">
           <ReadField label="Ghi chú người tạo" value={kn.ghi_chu_nguoi_tao} />
         </div>
       </>
@@ -695,7 +698,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
 
   return (
     <>
-      <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <form onSubmit={submit} className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3">
         <Field label="Tên khách hàng">
           <Input value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} />
         </Field>
@@ -887,14 +890,14 @@ function CrmSection({
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-2">
         <ReadField label="Ngày tiếp nhận CRM" value={kn.ngay_tiep_nhan_crm} />
         <ReadField label="Kết quả CRM" value={kn.ket_qua_crm} />
       </div>
-      <div className="mt-3">
+      <div className="mt-2">
         <ReadField label="Thông tin xử lý CRM" value={kn.thong_tin_xu_ly_crm} />
       </div>
-      <div className="mt-3">
+      <div className="mt-2">
         <p className="text-xs font-medium text-ink-soft">Ngày KTV hoàn thành</p>
         {kn.ngay_ktv_hoan_thanh ? (
           <span className="mt-1 inline-block rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-300">
@@ -906,7 +909,7 @@ function CrmSection({
           </span>
         )}
       </div>
-      <div className="mt-3">
+      <div className="mt-2">
         <p className="text-xs font-medium text-ink-soft">Giải trình ĐVBH</p>
         <pre className="mt-1 whitespace-pre-wrap rounded-md bg-gray-50 p-2 text-xs text-ink">{kn.thong_tin_giai_trinh_dvbh || "—"}</pre>
       </div>
@@ -958,7 +961,7 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
   if (!editable) {
     return (
       <>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
           <ReadField label="Lỗi nhà sản xuất" value={translateDanhGia(kn.loi_nha_san_xuat)} />
           <ReadField label="Lỗi lắp đặt" value={translateDanhGia(kn.loi_lap_dat)} />
           <ReadField label="Lỗi thái độ KTV" value={translateDanhGia(kn.loi_thai_do_ktv)} />
@@ -971,7 +974,7 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
   return (
     <>
-      <form onSubmit={submit} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <form onSubmit={submit} className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
         <Field label="Lỗi nhà sản xuất">
           <Select options={DANH_GIA_OPTIONS} value={form.loi_nha_san_xuat} onChange={(e) => setField("loi_nha_san_xuat", e.target.value as DanhGia3)} />
         </Field>
@@ -1049,7 +1052,7 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
   if (!editable) {
     return (
       <>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
           <ReadField label="Đánh giá QL" value={kn.danh_gia_ql} />
           <ReadField label="Giờ xử lý (hệ thống)" value={kn.ql_gio_xu_ly_he_thong ?? gioXuLy} />
           <ReadField label="Ngày hẹn" value={kn.ql_chon_ngay_hen} />
@@ -1063,7 +1066,7 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
 
   return (
     <>
-      <form onSubmit={submit} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <form onSubmit={submit} className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
         <Field label="Đánh giá QL">
           <Select
             options={(danhGiaQlOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
@@ -1145,7 +1148,7 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
   if (!editable) {
     return (
       <>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
           <ReadField label="Bộ phận bàn giao" value={kn.bo_phan_ban_giao} />
           <ReadField label="Mã duyệt đổi linh kiện" value={kn.ma_duyet_doi_linh_kien} />
           <ReadField label="Cảm cờ" value={camCoLabel(kn.cam_co)} />
@@ -1155,7 +1158,7 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
           <ReadField label="Kết quả đổi máy" value={ketQuaDoiMayLabel(kn.ket_qua_doi_may)} />
           <ReadField label="Người xác nhận đổi máy" value={kn.nguoi_xac_nhan_doi_may} />
         </div>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-2">
           <ReadField label="Ghi chú lý do chậm" value={kn.ghi_chu_ly_do_cham} />
           <ReadField label="Giải trình chậm đổi máy" value={kn.giai_trinh_cham_doi_may} />
         </div>
@@ -1165,7 +1168,7 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
   return (
     <>
-      <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <form onSubmit={submit} className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3">
         <Field label="Bộ phận bàn giao">
           <Combobox
             options={(boPhanBanGiaoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}

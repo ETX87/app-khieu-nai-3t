@@ -13,7 +13,7 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 export function Select({ options, placeholder, className = "", ...rest }: SelectProps) {
   return (
     <select
-      className={`w-full rounded-md border border-line bg-white px-2.5 py-1.5 text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:bg-gray-100 disabled:text-gray-400 ${className}`}
+      className={`w-full rounded-md border border-field-border bg-field-bg px-2.5 py-1.5 text-sm text-ink focus:border-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-2 disabled:text-ink-faint ${className}`}
       {...rest}
     >
       {placeholder !== undefined && <option value="">{placeholder}</option>}

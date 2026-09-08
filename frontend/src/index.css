@@ -5,12 +5,19 @@
 :root {
   --ink: #1a2233;
   --ink-soft: #5b6472;
+  --ink-faint: #9198a6;
   --line: #e2e5eb;
+  --line-strong: #cbd2dd;
   --accent: #7c3aed;
   --accent-dark: #5b21b6;
   --accent-soft: #ede9fe;
-  --bg: #f4f6f9;
+  --accent-ink: #5b21b6;
+  --bg: #eef1f6;
   --surface: #ffffff;
+  --surface-2: #f4f6fa;
+  /* Ô nhập liệu: nền lõm + viền rõ để người dùng nhận ra ngay chỗ cần nhập */
+  --field-bg: #f3f6fb;
+  --field-border: #b7c1d1;
 }
 
 html, body, #root {
