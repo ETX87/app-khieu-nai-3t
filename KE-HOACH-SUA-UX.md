@@ -206,6 +206,29 @@ Frontend:
 
 ## Nhật ký thực hiện
 
-| Ngày | Batch/WI | Kết quả tái kiểm thử | Commit |
-|------|----------|----------------------|--------|
-| _(đang cập nhật)_ | | | |
+### Đợt 1 — 08/09/2026 · commit `af1caa6` · nhánh `fix/ux-audit-2026-09`
+
+| WI | Trạng thái | Tái kiểm thử thực tế trên app |
+|----|-----------|------------------------------|
+| WI-05 Schema | ✅ Đạt | `db:migrate:local` sạch; SELECT các cột mới OK; bảng `khieu_nai_lich_su` tồn tại. |
+| WI-01 Combobox bàn phím | ✅ Đạt | Tạo KN: đi hết form chỉ bằng bàn phím (gõ → Tab / gõ → Enter), mọi combobox lưu đúng giá trị, không còn dính chữ. Mọi trường chọn-một nay dùng chung 1 control. |
+| WI-02 An toàn form Tạo | ✅ Đạt | Form trắng → footer báo "Còn thiếu: Tên khách hàng, Nhóm vấn đề, Thông tin ban đầu", nút Tạo mờ. Ngày tiếp nhận mặc định hôm nay, sửa được. Bố cục 6 cụm, địa chỉ 3 cấp cùng hàng. Nháp tự lưu. |
+| WI-03 Đăng nhập & phiên | ✅ Đạt (code) | 401 lần đầu → render `LoginScreen anonymous` (không nhảy Google); 401 giữa phiên → overlay "đăng nhập lại" giữ form; nháp form Tạo phục hồi khi mở lại. |
+| WI-04 Toàn vẹn hồ sơ | ✅ Đạt | Ca "Đã kết thúc": toàn bộ khu chỉ đọc + banner khoá + nút "Mở lại ca" (Admin). Chốt khi `danh_gia_ql` trống → nút xác nhận mờ + thông báo. Chốt hợp lệ → `trang_thai=Da ket thuc`, `ql_gio_xu_ly_he_thong=73.6` (tự tính), lịch sử ghi `chuyen_trang_thai`. Hủy → bắt chọn lý do; DB lưu `ly_do_huy/nguoi_huy/ngay_huy` + lịch sử `huy`. |
+| WI-06 Người phụ trách | ✅ Đạt | Tạo KN → tự gán người tạo; khối "Người phụ trách" + nút "Nhận ca / Gỡ"; Trang chủ lọc "Ca tôi phụ trách" đúng. |
+| WI-07 Trang chủ theo vai trò | ⚠️ Đạt một phần | 6 KPI (thêm Chờ chốt / Đã hủy). Khối "Việc của tôi": QL → ca "Chờ chốt"; TN CSKH → ca đủ 4 lỗi; khác → ca mình phụ trách — kiểm thử QL + Admin OK. **Còn thiếu:** KPI bấm để mở Danh sách đã lọc (chưa nối điều hướng chéo module); huy hiệu chờ duyệt cho Admin. |
+| WI-10 Giờ xử lý tự tính | ✅ Đạt | Khu Đánh giá QL không còn ô nhập tay; hiện "Giờ xử lý (hệ thống)" + chú thích; số chốt lại khi Chốt. |
+| WI-13 Đồng bộ ca tồn CRM | ✅ Đạt (UI) | Nút "Đồng bộ n ca tồn CRM" hiện trên Trang chủ với Admin/QL, gọi `/dong-bo-cac-ca-ton`. (Chưa test kết quả vì DVBH key giả ở local.) |
+| WI-08 Danh sách | ⚠️ Đạt một phần | Backend đã nhận filter `muc_do/nhom_van_de/tu_ngay/den_ngay/chua_dong_bo/nguoi_phu_trach` + `sort/dir`; ô tìm quét thêm CRM id & SĐT; tiện ích `formatVN` dùng chung. **Còn thiếu:** UI hàng lọc chip, cột mới (Mức độ màu / Chỉ báo / Cập nhật tương đối), gộp cột, chọn cỡ trang, sửa cột "KTV hoàn thành" 3 trạng thái. |
+| Phụ (D11/D12/D13/D14/T1/T2) | ✅ Đạt | T1 sửa cùng WI-01; T2 có UI (WI-13); D12 "Cảm cờ" hiện "Không cờ"; D13 tiến trình textarea + tên người + gộp lịch sử; D14 đổi tên "Đánh giá nguyên nhân lỗi"; D11 giữ 2 trường + hint phân biệt. |
+
+### Còn lại cho đợt sau (P1 chưa làm)
+
+| WI | Nội dung |
+|----|----------|
+| WI-08 (phần UI) | Hàng lọc chip + cột mới + mật độ + sắp xếp + cỡ trang trên màn Danh sách. |
+| WI-07 (phần còn) | KPI bấm được (điều hướng chéo module) + huy hiệu chờ duyệt. |
+| WI-09 (phần còn) | Thu gọn khu theo trạng thái + thanh "Lưu tất cả" / cảnh báo bỏ dở toàn trang + bẫy focus modal. (Đã xong: copy mã đơn, đổi tên khu, dịch mã, tiến trình textarea, header, thứ tự khu.) |
+| WI-11 | Cấu hình: lọc Đang dùng/Đã ẩn + công tắc bật–tắt + undo + ô tìm + đếm. |
+| WI-12 | Người dùng: hộp sửa có Lưu + xác nhận Admin/Khoá + "Duyệt & gán vai trò" + khoá dòng của mình + Admin cuối + cột "Đăng nhập gần nhất". |
+| WI-14, WI-15 (P2) | Icon hệ thống, bottom nav gọn, chế độ tối. |
