@@ -184,6 +184,59 @@ function NextStepChip({ kn }: { kn: KhieuNai }) {
   return <span className={`rounded-md px-2 py-1 text-xs font-semibold ${cls}`}>{text}</span>;
 }
 
+function FlagBadge({ value }: { value: string | null | undefined }) {
+  if (value === "Co do") return <span className="rounded-md bg-red-600 px-2 py-0.5 text-xs font-bold text-white">⚑ CỜ ĐỎ</span>;
+  if (value === "Co vang") return <span className="rounded-md bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">⚑ CỜ VÀNG</span>;
+  return null;
+}
+
+function CamCoButtons({ kn, canEdit, onSaved }: { kn: KhieuNai; canEdit: boolean; onSaved: () => void }) {
+  const { showToast } = useToast();
+  const m = useMutation({
+    mutationFn: (v: string) => api.patch(`/khieu-nai/${kn.id}`, { cam_co: v }),
+    onSuccess: (_d, v) => {
+      showToast(v === "Khong co" ? "Đã bỏ cờ" : "Đã cắm cờ", "success");
+      onSaved();
+    },
+    onError: (e) => showToast(e instanceof ApiError ? `Lỗi: ${e.code}` : "Không cập nhật được cờ", "error"),
+  });
+  const cur = kn.cam_co ?? "Khong co";
+  if (!canEdit) return <FlagBadge value={cur} />;
+
+  const base = "rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset transition-colors disabled:opacity-50";
+  return (
+    <span className="flex items-center gap-1">
+      <span className="text-xs font-medium text-ink-soft">Cắm cờ:</span>
+      <button
+        type="button"
+        disabled={m.isPending}
+        onClick={() => m.mutate("Co vang")}
+        className={`${base} ${cur === "Co vang" ? "bg-amber-500 text-white ring-amber-500" : "bg-white text-amber-700 ring-amber-400 hover:bg-amber-50"}`}
+      >
+        ⚑ Cờ vàng
+      </button>
+      <button
+        type="button"
+        disabled={m.isPending}
+        onClick={() => m.mutate("Co do")}
+        className={`${base} ${cur === "Co do" ? "bg-red-600 text-white ring-red-600" : "bg-white text-red-700 ring-red-400 hover:bg-red-50"}`}
+      >
+        ⚑ Cờ đỏ
+      </button>
+      {cur !== "Khong co" && (
+        <button
+          type="button"
+          disabled={m.isPending}
+          onClick={() => m.mutate("Khong co")}
+          className={`${base} bg-white text-ink-soft ring-line hover:bg-gray-50`}
+        >
+          Bỏ cờ
+        </button>
+      )}
+    </span>
+  );
+}
+
 function dongCaChecklist(kn: KhieuNai) {
   return [
     { label: "Lỗi NSX", ok: kn.loi_nha_san_xuat !== "Chua danh gia" },
@@ -276,6 +329,7 @@ export function KhieuNaiDetail({
       <div className="shrink-0 border-b border-line bg-surface">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
           <StatusBadge trangThai={kn.trang_thai} />
+          <FlagBadge value={kn.cam_co} />
           <button
             type="button"
             onClick={copyId}
@@ -305,11 +359,14 @@ export function KhieuNaiDetail({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-2 text-xs">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line px-4 py-2 text-xs">
           <NextStepChip kn={kn} />
           <NguoiPhuTrachInline kn={kn} user={user} canEdit={canPhuTrach} onSaved={invalidate} nameOf={nameOf} />
           <span className="text-ink-soft">· Tiếp nhận {fmtVN.dateTime(kn.ngay_tiep_nhan)}</span>
           <span className="text-ink-soft">· Cập nhật {fmtVN.relative(kn.ngay_thay_doi)}</span>
+          <div className="ml-auto">
+            <CamCoButtons kn={kn} canEdit={canXuLyDoiMay} onSaved={invalidate} />
+          </div>
         </div>
 
         {dongCaBlocked && (
@@ -1047,7 +1104,6 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
   const [form, setForm] = useState({
     bo_phan_ban_giao: kn.bo_phan_ban_giao ?? "",
     ma_duyet_doi_linh_kien: kn.ma_duyet_doi_linh_kien ?? "",
-    cam_co: kn.cam_co ?? "Khong co",
     ghi_chu_ly_do_cham: kn.ghi_chu_ly_do_cham ?? "",
     id_lada_phat_sinh: kn.id_lada_phat_sinh ?? "",
     ngay_ghi_nhan_doi_may: kn.ngay_ghi_nhan_doi_may ?? "",
@@ -1061,7 +1117,7 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
   const serverForm = {
     bo_phan_ban_giao: kn.bo_phan_ban_giao ?? "", ma_duyet_doi_linh_kien: kn.ma_duyet_doi_linh_kien ?? "",
-    cam_co: kn.cam_co ?? "Khong co", ghi_chu_ly_do_cham: kn.ghi_chu_ly_do_cham ?? "",
+    ghi_chu_ly_do_cham: kn.ghi_chu_ly_do_cham ?? "",
     id_lada_phat_sinh: kn.id_lada_phat_sinh ?? "", ngay_ghi_nhan_doi_may: kn.ngay_ghi_nhan_doi_may ?? "",
     ngay_dong_doi_may: kn.ngay_dong_doi_may ?? "", giai_trinh_cham_doi_may: kn.giai_trinh_cham_doi_may ?? "",
     ket_qua_doi_may: kn.ket_qua_doi_may ?? "", nguoi_xac_nhan_doi_may: kn.nguoi_xac_nhan_doi_may ?? "",
@@ -1120,9 +1176,10 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
         <Field label="Mã duyệt đổi linh kiện">
           <Input value={form.ma_duyet_doi_linh_kien} onChange={(e) => setField("ma_duyet_doi_linh_kien", e.target.value)} />
         </Field>
-        <Field label="Cảm cờ">
-          <Select options={CAM_CO_OPTIONS} value={form.cam_co} onChange={(e) => setField("cam_co", e.target.value)} />
-        </Field>
+        <div className="text-xs text-ink-soft">
+          <span className="mb-1 block font-medium">Cắm cờ</span>
+          <span>Dùng nút cắm cờ ở đầu popup.</span>
+        </div>
         <Field label="ID Lada phát sinh">
           <Input value={form.id_lada_phat_sinh} onChange={(e) => setField("id_lada_phat_sinh", e.target.value)} />
         </Field>
