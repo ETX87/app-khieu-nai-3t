@@ -222,13 +222,22 @@ Frontend:
 | WI-08 Danh sách | ⚠️ Đạt một phần | Backend đã nhận filter `muc_do/nhom_van_de/tu_ngay/den_ngay/chua_dong_bo/nguoi_phu_trach` + `sort/dir`; ô tìm quét thêm CRM id & SĐT; tiện ích `formatVN` dùng chung. **Còn thiếu:** UI hàng lọc chip, cột mới (Mức độ màu / Chỉ báo / Cập nhật tương đối), gộp cột, chọn cỡ trang, sửa cột "KTV hoàn thành" 3 trạng thái. |
 | Phụ (D11/D12/D13/D14/T1/T2) | ✅ Đạt | T1 sửa cùng WI-01; T2 có UI (WI-13); D12 "Cảm cờ" hiện "Không cờ"; D13 tiến trình textarea + tên người + gộp lịch sử; D14 đổi tên "Đánh giá nguyên nhân lỗi"; D11 giữ 2 trường + hint phân biệt. |
 
-### Còn lại cho đợt sau (P1 chưa làm)
+### Đợt 2 — 08/09/2026 · commit `f7f9caa`
+
+| WI | Trạng thái | Tái kiểm thử thực tế trên app |
+|----|-----------|------------------------------|
+| WI-08 Danh sách (UI) | ✅ Đạt | Hàng lọc (trạng thái/mức độ/nhóm vấn đề/khoảng ngày/chưa đồng bộ CRM/ca của tôi) lưu localStorage; lọc `Mức độ = Nghiêm trọng` → đúng 1 kết quả + "Xoá lọc (1)". Cột mới: Mã·Model·Lada (2 dòng), Khách/Tỉnh, Mức độ có màu, Chỉ báo ("Chờ đánh giá"/"Sẵn sàng chốt"…), Cập nhật tương đối. "KTV hoàn thành" hiện "Không áp dụng" khi không có CRM id. Sắp xếp + cỡ trang. Bảng dùng hết chiều rộng. |
+| WI-07 KPI + huy hiệu | ✅ Đạt | Bấm KPI "Đang xử lý" ở Trang chủ → nhảy sang Danh sách đã lọc đúng trạng thái. Banner "1 người dùng đang chờ duyệt" (Admin) → bấm mở màn Người dùng. |
+| WI-12 Người dùng | ✅ Đạt | Bảng bỏ select tự-lưu; "Duyệt & gán vai trò" một chạm → pending1@3t.vn thành CSKH + Đã duyệt (nút Lưu mờ khi chưa gán vai trò). Dòng tài khoản đang đăng nhập: nút "Sửa" bị vô hiệu. API tự-hạ chính mình → 400 `CANNOT_MODIFY_SELF`. Có cột "Đăng nhập gần nhất" + ô tìm. Xác nhận gõ "xac nhan" khi nâng Admin / khoá. Chặn Admin cuối (BE `LAST_ADMIN`). |
+| WI-11 Cấu hình | ✅ Đạt | Bộ lọc "Đang dùng / Đã ẩn / Tất cả" + đếm "15 mục" + ô tìm trong tab. Ẩn 1 mục → xuất hiện ở tab "Đã ẩn" với nút "Bật lại" (hết cửa một chiều). Endpoint `/options/usage` để đếm tham chiếu. |
+| X7 Modal | ✅ Đạt | Bẫy focus (Tab vòng trong modal) + khoá cuộn nền + trả focus khi đóng + đóng khi bấm nền. Mở Chi tiết KN — không lỗi console. |
+
+### Còn lại (đợt 3)
 
 | WI | Nội dung |
 |----|----------|
-| WI-08 (phần UI) | Hàng lọc chip + cột mới + mật độ + sắp xếp + cỡ trang trên màn Danh sách. |
-| WI-07 (phần còn) | KPI bấm được (điều hướng chéo module) + huy hiệu chờ duyệt. |
-| WI-09 (phần còn) | Thu gọn khu theo trạng thái + thanh "Lưu tất cả" / cảnh báo bỏ dở toàn trang + bẫy focus modal. (Đã xong: copy mã đơn, đổi tên khu, dịch mã, tiến trình textarea, header, thứ tự khu.) |
-| WI-11 | Cấu hình: lọc Đang dùng/Đã ẩn + công tắc bật–tắt + undo + ô tìm + đếm. |
-| WI-12 | Người dùng: hộp sửa có Lưu + xác nhận Admin/Khoá + "Duyệt & gán vai trò" + khoá dòng của mình + Admin cuối + cột "Đăng nhập gần nhất". |
-| WI-14, WI-15 (P2) | Icon hệ thống, bottom nav gọn, chế độ tối. |
+| WI-09 (phần còn) | Thu gọn khu Chi tiết theo trạng thái + nhãn "đã điền n trường"; thanh dính "n thay đổi chưa lưu · Lưu tất cả" + chặn rời khi còn dở. (Đã xong: copy mã đơn, đổi tên khu, dịch mã, tiến trình textarea + tên người, header, thứ tự khu, bẫy focus modal.) |
+| WI-14 (P2) | Icon hệ thống cho sidebar/KPI; bottom nav mobile bỏ "Thêm" khi ≤3 mục + thêm "Tài khoản". |
+| WI-15 (P2) | Chế độ tối (token đã sẵn) + công tắc Sáng/Tối/Theo hệ thống. |
+| S4 (P2) | Nhóm 14 tab Cấu hình theo chủ đề. |
+| U3 (P2) | Mời người dùng trước (tiền cấp quyền email). |
