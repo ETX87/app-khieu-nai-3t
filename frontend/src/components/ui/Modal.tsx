@@ -5,10 +5,10 @@ interface ModalProps {
   onClose: () => void;
   title?: ReactNode;
   children: ReactNode;
-  width?: "md" | "lg" | "xl";
+  width?: "md" | "lg" | "xl" | "full";
 }
 
-const WIDTH_CLASSES: Record<NonNullable<ModalProps["width"]>, string> = {
+const WIDTH_CLASSES: Record<"md" | "lg" | "xl", string> = {
   md: "max-w-lg",
   lg: "max-w-3xl",
   xl: "max-w-5xl",
@@ -70,6 +70,29 @@ export function Modal({ open, onClose, title, children, width = "lg" }: ModalPro
   }, [open, onClose]);
 
   if (!open) return null;
+
+  // "full": popup gần toàn màn hình (~95% diện tích), không có thanh tiêu đề mặc định —
+  // nội dung con tự dựng bố cục (header cố định + vùng cuộn). Vẫn giữ bẫy focus / khoá cuộn / Esc.
+  if (width === "full") {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-3"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
+          className="flex h-[95vh] w-[97vw] max-w-[1700px] flex-col overflow-hidden rounded-lg bg-surface shadow-2xl outline-none"
+        >
+          {children}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -321,7 +321,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
         />
       </Modal>
 
-      <Modal open={!!detailId} onClose={closeDetail} title={detailId ? `Chi tiết ${detailId}` : ""} width="xl">
+      <Modal open={!!detailId} onClose={closeDetail} width="full">
         {detailId && (
           <KhieuNaiDetail
             id={detailId}

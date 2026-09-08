@@ -25,7 +25,6 @@ function useRegisterDirty(id: string, isDirty: boolean, save: () => Promise<unkn
   useEffect(() => () => ctx?.setDirty(id, false), [ctx, id]);
 }
 import { useCreateSettingsOption, useSettingsOptions } from "../api/useSettingsOptions";
-import { Card } from "../components/ui/Card";
 import { Btn } from "../components/ui/Btn";
 import { Field, Input, Textarea } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
@@ -93,6 +92,129 @@ function ReadField({ label, value }: { label: string; value: string | number | n
   );
 }
 
+// ---------- Bố cục Chi tiết: vùng dữ liệu có màu, ô dữ liệu khoá nổi bật ----------
+
+const ICON: Record<string, ReactNode> = {
+  doc: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2h9l5 5v15H6z" /><path d="M15 2v5h5M9 13h6M9 17h6" /></svg>,
+  log: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4l3 2" /><circle cx="12" cy="12" r="9" /></svg>,
+  sync: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5" /></svg>,
+  swap: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" /></svg>,
+  scale: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v18M5 7h14M7 7l-3 6a3 3 0 0 0 6 0zM17 7l-3 6a3 3 0 0 0 6 0z" /></svg>,
+  check: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6 9 17l-5-5" /></svg>,
+};
+
+type Accent = "slate" | "violet" | "teal" | "amber" | "rose" | "green";
+const ZONE_ACCENT: Record<Accent, { bar: string; chip: string }> = {
+  slate: { bar: "border-l-slate-400", chip: "bg-slate-100 text-slate-700" },
+  violet: { bar: "border-l-violet-400", chip: "bg-violet-100 text-violet-700" },
+  teal: { bar: "border-l-teal-400", chip: "bg-teal-100 text-teal-700" },
+  amber: { bar: "border-l-amber-400", chip: "bg-amber-100 text-amber-800" },
+  rose: { bar: "border-l-rose-400", chip: "bg-rose-100 text-rose-700" },
+  green: { bar: "border-l-green-500", chip: "bg-green-100 text-green-700" },
+};
+
+function Zone({
+  accent, icon, title, actions, children, collapsible, defaultOpen = true,
+}: {
+  accent: Accent;
+  icon: ReactNode;
+  title: string;
+  actions?: ReactNode;
+  children: ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const a = ZONE_ACCENT[accent];
+  return (
+    <section className={`rounded-lg border border-l-4 border-line ${a.bar} bg-surface shadow-sm`}>
+      <header className="flex items-center gap-2 border-b border-line px-3.5 py-2">
+        <span className={`flex h-5 w-5 items-center justify-center rounded ${a.chip}`}>{icon}</span>
+        <h3 className="text-sm font-semibold text-ink">{title}</h3>
+        <div className="ml-auto flex items-center gap-2">
+          {actions}
+          {collapsible && (
+            <button type="button" onClick={() => setOpen((v) => !v)} className="text-xs font-medium text-ink-soft hover:text-ink">
+              {open ? "Thu gọn" : "Mở rộng"}
+            </button>
+          )}
+        </div>
+      </header>
+      {open && <div className="p-3.5">{children}</div>}
+    </section>
+  );
+}
+
+const TILE_TONE: Record<string, string> = {
+  gray: "bg-gray-50 text-ink ring-gray-200",
+  blue: "bg-blue-50 text-blue-800 ring-blue-200",
+  violet: "bg-violet-50 text-violet-800 ring-violet-200",
+  amber: "bg-amber-50 text-amber-900 ring-amber-200",
+  red: "bg-red-50 text-red-800 ring-red-200",
+  green: "bg-green-50 text-green-800 ring-green-200",
+};
+function mucDoTone(v: string | null): "red" | "amber" | "blue" | "gray" {
+  if (!v) return "gray";
+  if (/nghiêm trọng|gấp/i.test(v)) return "red";
+  if (/trung bình|trung binh/i.test(v)) return "amber";
+  if (/quà tặng|qua tang/i.test(v)) return "blue";
+  return "gray";
+}
+
+function KeyTile({
+  label, value, tone = "gray", strong, mono,
+}: {
+  label: string;
+  value: string | null | undefined;
+  tone?: keyof typeof TILE_TONE;
+  strong?: boolean;
+  mono?: boolean;
+}) {
+  const empty = !value || value === "";
+  return (
+    <div className={`rounded-md px-2.5 py-1 ring-1 ring-inset ${TILE_TONE[tone] ?? TILE_TONE.gray} ${empty ? "opacity-45" : ""}`}>
+      <span className="block text-[10px] font-medium uppercase leading-none tracking-wide opacity-70">{label}</span>
+      <span className={`block leading-tight ${strong ? "text-sm font-semibold" : "text-[13px] font-medium"} ${mono ? "font-mono" : ""}`}>
+        {empty ? "—" : value}
+      </span>
+    </div>
+  );
+}
+
+function NextStepChip({ kn }: { kn: KhieuNai }) {
+  let text = "";
+  let cls = "bg-gray-100 text-ink-soft";
+  if (kn.trang_thai === "Dang xu ly") {
+    const du =
+      kn.loi_nha_san_xuat !== "Chua danh gia" &&
+      kn.loi_lap_dat !== "Chua danh gia" &&
+      kn.loi_thai_do_ktv !== "Chua danh gia" &&
+      kn.loi_quy_trinh_nskx !== "Chua danh gia" &&
+      (kn.ket_luan_khieu_nai ?? "Chua danh gia") !== "Chua danh gia";
+    if (du) { text = "Bước kế: TN CSKH đóng ca"; cls = "bg-blue-100 text-blue-800"; }
+    else { text = "Bước kế: đánh giá đủ 4 lỗi + kết luận"; cls = "bg-amber-100 text-amber-900"; }
+  } else if (kn.trang_thai === "Cho chot ket thuc") {
+    text = "Bước kế: QL chốt kết thúc"; cls = "bg-violet-100 text-violet-800";
+  } else if (kn.trang_thai === "Da ket thuc") {
+    text = "Đã hoàn tất"; cls = "bg-green-100 text-green-800";
+  } else if (kn.trang_thai === "Huy") {
+    text = `Đã hủy${kn.ly_do_huy ? ": " + kn.ly_do_huy : ""}`; cls = "bg-gray-200 text-ink-soft";
+  } else {
+    text = "Chờ tiếp nhận";
+  }
+  return <span className={`rounded-md px-2 py-1 text-xs font-semibold ${cls}`}>{text}</span>;
+}
+
+function dongCaChecklist(kn: KhieuNai) {
+  return [
+    { label: "Lỗi NSX", ok: kn.loi_nha_san_xuat !== "Chua danh gia" },
+    { label: "Lỗi lắp đặt", ok: kn.loi_lap_dat !== "Chua danh gia" },
+    { label: "Lỗi thái độ KTV", ok: kn.loi_thai_do_ktv !== "Chua danh gia" },
+    { label: "Lỗi quy trình NSKX", ok: kn.loi_quy_trinh_nskx !== "Chua danh gia" },
+    { label: "Kết luận", ok: kn.ket_luan_khieu_nai !== "Chua danh gia" && kn.ket_luan_khieu_nai !== null },
+  ];
+}
+
 export function KhieuNaiDetail({
   id,
   user,
@@ -131,6 +253,7 @@ export function KhieuNaiDetail({
     onDirtyChange?.(dirtyIds.length > 0);
   }, [dirtyIds.length, onDirtyChange]);
   const [savingAll, setSavingAll] = useState(false);
+  const nameOf = useNameMap();
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["khieu-nai", id] });
@@ -172,51 +295,168 @@ export function KhieuNaiDetail({
     );
   };
 
+  const checklist = dongCaChecklist(kn);
+  const dongCaBlocked =
+    (user.vai_tro === "TN CSKH" || user.vai_tro === "Admin") &&
+    kn.trang_thai === "Dang xu ly" &&
+    !checklist.every((c) => c.ok);
+  const hasDoiMay = !!(
+    kn.bo_phan_ban_giao || kn.ma_duyet_doi_linh_kien || kn.id_lada_phat_sinh ||
+    kn.ngay_ghi_nhan_doi_may || kn.ket_qua_doi_may || (kn.cam_co && kn.cam_co !== "Khong co")
+  );
+
   return (
     <DirtyCtx.Provider value={dirtyReg}>
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <StatusBadge trangThai={kn.trang_thai} />
-        <button
-          type="button"
-          onClick={copyId}
-          className="rounded border border-line px-2 py-0.5 font-mono text-xs text-ink-soft hover:bg-gray-50"
-          title="Sao chép mã đơn"
-        >
-          {kn.id} ⧉
-        </button>
-        <span className="text-xs text-ink-soft">Tiếp nhận {fmtVN.dateTime(kn.ngay_tiep_nhan)}</span>
-        <span className="text-xs text-ink-soft">· Cập nhật {fmtVN.relative(kn.ngay_thay_doi)}</span>
-        <span className="text-xs text-ink-soft">· Người tạo {kn.nguoi_tao ?? "—"}</span>
+      <div className="flex h-full min-h-0 flex-col bg-bg">
+        {/* ===== HEADER CỐ ĐỊNH ===== */}
+        <div className="shrink-0 border-b border-line bg-surface">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
+            <StatusBadge trangThai={kn.trang_thai} />
+            <button
+              type="button"
+              onClick={copyId}
+              className="rounded border border-line px-2 py-0.5 font-mono text-xs text-ink-soft hover:bg-gray-50"
+              title="Sao chép mã đơn"
+            >
+              {kn.id} ⧉
+            </button>
+            <NextStepChip kn={kn} />
+            <span className="text-xs text-ink-soft">{fmtVN.gioXuLy(kn.ngay_tiep_nhan, isClosed ? kn.ngay_ket_thuc : null)} xử lý</span>
+
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              {dirtyIds.length > 0 && (
+                <span className="flex items-center gap-2 rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900 ring-1 ring-inset ring-amber-300">
+                  {dirtyIds.length} khu chưa lưu
+                  <Btn variant="primary" size="sm" disabled={savingAll} onClick={saveAll}>
+                    {savingAll ? "Đang lưu..." : "Lưu tất cả"}
+                  </Btn>
+                </span>
+              )}
+              <ActionBar kn={kn} user={user} onDone={invalidate} onError={(m) => showToast(m, "error")} />
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Đóng"
+                className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Ô dữ liệu khoá — nắm nhanh trong 2–3s */}
+          <div className="flex flex-wrap gap-1.5 border-t border-line px-4 py-2">
+            <KeyTile label="Khách hàng" value={kn.ten_khach} tone="blue" strong />
+            <KeyTile label="SĐT" value={kn.sdt_khach} mono />
+            <KeyTile label="Mức độ" value={kn.muc_do} tone={mucDoTone(kn.muc_do)} strong />
+            <KeyTile label="Phân loại" value={kn.phan_loai_kh} tone={kn.phan_loai_kh === "S.VIP" ? "violet" : "gray"} />
+            <KeyTile label="Nhóm yêu cầu" value={kn.nhom_yeu_cau} tone="blue" />
+            <KeyTile label="Nhóm vấn đề" value={kn.nhom_van_de} tone="blue" />
+            <KeyTile label="Vấn đề đầu vào" value={kn.van_de_dau_vao} />
+            <KeyTile label="Phụ trách" value={kn.nguoi_phu_trach ? nameOf(kn.nguoi_phu_trach) : null} />
+            <KeyTile label="Tiếp nhận" value={fmtVN.dateTime(kn.ngay_tiep_nhan)} />
+          </div>
+
+          {(kn.thong_tin_ban_dau || kn.ket_qua_crm) && (
+            <div className="flex flex-wrap gap-x-6 gap-y-0.5 border-t border-line px-4 py-1.5 text-xs">
+              {kn.thong_tin_ban_dau && (
+                <span className="text-ink"><span className="font-semibold text-ink-soft">Mô tả ban đầu: </span>{kn.thong_tin_ban_dau}</span>
+              )}
+              {kn.ket_qua_crm && (
+                <span className="text-ink"><span className="font-semibold text-ink-soft">Kết quả CRM: </span>{kn.ket_qua_crm}</span>
+              )}
+            </div>
+          )}
+
+          {dongCaBlocked && (
+            <div className="border-t border-amber-300 bg-amber-50 px-4 py-1.5 text-xs text-amber-900">
+              <span className="font-semibold">Chưa đủ điều kiện đóng ca:</span>{" "}
+              {checklist.map((c) => (
+                <span key={c.label} className={`mr-2 inline-block ${c.ok ? "text-green-700" : "font-medium"}`}>
+                  {c.ok ? "✓" : "✗"} {c.label}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {isClosed && (
+            <div className="flex items-center justify-between border-t border-line bg-gray-100 px-4 py-1.5 text-xs font-medium text-ink-soft">
+              <span>Ca đã kết thúc — chỉ xem. Mọi thay đổi đã bị khoá.</span>
+              {user.vai_tro === "Admin" && <MoLaiButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />}
+            </div>
+          )}
+        </div>
+
+        {/* ===== THÂN: 2 CỘT CUỘN ĐỘC LẬP ===== */}
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:flex-row lg:overflow-hidden">
+          <div className="flex min-h-0 flex-col gap-3 lg:w-[55%] lg:overflow-y-auto lg:pr-1">
+            <Zone
+              accent="slate"
+              icon={ICON.doc}
+              title="Thông tin đầu vào"
+              actions={<NguoiPhuTrachInline kn={kn} user={user} canEdit={canPhuTrach} onSaved={invalidate} nameOf={nameOf} />}
+            >
+              <CustomerInfoSection kn={kn} editable={isCskh} onSaved={invalidate} />
+            </Zone>
+            <Zone accent="violet" icon={ICON.log} title="Tiến trình & lịch sử">
+              <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem={canThemTienTrinh} onSaved={invalidate} />
+            </Zone>
+          </div>
+
+          <div className="flex min-h-0 flex-col gap-3 lg:flex-1 lg:overflow-y-auto lg:pl-1">
+            <Zone accent="teal" icon={ICON.sync} title="Đồng bộ CRM Karofi">
+              <CrmSection kn={kn} user={user} onSaved={invalidate} />
+            </Zone>
+            <Zone accent="amber" icon={ICON.swap} title="Nhánh đổi máy" collapsible defaultOpen={hasDoiMay}>
+              <DoiMaySection kn={kn} editable={canXuLyDoiMay} onSaved={invalidate} />
+            </Zone>
+            <Zone accent="rose" icon={ICON.scale} title="Kết luận & đánh giá">
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Nguyên nhân lỗi · điều kiện đóng ca</p>
+                  <TnCskhSection kn={kn} editable={canDanhGia4Loi} onSaved={invalidate} />
+                </div>
+                <div className="border-t border-line pt-3">
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Đánh giá QL · điều kiện chốt</p>
+                  <QlSection kn={kn} editable={isQl} onSaved={invalidate} />
+                </div>
+              </div>
+            </Zone>
+          </div>
+        </div>
       </div>
-
-      {isClosed && (
-        <div className="flex items-center justify-between rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-ink-soft ring-1 ring-inset ring-line">
-          <span>Ca đã kết thúc — chỉ xem. Mọi thay đổi đã bị khoá.</span>
-          {user.vai_tro === "Admin" && <MoLaiButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />}
-        </div>
-      )}
-
-      <NguoiPhuTrachSection kn={kn} user={user} canEdit={canPhuTrach} onSaved={invalidate} />
-      <CustomerInfoSection kn={kn} editable={isCskh} onSaved={invalidate} />
-      <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem={canThemTienTrinh} onSaved={invalidate} />
-      <CrmSection kn={kn} user={user} onSaved={invalidate} />
-      <DoiMaySection kn={kn} editable={canXuLyDoiMay} onSaved={invalidate} />
-      <TnCskhSection kn={kn} editable={canDanhGia4Loi} onSaved={invalidate} />
-      <QlSection kn={kn} editable={isQl} onSaved={invalidate} />
-
-      {dirtyIds.length > 0 && (
-        <div className="sticky bottom-0 z-10 -mx-5 flex items-center justify-between gap-3 border-t border-amber-300 bg-amber-50 px-5 py-2.5 text-sm text-amber-900">
-          <span>{dirtyIds.length} khu có thay đổi chưa lưu.</span>
-          <Btn variant="primary" size="sm" disabled={savingAll} onClick={saveAll}>
-            {savingAll ? "Đang lưu..." : "Lưu tất cả thay đổi"}
-          </Btn>
-        </div>
-      )}
-
-      <ActionBar kn={kn} user={user} onDone={() => { invalidate(); }} onError={(m) => showToast(m, "error")} onClose={onClose} />
-    </div>
     </DirtyCtx.Provider>
+  );
+}
+
+function NguoiPhuTrachInline({
+  kn, user, canEdit, onSaved, nameOf,
+}: {
+  kn: KhieuNai;
+  user: AppUser;
+  canEdit: boolean;
+  onSaved: () => void;
+  nameOf: (e: string | null | undefined) => string;
+}) {
+  const { showToast } = useToast();
+  const m = useMutation({
+    mutationFn: (email: string | null) => api.post(`/khieu-nai/${kn.id}/phu-trach`, { email }),
+    onSuccess: () => { showToast("Đã cập nhật người phụ trách", "success"); onSaved(); },
+    onError: (e) => showToast(e instanceof ApiError ? `Lỗi: ${e.code}` : "Lỗi", "error"),
+  });
+  const mine = kn.nguoi_phu_trach === user.email;
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-ink-soft">
+      <span>PT: <b className="text-ink">{kn.nguoi_phu_trach ? nameOf(kn.nguoi_phu_trach) : "chưa có"}</b></span>
+      {canEdit && !mine && (
+        <button type="button" disabled={m.isPending} onClick={() => m.mutate(user.email)} className="rounded border border-line px-1.5 py-0.5 font-medium text-accent hover:bg-accent-soft">
+          Nhận
+        </button>
+      )}
+      {canEdit && kn.nguoi_phu_trach && (
+        <button type="button" disabled={m.isPending} onClick={() => m.mutate(null)} className="text-ink-faint hover:text-ink">Gỡ</button>
+      )}
+    </span>
   );
 }
 
@@ -237,34 +477,6 @@ function MoLaiButton({ id, onDone, onError }: { id: string; onDone: () => void; 
     >
       Mở lại ca
     </button>
-  );
-}
-
-function NguoiPhuTrachSection({
-  kn, user, canEdit, onSaved,
-}: { kn: KhieuNai; user: AppUser; canEdit: boolean; onSaved: () => void }) {
-  const { showToast } = useToast();
-  const m = useMutation({
-    mutationFn: (email: string | null) => api.post(`/khieu-nai/${kn.id}/phu-trach`, { email }),
-    onSuccess: () => { showToast("Đã cập nhật người phụ trách", "success"); onSaved(); },
-    onError: (e) => showToast(e instanceof ApiError ? `Lỗi: ${e.code}` : "Lỗi", "error"),
-  });
-  const mine = kn.nguoi_phu_trach === user.email;
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm">
-      <span className="text-xs font-medium text-ink-soft">Người phụ trách:</span>
-      <span className="font-medium text-ink">{kn.nguoi_phu_trach ?? "Chưa có"}</span>
-      {canEdit && !mine && (
-        <Btn size="sm" variant="secondary" disabled={m.isPending} onClick={() => m.mutate(user.email)}>
-          Nhận ca
-        </Btn>
-      )}
-      {canEdit && kn.nguoi_phu_trach && (
-        <Btn size="sm" variant="ghost" disabled={m.isPending} onClick={() => m.mutate(null)}>
-          Gỡ
-        </Btn>
-      )}
-    </div>
   );
 }
 
@@ -347,7 +559,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
 
   if (!editable) {
     return (
-      <Card title="Thông tin khách hàng">
+      <>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <ReadField label="Tên khách hàng" value={kn.ten_khach} />
           <ReadField label="Số điện thoại" value={kn.sdt_khach} />
@@ -371,12 +583,12 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
         <div className="mt-3">
           <ReadField label="Ghi chú người tạo" value={kn.ghi_chu_nguoi_tao} />
         </div>
-      </Card>
+      </>
     );
   }
 
   return (
-    <Card title="Thông tin khách hàng">
+    <>
       <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Field label="Tên khách hàng">
           <Input value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} />
@@ -387,7 +599,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
         <Field label="ID Lada">
           <Input value={form.id_lada} onChange={(e) => setField("id_lada", e.target.value)} />
         </Field>
-        <Field label="Sale khu vực" hint="Gõ để tìm hoặc thêm mới">
+        <Field label="Sale khu vực">
           <Combobox
             options={(saleKhuVucOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
             value={form.sale_khu_vuc}
@@ -399,7 +611,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
         <Field label="Người báo">
           <Input value={form.nguoi_bao} onChange={(e) => setField("nguoi_bao", e.target.value)} />
         </Field>
-        <Field label="Tỉnh" hint="Gõ để tìm hoặc thêm mới">
+        <Field label="Tỉnh">
           <Combobox
             options={(tinhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
             value={form.tinh}
@@ -408,7 +620,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
             onCreate={createTinh}
           />
         </Field>
-        <Field label="Quận/Huyện" hint="Gõ để tìm hoặc thêm mới">
+        <Field label="Quận/Huyện">
           <Combobox
             options={(quanHuyenOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
             value={form.quan_huyen}
@@ -417,7 +629,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
             onCreate={createQuanHuyen}
           />
         </Field>
-        <Field label="Phường/Xã" hint="Gõ để tìm hoặc thêm mới">
+        <Field label="Phường/Xã">
           <Combobox
             options={(phuongXaOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
             value={form.phuong_xa}
@@ -433,7 +645,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
             onChange={(v) => setField("model", v)}
           />
         </Field>
-        <Field label="Hãng" hint="Gõ để tìm hoặc thêm mới">
+        <Field label="Hãng">
           <Combobox
             options={(hangOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
             value={form.hang}
@@ -497,7 +709,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
           </Btn>
         </div>
       </form>
-    </Card>
+    </>
   );
 }
 
@@ -538,7 +750,7 @@ function CrmSection({ kn, user, onSaved }: { kn: KhieuNai; user: AppUser; onSave
   });
 
   return (
-    <Card title="Dữ liệu CRM Karofi">
+    <>
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div className="w-full sm:w-64">
           <Field label="ID CRM Karofi">
@@ -590,7 +802,7 @@ function CrmSection({ kn, user, onSaved }: { kn: KhieuNai; user: AppUser; onSave
         <p className="text-xs font-medium text-ink-soft">Giải trình ĐVBH</p>
         <pre className="mt-1 whitespace-pre-wrap rounded-md bg-gray-50 p-2 text-xs text-ink">{kn.thong_tin_giai_trinh_dvbh || "—"}</pre>
       </div>
-    </Card>
+    </>
   );
 }
 
@@ -638,7 +850,7 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
   if (!editable) {
     return (
-      <Card title="Đánh giá nguyên nhân lỗi">
+      <>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <ReadField label="Lỗi nhà sản xuất" value={translateDanhGia(kn.loi_nha_san_xuat)} />
           <ReadField label="Lỗi lắp đặt" value={translateDanhGia(kn.loi_lap_dat)} />
@@ -646,12 +858,12 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
           <ReadField label="Lỗi quy trình NSKX" value={translateDanhGia(kn.loi_quy_trinh_nskx)} />
           <ReadField label="Kết luận khiếu nại" value={translateDanhGia(kn.ket_luan_khieu_nai)} />
         </div>
-      </Card>
+      </>
     );
   }
 
   return (
-    <Card title="Đánh giá nguyên nhân lỗi">
+    <>
       <form onSubmit={submit} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Field label="Lỗi nhà sản xuất">
           <Select options={DANH_GIA_OPTIONS} value={form.loi_nha_san_xuat} onChange={(e) => setField("loi_nha_san_xuat", e.target.value as DanhGia3)} />
@@ -674,7 +886,7 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
           </Btn>
         </div>
       </form>
-    </Card>
+    </>
   );
 }
 
@@ -730,7 +942,7 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
 
   if (!editable) {
     return (
-      <Card title="Đánh giá QL">
+      <>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <ReadField label="Đánh giá QL" value={kn.danh_gia_ql} />
           <ReadField label="Giờ xử lý (hệ thống)" value={kn.ql_gio_xu_ly_he_thong ?? gioXuLy} />
@@ -739,12 +951,12 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
           <ReadField label="Người đánh giá" value={kn.ql_nguoi_danh_gia} />
           <ReadField label="Ngày đánh giá" value={fmtVN.dateTime(kn.ngay_ql_danh_gia)} />
         </div>
-      </Card>
+      </>
     );
   }
 
   return (
-    <Card title="Đánh giá QL">
+    <>
       <form onSubmit={submit} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Field label="Đánh giá QL">
           <Select
@@ -773,7 +985,7 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
           </Btn>
         </div>
       </form>
-    </Card>
+    </>
   );
 }
 
@@ -828,7 +1040,7 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
   if (!editable) {
     return (
-      <Card title="Nhánh đổi máy">
+      <>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <ReadField label="Bộ phận bàn giao" value={kn.bo_phan_ban_giao} />
           <ReadField label="Mã duyệt đổi linh kiện" value={kn.ma_duyet_doi_linh_kien} />
@@ -843,12 +1055,12 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
           <ReadField label="Ghi chú lý do chậm" value={kn.ghi_chu_ly_do_cham} />
           <ReadField label="Giải trình chậm đổi máy" value={kn.giai_trinh_cham_doi_may} />
         </div>
-      </Card>
+      </>
     );
   }
 
   return (
-    <Card title="Nhánh đổi máy">
+    <>
       <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Field label="Bộ phận bàn giao">
           <Combobox
@@ -907,7 +1119,7 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
           </Btn>
         </div>
       </form>
-    </Card>
+    </>
   );
 }
 
@@ -1001,7 +1213,7 @@ function TienTrinhSection({
   ].sort((a, b) => (a.ts < b.ts ? 1 : -1));
 
   return (
-    <Card title="Tiến trình xử lý & lịch sử">
+    <>
       {canThem && (
         <form onSubmit={submit} className="mb-4 flex flex-col gap-2">
           <Field label="Nội dung ghi chép">
@@ -1031,7 +1243,7 @@ function TienTrinhSection({
           </li>
         ))}
       </ul>
-    </Card>
+    </>
   );
 }
 
@@ -1042,13 +1254,11 @@ function ActionBar({
   user,
   onDone,
   onError,
-  onClose,
 }: {
   kn: KhieuNai;
   user: AppUser;
   onDone: () => void;
   onError: (msg: string) => void;
-  onClose: () => void;
 }) {
   const [confirmChot, setConfirmChot] = useState(false);
   const [huyOpen, setHuyOpen] = useState(false);
@@ -1056,14 +1266,7 @@ function ActionBar({
   const [ghiChuHuy, setGhiChuHuy] = useState("");
 
   const canDongCa = (user.vai_tro === "TN CSKH" || user.vai_tro === "Admin") && kn.trang_thai === "Dang xu ly";
-  const checklist: { label: string; ok: boolean }[] = [
-    { label: "Lỗi nhà sản xuất", ok: kn.loi_nha_san_xuat !== "Chua danh gia" },
-    { label: "Lỗi lắp đặt", ok: kn.loi_lap_dat !== "Chua danh gia" },
-    { label: "Lỗi thái độ KTV", ok: kn.loi_thai_do_ktv !== "Chua danh gia" },
-    { label: "Lỗi quy trình NSKX", ok: kn.loi_quy_trinh_nskx !== "Chua danh gia" },
-    { label: "Kết luận khiếu nại", ok: kn.ket_luan_khieu_nai !== "Chua danh gia" && kn.ket_luan_khieu_nai !== null },
-  ];
-  const dongCaReady = checklist.every((c) => c.ok);
+  const dongCaReady = dongCaChecklist(kn).every((c) => c.ok);
 
   const canChot = (user.vai_tro === "QL" || user.vai_tro === "Admin") && kn.trang_thai === "Cho chot ket thuc";
   const canHuy =
@@ -1095,49 +1298,31 @@ function ActionBar({
     onError: (err) => onError(err instanceof ApiError ? `Hủy thất bại: ${err.code}` : "Hủy thất bại"),
   });
 
-  if (!canDongCa && !canChot && !canHuy) {
-    return (
-      <div className="flex justify-end">
-        <Btn variant="secondary" onClick={onClose}>Đóng</Btn>
-      </div>
-    );
-  }
+  if (!canDongCa && !canChot && !canHuy) return null;
 
   return (
-    <div className="flex flex-col gap-3 border-t border-line pt-3">
-      {canDongCa && !dongCaReady && (
-        <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-inset ring-amber-300">
-          <span className="font-medium">Chưa đủ điều kiện đóng ca:</span>{" "}
-          {checklist.map((c) => (
-            <span key={c.label} className="mr-2 inline-block">
-              {c.ok ? "✓" : "✗"} {c.label}
-            </span>
-          ))}
-        </div>
+    <div className="flex flex-wrap items-center gap-2">
+      {canDongCa && (
+        <Btn
+          variant="primary"
+          size="sm"
+          disabled={!dongCaReady || dongCa.isPending}
+          title={!dongCaReady ? "Cần đánh giá đủ 4 lỗi + kết luận" : undefined}
+          onClick={() => dongCa.mutate()}
+        >
+          {dongCa.isPending ? "Đang đóng ca..." : "Đóng ca"}
+        </Btn>
       )}
-
-      <div className="flex flex-wrap justify-end gap-2">
-        {canDongCa && (
-          <Btn
-            variant="primary"
-            disabled={!dongCaReady || dongCa.isPending}
-            onClick={() => dongCa.mutate()}
-          >
-            {dongCa.isPending ? "Đang đóng ca..." : "Đóng ca"}
-          </Btn>
-        )}
-        {canChot && (
-          <Btn variant="primary" disabled={chot.isPending} onClick={() => setConfirmChot(true)}>
-            Chốt
-          </Btn>
-        )}
-        {canHuy && (
-          <Btn variant="danger" disabled={huy.isPending} onClick={() => setHuyOpen(true)}>
-            Hủy khiếu nại
-          </Btn>
-        )}
-        <Btn variant="secondary" onClick={onClose}>Đóng</Btn>
-      </div>
+      {canChot && (
+        <Btn variant="primary" size="sm" disabled={chot.isPending} onClick={() => setConfirmChot(true)}>
+          Chốt
+        </Btn>
+      )}
+      {canHuy && (
+        <Btn variant="danger" size="sm" disabled={huy.isPending} onClick={() => setHuyOpen(true)}>
+          Hủy khiếu nại
+        </Btn>
+      )}
 
       {confirmChot && (
         <ConfirmBox

@@ -232,7 +232,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
         </Card>
       </div>
 
-      <Modal open={!!detailId} onClose={closeDetail} title={detailId ? `Chi tiết ${detailId}` : ""} width="xl">
+      <Modal open={!!detailId} onClose={closeDetail} width="full">
         {detailId && (
           <KhieuNaiDetail
             id={detailId}
