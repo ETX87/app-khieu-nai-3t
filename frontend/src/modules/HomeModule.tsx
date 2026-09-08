@@ -1,10 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { KhieuNai, KhieuNaiStats } from "../api/types";
 import { Card } from "../components/ui/Card";
+import { Btn } from "../components/ui/Btn";
 import { Table, type TableColumn } from "../components/ui/Table";
 import { StatusBadge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
+import { useToast } from "../components/ui/Toast";
+import { fmtVN } from "../lib/formatVN";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
 import { KhieuNaiCard } from "./KhieuNaiCard";
 import { useState } from "react";
@@ -38,6 +41,7 @@ function StatCard({ label, value, tone }: StatCardDef) {
 
 export function HomeModule({ user }: { user: AppUser }) {
   const [detailId, setDetailId] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const statsQuery = useQuery({
     queryKey: ["khieu-nai-stats"],
@@ -47,6 +51,40 @@ export function HomeModule({ user }: { user: AppUser }) {
   const activeQuery = useQuery({
     queryKey: ["khieu-nai", { trang_thai: "Dang xu ly", page: 1, home: true }],
     queryFn: () => api.get<ListResponse>("/khieu-nai?trang_thai=Dang+xu+ly&page=1&pageSize=5"),
+  });
+
+  // "Việc của tôi" theo vai trò.
+  const role = user.vai_tro;
+  const myQuery = useQuery({
+    queryKey: ["khieu-nai", "viec-cua-toi", role, user.email],
+    queryFn: () => {
+      if (role === "QL") return api.get<ListResponse>("/khieu-nai?trang_thai=Cho+chot+ket+thuc&pageSize=10");
+      if (role === "TN CSKH") return api.get<ListResponse>("/khieu-nai?trang_thai=Dang+xu+ly&pageSize=20");
+      return api.get<ListResponse>(
+        `/khieu-nai?nguoi_phu_trach=${encodeURIComponent(user.email)}&pageSize=10`,
+      );
+    },
+  });
+  const myTitle =
+    role === "QL" ? "Ca chờ tôi chốt" : role === "TN CSKH" ? "Ca đang xử lý (sẵn sàng đóng)" : "Ca tôi phụ trách";
+  const myItems = (myQuery.data?.items ?? []).filter((r) =>
+    role === "TN CSKH"
+      ? r.loi_nha_san_xuat !== "Chua danh gia" &&
+        r.loi_lap_dat !== "Chua danh gia" &&
+        r.loi_thai_do_ktv !== "Chua danh gia" &&
+        r.loi_quy_trinh_nskx !== "Chua danh gia" &&
+        (r.ket_luan_khieu_nai ?? "Chua danh gia") !== "Chua danh gia"
+      : true,
+  );
+
+  const syncTon = useMutation({
+    mutationFn: () => api.post<{ results: { id: string; ok: boolean }[] }>("/khieu-nai/dong-bo-cac-ca-ton"),
+    onSuccess: (d) => {
+      const okN = d.results.filter((r) => r.ok).length;
+      showToast(`Đồng bộ xong ${okN}/${d.results.length} ca tồn`, okN === d.results.length ? "success" : "info");
+      statsQuery.refetch();
+    },
+    onError: () => showToast("Đồng bộ ca tồn thất bại", "error"),
   });
 
   const columns: TableColumn<KhieuNai>[] = [
@@ -67,12 +105,46 @@ export function HomeModule({ user }: { user: AppUser }) {
         <p className="mt-1 text-sm text-white/80">Kết nối KTV hiện trường - CSKH - Xử lý nhanh chóng - Hiệu quả</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <StatCard label="Tổng khiếu nại" value={s?.tong ?? 0} tone="blue" />
         <StatCard label="Đang xử lý" value={s?.dang_xu_ly ?? 0} tone="amber" />
+        <StatCard label="Chờ chốt kết thúc" value={s?.cho_chot_ket_thuc ?? 0} tone="amber" />
         <StatCard label="Đã kết thúc" value={s?.da_ket_thuc ?? 0} tone="green" />
+        <StatCard label="Đã hủy" value={s?.huy ?? 0} tone="blue" />
         <StatCard label="Tồn đọng CRM" value={s?.ton_dong_crm ?? 0} tone="red" />
       </div>
+
+      <Card
+        title={`Việc của tôi — ${myTitle}`}
+        actions={
+          (user.vai_tro === "QL" || user.vai_tro === "Admin") ? (
+            <Btn size="sm" variant="secondary" disabled={syncTon.isPending} onClick={() => syncTon.mutate()}>
+              {syncTon.isPending ? "Đang đồng bộ..." : `Đồng bộ ${s?.ton_dong_crm ?? 0} ca tồn CRM`}
+            </Btn>
+          ) : undefined
+        }
+      >
+        {myQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
+        {myQuery.data && myItems.length === 0 && (
+          <p className="py-4 text-center text-sm text-ink-soft">Không có ca nào cần bạn xử lý.</p>
+        )}
+        <div className="flex flex-col gap-2">
+          {myItems.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => setDetailId(r.id)}
+              className="flex items-center justify-between gap-3 rounded-md border border-line px-3 py-2 text-left text-sm hover:bg-gray-50"
+            >
+              <span className="min-w-0 flex-1 truncate">
+                <span className="font-mono text-xs text-ink-soft">{r.id}</span> · {r.ten_khach ?? "—"} ·{" "}
+                {r.van_de_dau_vao ?? r.nhom_van_de ?? "—"}
+              </span>
+              <span className="shrink-0 text-xs text-ink-soft">{fmtVN.relative(r.ngay_thay_doi)}</span>
+              <StatusBadge trangThai={r.trang_thai} />
+            </button>
+          ))}
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card title="Khiếu nại đang xử lý" className="lg:col-span-2">

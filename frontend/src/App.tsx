@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "./auth/AuthContext";
+import { SessionExpiredOverlay } from "./auth/SessionExpiredOverlay";
 import { LoginScreen } from "./login/LoginScreen";
 import { Sidebar } from "./layout/Sidebar";
 import { BottomNav } from "./layout/BottomNav";
@@ -79,5 +80,10 @@ export default function App() {
 
   if (!auth.user) return null;
 
-  return <MainApp user={auth.user} />;
+  return (
+    <>
+      <MainApp user={auth.user} />
+      <SessionExpiredOverlay />
+    </>
+  );
 }

@@ -20,6 +20,7 @@ export interface KhieuNai {
   id: string;
   ngay_tiep_nhan: string;
   ten_khach: string | null;
+  sdt_khach: string | null;
   id_lada: string | null;
   sale_khu_vuc: string | null;
   tinh: string | null;
@@ -68,9 +69,25 @@ export interface KhieuNai {
   ql_chon_ly_do: string | null;
   ql_nguoi_danh_gia: string | null;
   ngay_ql_danh_gia: string | null;
+  ql_gio_xu_ly_he_thong: number | null;
+  nguoi_phu_trach: string | null;
+  ly_do_huy: string | null;
+  nguoi_huy: string | null;
+  ngay_huy: string | null;
   crm_last_sync_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface LichSu {
+  id: string;
+  khieu_nai_id: string;
+  nguoi: string;
+  thoi_diem: string;
+  hanh_dong: string;
+  truong: string | null;
+  gia_tri_cu: string | null;
+  gia_tri_moi: string | null;
 }
 
 export interface TienTrinh {

@@ -32,9 +32,29 @@ export function LoginScreen({ variant }: { variant: Variant }) {
             )}
           </div>
         ) : (
-          <p className="rounded-md bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700 ring-1 ring-inset ring-amber-300">
-            {MESSAGES[variant]}
-          </p>
+          <div className="flex flex-col gap-3">
+            <p className="rounded-md bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700 ring-1 ring-inset ring-amber-300">
+              {MESSAGES[variant]}
+            </p>
+            <p className="text-xs text-ink-soft">
+              Cần hỗ trợ? Liên hệ quản trị viên:{" "}
+              <a href="mailto:smarttrade.vp@gmail.com" className="font-medium text-accent">smarttrade.vp@gmail.com</a>
+            </p>
+            <div className="flex justify-center gap-2">
+              <button
+                onClick={() => window.location.reload()}
+                className="rounded-md border border-line px-4 py-2 text-sm font-medium text-ink hover:bg-gray-50"
+              >
+                Kiểm tra lại
+              </button>
+              <a
+                href="/api/auth/login"
+                className="rounded-md border border-line px-4 py-2 text-sm font-medium text-ink hover:bg-gray-50"
+              >
+                Đăng nhập tài khoản khác
+              </a>
+            </div>
+          </div>
         )}
       </div>
     </div>

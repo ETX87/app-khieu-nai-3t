@@ -11,9 +11,9 @@ app.use("*", verifySessionMiddleware, loadUser);
 
 const DANH_GIA_VALUES = new Set(["Khong", "Co", "Chua danh gia"]);
 
-// Thong tin khach hang + CRM - chi CSKH/Admin sua (chua thay doi trong dot ra soat nay)
+// Thong tin khach hang + CRM - chi CSKH/Admin sua
 const CSKH_FIELDS = [
-  "ten_khach", "id_lada", "sale_khu_vuc", "tinh", "quan_huyen", "phuong_xa", "model", "hang",
+  "ten_khach", "sdt_khach", "id_lada", "sale_khu_vuc", "tinh", "quan_huyen", "phuong_xa", "model", "hang",
   "thong_tin_ban_dau", "nguoi_bao", "muc_do", "nhom_yeu_cau", "nhom_van_de", "van_de_dau_vao",
   "phan_loai_kh", "ghi_chu_nguoi_tao", "id_crm_karofi",
 ];
@@ -43,6 +43,33 @@ async function generateId(db: D1Database): Promise<string> {
   return `${prefix}${String(seq).padStart(3, "0")}`;
 }
 
+async function logLichSu(
+  db: D1Database,
+  khieuNaiId: string,
+  nguoi: string,
+  hanhDong: string,
+  truong?: string | null,
+  cu?: string | null,
+  moi?: string | null,
+): Promise<void> {
+  await db
+    .prepare(
+      "INSERT INTO khieu_nai_lich_su (id, khieu_nai_id, nguoi, hanh_dong, truong, gia_tri_cu, gia_tri_moi) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(crypto.randomUUID(), khieuNaiId, nguoi, hanhDong, truong ?? null, cu ?? null, moi ?? null)
+    .run();
+}
+
+// So gio xu ly he thong tinh: ngay_tiep_nhan -> (moc ket thuc | bay gio). Khong loai tru khoang nao
+// (theo quyet dinh chu du an 09/2026).
+function gioXuLyHeThong(ngayTiepNhan: string, ngayKetThuc: string | null): number {
+  const start = new Date(ngayTiepNhan.replace(" ", "T") + "Z").getTime();
+  const end = ngayKetThuc
+    ? new Date(ngayKetThuc.replace(" ", "T") + "Z").getTime()
+    : Date.now() + 7 * 60 * 60 * 1000;
+  return Math.max(0, Math.round(((end - start) / 3_600_000) * 10) / 10);
+}
+
 interface CrmFields {
   ngay_tiep_nhan_crm: string | null;
   ket_qua_crm: string | null;
@@ -70,10 +97,24 @@ async function tryLookupCrm(env: Env, idCrmKarofi: string): Promise<{ fields: Cr
   }
 }
 
+const SORT_COLUMNS: Record<string, string> = {
+  ngay_tiep_nhan: "ngay_tiep_nhan",
+  ngay_thay_doi: "ngay_thay_doi",
+  muc_do: "muc_do",
+};
+
 app.get("/", async (c) => {
   const trangThai = c.req.query("trang_thai");
   const idCrmKarofi = c.req.query("id_crm_karofi");
   const q = c.req.query("q");
+  const mucDo = c.req.query("muc_do");
+  const nhomVanDe = c.req.query("nhom_van_de");
+  const tuNgay = c.req.query("tu_ngay");
+  const denNgay = c.req.query("den_ngay");
+  const chuaDongBo = c.req.query("chua_dong_bo");
+  const nguoiPhuTrach = c.req.query("nguoi_phu_trach");
+  const sort = SORT_COLUMNS[c.req.query("sort") ?? ""] ?? "ngay_tiep_nhan";
+  const dir = c.req.query("dir") === "asc" ? "ASC" : "DESC";
   let page = parseInt(c.req.query("page") ?? "1", 10);
   let pageSize = parseInt(c.req.query("pageSize") ?? "20", 10);
   if (!Number.isFinite(page) || page < 1) page = 1;
@@ -84,15 +125,23 @@ app.get("/", async (c) => {
   const binds: unknown[] = [];
   if (trangThai) { conditions.push("trang_thai = ?"); binds.push(trangThai); }
   if (idCrmKarofi) { conditions.push("id_crm_karofi = ?"); binds.push(idCrmKarofi); }
+  if (mucDo) { conditions.push("muc_do = ?"); binds.push(mucDo); }
+  if (nhomVanDe) { conditions.push("nhom_van_de = ?"); binds.push(nhomVanDe); }
+  if (nguoiPhuTrach) { conditions.push("nguoi_phu_trach = ?"); binds.push(nguoiPhuTrach); }
+  if (tuNgay) { conditions.push("ngay_tiep_nhan >= ?"); binds.push(`${tuNgay} 00:00:00`); }
+  if (denNgay) { conditions.push("ngay_tiep_nhan <= ?"); binds.push(`${denNgay} 23:59:59`); }
+  if (chuaDongBo === "1") {
+    conditions.push("id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL AND trang_thai != 'Da ket thuc'");
+  }
   if (q) {
-    conditions.push("(ten_khach LIKE ? OR id_lada LIKE ? OR id LIKE ?)");
-    binds.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    conditions.push("(ten_khach LIKE ? OR id_lada LIKE ? OR id LIKE ? OR id_crm_karofi LIKE ? OR sdt_khach LIKE ?)");
+    binds.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
   }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const offset = (page - 1) * pageSize;
 
   const [list, count] = await Promise.all([
-    c.env.DB.prepare(`SELECT * FROM khieu_nai ${where} ORDER BY ngay_tiep_nhan DESC LIMIT ? OFFSET ?`)
+    c.env.DB.prepare(`SELECT * FROM khieu_nai ${where} ORDER BY ${sort} ${dir} LIMIT ? OFFSET ?`)
       .bind(...binds, pageSize, offset)
       .all(),
     c.env.DB.prepare(`SELECT COUNT(*) as cnt FROM khieu_nai ${where}`).bind(...binds).first<{ cnt: number }>(),
@@ -127,12 +176,34 @@ app.get("/stats", async (c) => {
 
 app.get("/:id", async (c) => {
   const id = c.req.param("id");
-  const [khieuNai, tienTrinh] = await Promise.all([
+  const [khieuNai, tienTrinh, lichSu] = await Promise.all([
     c.env.DB.prepare("SELECT * FROM khieu_nai WHERE id = ?").bind(id).first(),
     c.env.DB.prepare("SELECT * FROM khieu_nai_tien_trinh WHERE khieu_nai_id = ? ORDER BY ngay_tao DESC").bind(id).all(),
+    c.env.DB.prepare("SELECT * FROM khieu_nai_lich_su WHERE khieu_nai_id = ? ORDER BY thoi_diem DESC").bind(id).all(),
   ]);
   if (!khieuNai) return c.json({ error: "NOT_FOUND" }, 404);
-  return c.json({ khieuNai, tienTrinh: tienTrinh.results });
+  return c.json({ khieuNai, tienTrinh: tienTrinh.results, lichSu: lichSu.results });
+});
+
+// H1: gan / go nguoi phu trach ca.
+app.post("/:id/phu-trach", requireRole("CSKH", "KTV", "TN CSKH", "QL", "Admin"), async (c) => {
+  const id = c.req.param("id");
+  const user = c.get("user");
+  const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+  const target = body.email === null ? null : typeof body.email === "string" && body.email ? body.email : user.email;
+
+  const row = await c.env.DB.prepare("SELECT trang_thai, nguoi_phu_trach FROM khieu_nai WHERE id = ?")
+    .bind(id).first<{ trang_thai: string; nguoi_phu_trach: string | null }>();
+  if (!row) return c.json({ error: "NOT_FOUND" }, 404);
+  if (row.trang_thai === "Da ket thuc") return c.json({ error: "CASE_CLOSED" }, 409);
+
+  const ts = nowVN();
+  await c.env.DB.prepare("UPDATE khieu_nai SET nguoi_phu_trach = ?, ngay_thay_doi = ? WHERE id = ?")
+    .bind(target, ts, id).run();
+  await logLichSu(c.env.DB, id!, user.email, "phu_trach", "nguoi_phu_trach", row.nguoi_phu_trach ?? "", target ?? "");
+
+  const updated = await c.env.DB.prepare("SELECT * FROM khieu_nai WHERE id = ?").bind(id).first();
+  return c.json({ khieuNai: updated });
 });
 
 app.post("/", requireRole("CSKH", "KTV", "TN CSKH", "QL", "Admin"), async (c) => {
@@ -149,9 +220,16 @@ app.post("/", requireRole("CSKH", "KTV", "TN CSKH", "QL", "Admin"), async (c) =>
     crm_sync_warning = lookup.warning;
   }
 
+  // Ngay tiep nhan: mac dinh bay gio; neu nguoi tao chon ngay (yyyy-mm-dd) thi giu gio hien tai.
+  const ngayTiepNhan =
+    typeof body.ngay_tiep_nhan === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.ngay_tiep_nhan)
+      ? `${body.ngay_tiep_nhan}${ts.slice(10)}`
+      : ts;
+
   const columns: Record<string, unknown> = {
     id,
     ten_khach: body.ten_khach ?? null,
+    sdt_khach: body.sdt_khach ?? null,
     id_lada: body.id_lada ?? null,
     sale_khu_vuc: body.sale_khu_vuc ?? null,
     tinh: body.tinh ?? null,
@@ -171,7 +249,8 @@ app.post("/", requireRole("CSKH", "KTV", "TN CSKH", "QL", "Admin"), async (c) =>
     trang_thai: "Dang xu ly",
     nguoi_tao: user.email,
     cskh_tiep_nhan: user.email,
-    ngay_tiep_nhan: ts,
+    nguoi_phu_trach: user.email,
+    ngay_tiep_nhan: ngayTiepNhan,
     ngay_thay_doi: ts,
     ...(crmFields ?? {}),
   };
@@ -203,6 +282,13 @@ app.patch("/:id", async (c) => {
   const disallowed = bodyKeys.filter((k) => !allowed.has(k));
   if (disallowed.length > 0) return c.json({ error: "FORBIDDEN_FIELD", fields: disallowed }, 403);
   if (bodyKeys.length === 0) return c.json({ error: "NO_FIELDS" }, 400);
+
+  // Khoa du lieu theo trang thai: ca "Da ket thuc" chi doc (Admin muon sua phai "Mo lai ca" truoc).
+  const cur = await c.env.DB.prepare(
+    "SELECT trang_thai, loi_nha_san_xuat, loi_lap_dat, loi_thai_do_ktv, loi_quy_trinh_nskx, ket_luan_khieu_nai, danh_gia_ql FROM khieu_nai WHERE id = ?",
+  ).bind(id).first<Record<string, string | null>>();
+  if (!cur) return c.json({ error: "NOT_FOUND" }, 404);
+  if (cur.trang_thai === "Da ket thuc") return c.json({ error: "CASE_CLOSED" }, 409);
 
   for (const f of TN_CSKH_FIELDS) {
     if (f in body && !DANH_GIA_VALUES.has(body[f])) {
@@ -243,6 +329,16 @@ app.patch("/:id", async (c) => {
   const result = await c.env.DB.prepare(`UPDATE khieu_nai SET ${sets.join(", ")} WHERE id = ?`).bind(...binds).run();
   if (result.meta.changes === 0) return c.json({ error: "NOT_FOUND" }, 404);
 
+  // Nhat ky: chi ghi cac moc quan trong (danh gia loi, danh gia QL).
+  for (const f of TN_CSKH_FIELDS) {
+    if (f in body && body[f] !== cur[f]) {
+      await logLichSu(c.env.DB, id!, user.email, "danh_gia_loi", f, cur[f] ?? null, String(body[f] ?? ""));
+    }
+  }
+  if ("danh_gia_ql" in body && body.danh_gia_ql != null && String(body.danh_gia_ql).trim() !== "" && body.danh_gia_ql !== cur.danh_gia_ql) {
+    await logLichSu(c.env.DB, id!, user.email, "danh_gia_ql", "danh_gia_ql", cur.danh_gia_ql ?? null, String(body.danh_gia_ql));
+  }
+
   const updated = await c.env.DB.prepare("SELECT * FROM khieu_nai WHERE id = ?").bind(id).first();
   return c.json({ khieuNai: updated, crm_sync_warning });
 });
@@ -268,33 +364,68 @@ app.post("/:id/dong-ca", requireRole("TN CSKH", "Admin"), async (c) => {
   await c.env.DB.prepare(
     "UPDATE khieu_nai SET trang_thai = 'Cho chot ket thuc', ngay_ket_thuc = ?, nguoi_ket_thuc = ?, ngay_thay_doi = ? WHERE id = ?",
   ).bind(ts, user.email, ts, id).run();
+  await logLichSu(c.env.DB, id!, user.email, "chuyen_trang_thai", "trang_thai", "Dang xu ly", "Cho chot ket thuc");
 
   return c.json({ ok: true });
 });
 
 app.post("/:id/chot", requireRole("QL", "Admin"), async (c) => {
   const id = c.req.param("id");
-  const row = await c.env.DB.prepare("SELECT trang_thai FROM khieu_nai WHERE id = ?").bind(id).first<{ trang_thai: string }>();
+  const row = await c.env.DB.prepare(
+    "SELECT trang_thai, danh_gia_ql, ngay_tiep_nhan, ngay_ket_thuc FROM khieu_nai WHERE id = ?",
+  ).bind(id).first<{ trang_thai: string; danh_gia_ql: string | null; ngay_tiep_nhan: string; ngay_ket_thuc: string | null }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
   if (row.trang_thai !== "Cho chot ket thuc") return c.json({ error: "INVALID_STATE" }, 400);
+  // Tien dieu kien: phai co Danh gia QL truoc khi chot (doi xung voi "Dong ca" doi du 4 loi).
+  if (!row.danh_gia_ql || row.danh_gia_ql.trim() === "") return c.json({ error: "CAN_DANH_GIA_QL" }, 400);
+
+  const user = c.get("user");
+  const ts = nowVN();
+  const gio = gioXuLyHeThong(row.ngay_tiep_nhan, row.ngay_ket_thuc);
+  await c.env.DB.prepare(
+    "UPDATE khieu_nai SET trang_thai = 'Da ket thuc', ql_nguoi_danh_gia = ?, ngay_ql_danh_gia = ?, ql_gio_xu_ly_he_thong = ?, ngay_thay_doi = ? WHERE id = ?",
+  ).bind(user.email, ts, gio, ts, id).run();
+  await logLichSu(c.env.DB, id!, user.email, "chuyen_trang_thai", "trang_thai", "Cho chot ket thuc", "Da ket thuc");
+
+  return c.json({ ok: true });
+});
+
+app.post("/:id/mo-lai", requireRole("Admin"), async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+  const lyDo = typeof body.ly_do === "string" ? body.ly_do.trim() : "";
+  if (!lyDo) return c.json({ error: "CAN_LY_DO" }, 400);
+  const row = await c.env.DB.prepare("SELECT trang_thai FROM khieu_nai WHERE id = ?").bind(id).first<{ trang_thai: string }>();
+  if (!row) return c.json({ error: "NOT_FOUND" }, 404);
+  if (row.trang_thai !== "Da ket thuc") return c.json({ error: "INVALID_STATE" }, 400);
 
   const user = c.get("user");
   const ts = nowVN();
   await c.env.DB.prepare(
-    "UPDATE khieu_nai SET trang_thai = 'Da ket thuc', ql_nguoi_danh_gia = ?, ngay_ql_danh_gia = ?, ngay_thay_doi = ? WHERE id = ?",
-  ).bind(user.email, ts, ts, id).run();
+    "UPDATE khieu_nai SET trang_thai = 'Cho chot ket thuc', ngay_thay_doi = ? WHERE id = ?",
+  ).bind(ts, id).run();
+  await logLichSu(c.env.DB, id!, user.email, "mo_lai", "trang_thai", "Da ket thuc", `Cho chot ket thuc — ${lyDo}`);
 
   return c.json({ ok: true });
 });
 
 app.post("/:id/huy", requireRole("CSKH", "TN CSKH", "QL", "Admin"), async (c) => {
   const id = c.req.param("id");
+  const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+  const lyDoHuy = typeof body.ly_do_huy === "string" ? body.ly_do_huy.trim() : "";
+  if (!lyDoHuy) return c.json({ error: "CAN_LY_DO_HUY" }, 400);
+  const ghiChu = typeof body.ghi_chu === "string" ? body.ghi_chu.trim() : "";
+
   const row = await c.env.DB.prepare("SELECT trang_thai FROM khieu_nai WHERE id = ?").bind(id).first<{ trang_thai: string }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
   if (row.trang_thai === "Da ket thuc") return c.json({ error: "INVALID_STATE" }, 400);
 
+  const user = c.get("user");
   const ts = nowVN();
-  await c.env.DB.prepare("UPDATE khieu_nai SET trang_thai = 'Huy', ngay_thay_doi = ? WHERE id = ?").bind(ts, id).run();
+  await c.env.DB.prepare(
+    "UPDATE khieu_nai SET trang_thai = 'Huy', ly_do_huy = ?, nguoi_huy = ?, ngay_huy = ?, ngay_thay_doi = ? WHERE id = ?",
+  ).bind(ghiChu ? `${lyDoHuy} — ${ghiChu}` : lyDoHuy, user.email, ts, ts, id).run();
+  await logLichSu(c.env.DB, id!, user.email, "huy", "trang_thai", row.trang_thai, `Huy — ${lyDoHuy}`);
 
   return c.json({ ok: true });
 });

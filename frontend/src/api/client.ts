@@ -14,6 +14,23 @@ export class ApiError extends Error {
   }
 }
 
+const HAD_SESSION_KEY = "khieunai_had_session";
+
+function markHadSession() {
+  try {
+    sessionStorage.setItem(HAD_SESSION_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+function hadSession(): boolean {
+  try {
+    return sessionStorage.getItem(HAD_SESSION_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = {};
   let payload: BodyInit | undefined;
@@ -35,13 +52,24 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
 
   if (res.status === 401) {
-    window.location.href = "/api/auth/login";
-    // Prevent callers from proceeding while the redirect happens.
+    // Khong hard-redirect nua. Neu truoc do da co phien -> phat su kien de hien overlay
+    // "dang nhap lai" ma khong xoa du lieu form dang nhap. Neu chua tung co phien ->
+    // de AuthContext render man dang nhap co thuong hieu.
+    if (hadSession()) {
+      try {
+        window.dispatchEvent(new CustomEvent("khieunai:session-expired"));
+      } catch {
+        /* ignore */
+      }
+      throw new ApiError(401, "SESSION_EXPIRED");
+    }
     throw new ApiError(401, "MISSING_TOKEN");
   }
 
   const contentType = res.headers.get("content-type") ?? "";
   const data = contentType.includes("application/json") ? await res.json().catch(() => ({})) : undefined;
+
+  if (res.ok) markHadSession();
 
   if (!res.ok) {
     const code = (data && typeof data === "object" && "error" in data ? (data as { error: string }).error : undefined) ?? `HTTP_${res.status}`;
