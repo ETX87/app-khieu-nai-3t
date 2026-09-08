@@ -22,9 +22,10 @@ interface StatCardDef {
   label: string;
   value: number;
   tone: "blue" | "amber" | "green" | "red";
+  onClick?: () => void;
 }
 
-function StatCard({ label, value, tone }: StatCardDef) {
+function StatCard({ label, value, tone, onClick }: StatCardDef) {
   const toneClasses: Record<StatCardDef["tone"], string> = {
     blue: "bg-blue-50 text-blue-700",
     amber: "bg-amber-50 text-amber-700",
@@ -32,14 +33,27 @@ function StatCard({ label, value, tone }: StatCardDef) {
     red: "bg-red-50 text-red-700",
   };
   return (
-    <div className={`rounded-lg border border-line p-4 ${toneClasses[tone]}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className={`rounded-lg border border-line p-4 text-left ${toneClasses[tone]} ${
+        onClick ? "transition-shadow hover:shadow-md" : "cursor-default"
+      }`}
+    >
       <p className="text-xs font-medium opacity-80">{label}</p>
       <p className="mt-1 text-2xl font-bold">{value}</p>
-    </div>
+    </button>
   );
 }
 
-export function HomeModule({ user }: { user: AppUser }) {
+interface HomeProps {
+  user: AppUser;
+  onOpenList: (filter: { trang_thai?: string }) => void;
+  onOpenModule: (m: "trang-chu" | "khieu-nai" | "settings" | "users") => void;
+}
+
+export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
   const [detailId, setDetailId] = useState<string | null>(null);
   const { showToast } = useToast();
 
@@ -51,6 +65,13 @@ export function HomeModule({ user }: { user: AppUser }) {
   const activeQuery = useQuery({
     queryKey: ["khieu-nai", { trang_thai: "Dang xu ly", page: 1, home: true }],
     queryFn: () => api.get<ListResponse>("/khieu-nai?trang_thai=Dang+xu+ly&page=1&pageSize=5"),
+  });
+
+  const pendingUsersQuery = useQuery({
+    queryKey: ["users", "pending-count"],
+    enabled: user.vai_tro === "Admin",
+    queryFn: () => api.get<{ items: { trang_thai_duyet: string }[] }>("/users"),
+    select: (d) => d.items.filter((u) => u.trang_thai_duyet === "Cho duyet").length,
   });
 
   // "Việc của tôi" theo vai trò.
@@ -106,13 +127,24 @@ export function HomeModule({ user }: { user: AppUser }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Tổng khiếu nại" value={s?.tong ?? 0} tone="blue" />
-        <StatCard label="Đang xử lý" value={s?.dang_xu_ly ?? 0} tone="amber" />
-        <StatCard label="Chờ chốt kết thúc" value={s?.cho_chot_ket_thuc ?? 0} tone="amber" />
-        <StatCard label="Đã kết thúc" value={s?.da_ket_thuc ?? 0} tone="green" />
-        <StatCard label="Đã hủy" value={s?.huy ?? 0} tone="blue" />
-        <StatCard label="Tồn đọng CRM" value={s?.ton_dong_crm ?? 0} tone="red" />
+        <StatCard label="Tổng khiếu nại" value={s?.tong ?? 0} tone="blue" onClick={() => onOpenList({})} />
+        <StatCard label="Đang xử lý" value={s?.dang_xu_ly ?? 0} tone="amber" onClick={() => onOpenList({ trang_thai: "Dang xu ly" })} />
+        <StatCard label="Chờ chốt kết thúc" value={s?.cho_chot_ket_thuc ?? 0} tone="amber" onClick={() => onOpenList({ trang_thai: "Cho chot ket thuc" })} />
+        <StatCard label="Đã kết thúc" value={s?.da_ket_thuc ?? 0} tone="green" onClick={() => onOpenList({ trang_thai: "Da ket thuc" })} />
+        <StatCard label="Đã hủy" value={s?.huy ?? 0} tone="blue" onClick={() => onOpenList({ trang_thai: "Huy" })} />
+        <StatCard label="Tồn đọng CRM" value={s?.ton_dong_crm ?? 0} tone="red" onClick={() => onOpenList({})} />
       </div>
+
+      {user.vai_tro === "Admin" && (pendingUsersQuery.data ?? 0) > 0 && (
+        <button
+          type="button"
+          onClick={() => onOpenModule("users")}
+          className="flex items-center justify-between rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-left text-sm font-medium text-amber-800 hover:shadow-md"
+        >
+          <span>{pendingUsersQuery.data} người dùng đang chờ duyệt</span>
+          <span className="text-xs">Mở màn Người dùng →</span>
+        </button>
+      )}
 
       <Card
         title={`Việc của tôi — ${myTitle}`}

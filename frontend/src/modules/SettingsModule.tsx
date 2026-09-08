@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
 import type { SettingsNhom } from "../api/types";
 import { useSettingsOptions } from "../api/useSettingsOptions";
@@ -52,16 +52,29 @@ export function SettingsModule() {
   );
 }
 
+interface OptRow { id: string | number; gia_tri: string; parent: string | null; active: number | boolean }
+
 function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
   const { showToast } = useToast();
   const qc = useQueryClient();
-  const options = useSettingsOptions(nhom);
   const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
 
   const [giaTri, setGiaTri] = useState("");
   const [parent, setParent] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"1" | "0" | "all">("1");
+  const [search, setSearch] = useState("");
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["settings-options", nhom] });
+  const listQuery = useQuery({
+    queryKey: ["settings-options-admin", nhom, statusFilter],
+    queryFn: () =>
+      api.get<{ items: OptRow[] }>(`/settings/options?nhom=${encodeURIComponent(nhom)}&active=${statusFilter}`),
+    select: (d) => d.items,
+  });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["settings-options-admin", nhom] });
+    qc.invalidateQueries({ queryKey: ["settings-options", nhom] });
+  };
 
   const addMutation = useMutation({
     mutationFn: () =>
@@ -82,9 +95,12 @@ function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
   const toggleMutation = useMutation({
     mutationFn: (vars: { id: string | number; active: boolean }) =>
       api.patch<{ ok: true }>(`/settings/options/${vars.id}`, { active: vars.active }),
-    onSuccess: () => {
-      showToast("Đã cập nhật trạng thái", "success");
+    onSuccess: (_d, vars) => {
       invalidate();
+      showToast(
+        vars.active ? "Đã bật lại giá trị" : 'Đã ẩn giá trị — mở tab "Đã ẩn" để bật lại',
+        "success",
+      );
     },
     onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Cập nhật thất bại", "error"),
   });
@@ -95,9 +111,27 @@ function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
     addMutation.mutate();
   };
 
+  const rows = (listQuery.data ?? []).filter(
+    (o) => !search.trim() || o.gia_tri.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+
+  const chip = (v: "1" | "0" | "all", label: string) => (
+    <button
+      onClick={() => setStatusFilter(v)}
+      className={`rounded-full border px-3 py-1 text-xs font-medium ${
+        statusFilter === v ? "border-accent bg-accent-soft text-accent" : "border-line text-ink-soft hover:text-ink"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <Card title={`Danh sách giá trị (${TABS_LABEL[nhom]})`}>
-      <form onSubmit={submit} className="mb-4 flex flex-wrap items-end gap-2">
+    <Card
+      title={`Danh sách giá trị — ${TABS_LABEL[nhom]}`}
+      actions={<span className="text-xs text-ink-soft">{rows.length} mục</span>}
+    >
+      <form onSubmit={submit} className="mb-3 flex flex-wrap items-end gap-2">
         <div className="w-64">
           <label className="mb-1 block text-xs font-medium text-ink-soft">Giá trị mới</label>
           <Input value={giaTri} onChange={(e) => setGiaTri(e.target.value)} placeholder="Nhập giá trị..." />
@@ -118,40 +152,52 @@ function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
         </Btn>
       </form>
 
-      {options.isLoading && <p className="py-4 text-sm text-ink-soft">Đang tải...</p>}
-      {options.data && (
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {chip("1", "Đang dùng")}
+        {chip("0", "Đã ẩn")}
+        {chip("all", "Tất cả")}
+        <Input className="ml-auto max-w-[220px]" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm trong danh sách..." />
+      </div>
+
+      {listQuery.isLoading && <p className="py-4 text-sm text-ink-soft">Đang tải...</p>}
+      {listQuery.data && (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs font-semibold uppercase text-ink-soft">
               <th className="px-2 py-2">Giá trị</th>
               {nhom === "van_de_dau_vao" && <th className="px-2 py-2">Thuộc nhóm</th>}
+              <th className="px-2 py-2">Trạng thái</th>
               <th className="px-2 py-2 text-right">Hành động</th>
             </tr>
           </thead>
           <tbody>
-            {options.data.length === 0 && (
+            {rows.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-2 py-6 text-center text-ink-soft">
-                  Chưa có giá trị nào.
-                </td>
+                <td colSpan={4} className="px-2 py-6 text-center text-ink-soft">Không có giá trị nào.</td>
               </tr>
             )}
-            {options.data.map((o) => (
-              <tr key={o.id} className="border-b border-line last:border-0">
-                <td className="px-2 py-2">{o.gia_tri}</td>
-                {nhom === "van_de_dau_vao" && <td className="px-2 py-2 text-ink-soft">{o.parent ?? "—"}</td>}
-                <td className="px-2 py-2 text-right">
-                  <Btn
-                    size="sm"
-                    variant="secondary"
-                    disabled={toggleMutation.isPending}
-                    onClick={() => toggleMutation.mutate({ id: o.id, active: false })}
-                  >
-                    Vô hiệu hóa
-                  </Btn>
-                </td>
-              </tr>
-            ))}
+            {rows.map((o) => {
+              const on = !!o.active;
+              return (
+                <tr key={o.id} className="border-b border-line last:border-0">
+                  <td className="px-2 py-2">{o.gia_tri}</td>
+                  {nhom === "van_de_dau_vao" && <td className="px-2 py-2 text-ink-soft">{o.parent ?? "—"}</td>}
+                  <td className="px-2 py-2">
+                    <span className={`text-xs ${on ? "text-green-700" : "text-ink-faint"}`}>{on ? "Đang dùng" : "Đã ẩn"}</span>
+                  </td>
+                  <td className="px-2 py-2 text-right">
+                    <Btn
+                      size="sm"
+                      variant="secondary"
+                      disabled={toggleMutation.isPending}
+                      onClick={() => toggleMutation.mutate({ id: o.id, active: !on })}
+                    >
+                      {on ? "Ẩn" : "Bật lại"}
+                    </Btn>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

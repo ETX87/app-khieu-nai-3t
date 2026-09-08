@@ -22,6 +22,8 @@ function MainApp({ user }: { user: AppUser }) {
     return modules[0] ?? "trang-chu";
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Bộ lọc khởi tạo cho màn Khiếu nại khi mở từ KPI Trang chủ. Đổi tham chiếu mỗi lần điều hướng.
+  const [listFilter, setListFilter] = useState<{ trang_thai?: string } | null>(null);
 
   useEffect(() => {
     if (!modules.includes(active)) {
@@ -33,6 +35,11 @@ function MainApp({ user }: { user: AppUser }) {
   const selectModule = (m: ModuleKey) => {
     setActive(m);
     localStorage.setItem(ACTIVE_MODULE_KEY, m);
+  };
+
+  const openList = (filter: { trang_thai?: string }) => {
+    setListFilter({ ...filter });
+    selectModule("khieu-nai");
   };
 
   return (
@@ -51,10 +58,12 @@ function MainApp({ user }: { user: AppUser }) {
           <span className="text-sm font-bold text-ink">3T</span>
         </header>
         <main className="min-w-0 flex-1 overflow-y-auto p-4 pb-20 sm:p-6 md:pb-6">
-          {active === "trang-chu" && <HomeModule user={user} />}
-          {active === "khieu-nai" && <KhieuNaiModule user={user} />}
+          {active === "trang-chu" && (
+            <HomeModule user={user} onOpenList={openList} onOpenModule={selectModule} />
+          )}
+          {active === "khieu-nai" && <KhieuNaiModule user={user} initialFilter={listFilter} />}
           {active === "settings" && user.vai_tro === "Admin" && <SettingsModule />}
-          {active === "users" && user.vai_tro === "Admin" && <UsersModule />}
+          {active === "users" && user.vai_tro === "Admin" && <UsersModule user={user} />}
         </main>
       </div>
       <BottomNav modules={modules} active={active} onSelect={selectModule} onMore={() => setSidebarOpen(true)} />

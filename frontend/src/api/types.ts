@@ -11,6 +11,7 @@ export interface AppUser {
 export interface AdminUserRow extends AppUser {
   created_at: string;
   updated_at: string;
+  last_login: string | null;
 }
 
 export type TrangThaiKhieuNai = "Cho tiep nhan" | "Dang xu ly" | "Cho chot ket thuc" | "Da ket thuc" | "Huy";

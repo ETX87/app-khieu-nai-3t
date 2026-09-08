@@ -1,13 +1,15 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { AppUser, KhieuNai } from "../api/types";
+import { useSettingsOptions } from "../api/useSettingsOptions";
+import { fmtVN } from "../lib/formatVN";
 import { Card } from "../components/ui/Card";
 import { Btn } from "../components/ui/Btn";
 import { Select } from "../components/ui/Select";
 import { Input } from "../components/ui/Input";
 import { Table, type TableColumn } from "../components/ui/Table";
-import { StatusBadge } from "../components/ui/Badge";
+import { Badge, StatusBadge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
 import { KhieuNaiForm } from "./KhieuNaiForm";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
@@ -21,7 +23,20 @@ const STATUS_OPTIONS = [
   { value: "Huy", label: "Hủy" },
 ];
 
-const PAGE_SIZE = 20;
+const SORT_OPTIONS = [
+  { value: "ngay_tiep_nhan|desc", label: "Tiếp nhận mới nhất" },
+  { value: "ngay_tiep_nhan|asc", label: "Tiếp nhận cũ nhất" },
+  { value: "ngay_thay_doi|desc", label: "Cập nhật gần nhất" },
+  { value: "muc_do|asc", label: "Mức độ (A→Z)" },
+];
+
+const PAGE_SIZE_OPTIONS = [
+  { value: "20", label: "20 dòng" },
+  { value: "50", label: "50 dòng" },
+  { value: "100", label: "100 dòng" },
+];
+
+const FILTER_KEY = "khieunai_list_filter";
 
 interface ListResponse {
   items: KhieuNai[];
@@ -30,89 +45,242 @@ interface ListResponse {
   pageSize: number;
 }
 
-export function KhieuNaiModule({ user }: { user: AppUser }) {
-  const [trangThai, setTrangThai] = useState("");
-  const [q, setQ] = useState("");
-  const [qInput, setQInput] = useState("");
+interface Filters {
+  trangThai: string;
+  mucDo: string;
+  nhomVanDe: string;
+  tuNgay: string;
+  denNgay: string;
+  chuaDongBo: boolean;
+  caCuaToi: boolean;
+  q: string;
+  sort: string; // "field|dir"
+  pageSize: string;
+}
+
+const EMPTY_FILTERS: Filters = {
+  trangThai: "", mucDo: "", nhomVanDe: "", tuNgay: "", denNgay: "",
+  chuaDongBo: false, caCuaToi: false, q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
+};
+
+function loadFilters(): Filters {
+  try {
+    const raw = localStorage.getItem(FILTER_KEY);
+    if (raw) return { ...EMPTY_FILTERS, ...JSON.parse(raw) };
+  } catch { /* ignore */ }
+  return EMPTY_FILTERS;
+}
+
+function mucDoTone(v: string | null): "red" | "amber" | "blue" | "gray" {
+  if (!v) return "gray";
+  if (/nghiêm trọng|gấp/i.test(v)) return "red";
+  if (/trung bình|trung binh/i.test(v)) return "amber";
+  if (/quà tặng|qua tang/i.test(v)) return "blue";
+  return "gray";
+}
+
+function chiBao(r: KhieuNai): { text: string; tone: "amber" | "green" | "red" | "gray" } | null {
+  if (r.trang_thai === "Cho chot ket thuc") return { text: "Sẵn sàng chốt", tone: "green" };
+  if (r.trang_thai === "Dang xu ly") {
+    const du =
+      r.loi_nha_san_xuat !== "Chua danh gia" &&
+      r.loi_lap_dat !== "Chua danh gia" &&
+      r.loi_thai_do_ktv !== "Chua danh gia" &&
+      r.loi_quy_trinh_nskx !== "Chua danh gia" &&
+      (r.ket_luan_khieu_nai ?? "Chua danh gia") !== "Chua danh gia";
+    if (du) return { text: "Sẵn sàng đóng ca", tone: "green" };
+    if (r.id_crm_karofi && !r.ngay_ktv_hoan_thanh) return { text: "Chưa đồng bộ CRM", tone: "red" };
+    return { text: "Chờ đánh giá", tone: "amber" };
+  }
+  return null;
+}
+
+export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initialFilter?: { trang_thai?: string } | null }) {
+  const [f, setF] = useState<Filters>(loadFilters);
+  const [qInput, setQInput] = useState(f.q);
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
+  const mucDoOpts = useSettingsOptions("muc_do");
+  const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
+
   const canCreate = !!user.vai_tro && user.vai_tro !== "Viewer";
 
+  const set = <K extends keyof Filters>(k: K, v: Filters[K]) => {
+    setF((p) => ({ ...p, [k]: v }));
+    setPage(1);
+  };
+
+  // KPI ở Trang chủ bấm sang -> áp trạng thái.
+  useEffect(() => {
+    if (initialFilter?.trang_thai !== undefined) {
+      setF((p) => ({ ...EMPTY_FILTERS, sort: p.sort, pageSize: p.pageSize, trangThai: initialFilter.trang_thai ?? "" }));
+      setPage(1);
+    }
+  }, [initialFilter]);
+
+  useEffect(() => {
+    try { localStorage.setItem(FILTER_KEY, JSON.stringify(f)); } catch { /* ignore */ }
+  }, [f]);
+
+  const [sortField, sortDir] = f.sort.split("|");
+
   const query = useQuery({
-    queryKey: ["khieu-nai", { trangThai, q, page }],
+    queryKey: ["khieu-nai", { ...f, page }],
     queryFn: () => {
-      const params = new URLSearchParams();
-      if (trangThai) params.set("trang_thai", trangThai);
-      if (q) params.set("q", q);
-      params.set("page", String(page));
-      params.set("pageSize", String(PAGE_SIZE));
-      return api.get<ListResponse>(`/khieu-nai?${params.toString()}`);
+      const p = new URLSearchParams();
+      if (f.trangThai) p.set("trang_thai", f.trangThai);
+      if (f.mucDo) p.set("muc_do", f.mucDo);
+      if (f.nhomVanDe) p.set("nhom_van_de", f.nhomVanDe);
+      if (f.tuNgay) p.set("tu_ngay", f.tuNgay);
+      if (f.denNgay) p.set("den_ngay", f.denNgay);
+      if (f.chuaDongBo) p.set("chua_dong_bo", "1");
+      if (f.caCuaToi) p.set("nguoi_phu_trach", user.email);
+      if (f.q) p.set("q", f.q);
+      p.set("sort", sortField);
+      p.set("dir", sortDir);
+      p.set("page", String(page));
+      p.set("pageSize", f.pageSize);
+      return api.get<ListResponse>(`/khieu-nai?${p.toString()}`);
     },
     placeholderData: (prev) => prev,
   });
 
   const submitSearch = (e: FormEvent) => {
     e.preventDefault();
-    setQ(qInput.trim());
+    set("q", qInput.trim());
+  };
+
+  const resetFilters = () => {
+    setF(EMPTY_FILTERS);
+    setQInput("");
     setPage(1);
   };
 
   const columns: TableColumn<KhieuNai>[] = [
-    { key: "id", header: "Mã KN", render: (r) => <span className="font-mono text-xs">{r.id}</span> },
-    { key: "ngay_tiep_nhan", header: "Ngày tiếp nhận", render: (r) => r.ngay_tiep_nhan },
-    { key: "ten_khach", header: "Khách hàng", render: (r) => r.ten_khach ?? "—" },
-    { key: "id_lada", header: "ID Lada", render: (r) => r.id_lada ?? "—" },
-    { key: "model", header: "Model", render: (r) => r.model ?? "—" },
+    {
+      key: "id",
+      header: "Mã · Model · Lada",
+      render: (r) => (
+        <div className="leading-tight">
+          <div className="font-mono text-xs text-ink">{r.id}</div>
+          <div className="text-xs text-ink-soft">{[r.model, r.id_lada].filter(Boolean).join(" · ") || "—"}</div>
+        </div>
+      ),
+    },
+    {
+      key: "khach",
+      header: "Khách / Tỉnh",
+      render: (r) => (
+        <div className="leading-tight">
+          <div>{r.ten_khach ?? "—"}</div>
+          <div className="text-xs text-ink-soft">{r.tinh ?? "—"}</div>
+        </div>
+      ),
+    },
+    {
+      key: "muc_do",
+      header: "Mức độ",
+      render: (r) => (r.muc_do ? <Badge tone={mucDoTone(r.muc_do)}>{r.muc_do}</Badge> : <span className="text-ink-faint">—</span>),
+    },
+    { key: "nhom_van_de", header: "Nhóm vấn đề", render: (r) => r.nhom_van_de ?? "—" },
     { key: "trang_thai", header: "Trạng thái", render: (r) => <StatusBadge trangThai={r.trang_thai} /> },
     {
-      key: "ngay_ktv_hoan_thanh",
+      key: "chi_bao",
+      header: "Chỉ báo",
+      render: (r) => {
+        const cb = chiBao(r);
+        return cb ? <Badge tone={cb.tone}>{cb.text}</Badge> : <span className="text-ink-faint">—</span>;
+      },
+    },
+    {
+      key: "cap_nhat",
+      header: "Cập nhật",
+      render: (r) => <span className="text-xs text-ink-soft" title={r.ngay_thay_doi}>{fmtVN.relative(r.ngay_thay_doi)}</span>,
+    },
+    {
+      key: "ktv",
       header: "KTV hoàn thành",
       render: (r) =>
-        r.ngay_ktv_hoan_thanh ? (
-          <span className="text-green-700">{r.ngay_ktv_hoan_thanh}</span>
+        !r.id_crm_karofi ? (
+          <span className="text-ink-faint">Không áp dụng</span>
+        ) : r.ngay_ktv_hoan_thanh ? (
+          <span className="text-green-700">Xong · {fmtVN.date(r.ngay_ktv_hoan_thanh)}</span>
         ) : (
-          <span className="text-amber-600">Chưa hoàn thành</span>
+          <span className="text-amber-600">Chưa</span>
         ),
     },
   ];
 
   const total = query.data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageSizeN = parseInt(f.pageSize, 10) || 20;
+  const totalPages = Math.max(1, Math.ceil(total / pageSizeN));
+
+  const activeFilterCount =
+    [f.trangThai, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.q].filter(Boolean).length +
+    (f.chuaDongBo ? 1 : 0) + (f.caCuaToi ? 1 : 0);
+
+  const selCls = "rounded-md border border-line bg-white px-2 py-1 text-xs text-ink focus:border-accent focus:outline-none";
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-ink">Khiếu nại</h2>
         {canCreate && (
-          <Btn variant="primary" onClick={() => setCreateOpen(true)}>
-            + Tạo khiếu nại mới
-          </Btn>
+          <Btn variant="primary" onClick={() => setCreateOpen(true)}>+ Tạo khiếu nại mới</Btn>
         )}
       </div>
 
       <Card>
-        <form onSubmit={submitSearch} className="mb-4 flex flex-wrap items-end gap-3">
-          <div className="w-48">
-            <label className="mb-1 block text-xs font-medium text-ink-soft">Trạng thái</label>
-            <Select
-              options={STATUS_OPTIONS}
-              placeholder="Tất cả"
-              value={trangThai}
-              onChange={(e) => {
-                setTrangThai(e.target.value);
-                setPage(1);
-              }}
-            />
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <select className={selCls} value={f.trangThai} onChange={(e) => set("trangThai", e.target.value)}>
+            <option value="">Mọi trạng thái</option>
+            {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <select className={selCls} value={f.mucDo} onChange={(e) => set("mucDo", e.target.value)}>
+            <option value="">Mọi mức độ</option>
+            {(mucDoOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
+          </select>
+          <select className={selCls} value={f.nhomVanDe} onChange={(e) => set("nhomVanDe", e.target.value)}>
+            <option value="">Mọi nhóm vấn đề</option>
+            {(nhomVanDeOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
+          </select>
+          <label className="flex items-center gap-1 text-xs text-ink-soft">
+            Từ <input type="date" className={selCls} value={f.tuNgay} onChange={(e) => set("tuNgay", e.target.value)} />
+          </label>
+          <label className="flex items-center gap-1 text-xs text-ink-soft">
+            đến <input type="date" className={selCls} value={f.denNgay} onChange={(e) => set("denNgay", e.target.value)} />
+          </label>
+          <label className="flex items-center gap-1 text-xs text-ink-soft">
+            <input type="checkbox" checked={f.chuaDongBo} onChange={(e) => set("chuaDongBo", e.target.checked)} /> Chưa đồng bộ CRM
+          </label>
+          <label className="flex items-center gap-1 text-xs text-ink-soft">
+            <input type="checkbox" checked={f.caCuaToi} onChange={(e) => set("caCuaToi", e.target.checked)} /> Ca của tôi
+          </label>
+          {activeFilterCount > 0 && (
+            <button onClick={resetFilters} className="text-xs font-medium text-accent hover:underline">
+              Xoá lọc ({activeFilterCount})
+            </button>
+          )}
+        </div>
+
+        <form onSubmit={submitSearch} className="mb-4 flex flex-wrap items-center gap-2">
+          <Input
+            className="max-w-xs"
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
+            placeholder="Tìm: tên khách · SĐT · ID Lada · mã KN · mã CRM"
+          />
+          <Btn type="submit" variant="secondary" size="sm">Tìm</Btn>
+          <div className="ml-auto flex items-center gap-2">
+            <select className={selCls} value={f.sort} onChange={(e) => set("sort", e.target.value)}>
+              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select className={selCls} value={f.pageSize} onChange={(e) => set("pageSize", e.target.value)}>
+              {PAGE_SIZE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
           </div>
-          <div className="flex-1 min-w-[200px]">
-            <label className="mb-1 block text-xs font-medium text-ink-soft">Tìm kiếm (tên khách, ID Lada, mã KN)</label>
-            <Input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder="Nhập từ khóa..." />
-          </div>
-          <Btn type="submit" variant="secondary">
-            Tìm kiếm
-          </Btn>
         </form>
 
         {query.isLoading && <p className="py-8 text-center text-sm text-ink-soft">Đang tải...</p>}
@@ -126,24 +294,13 @@ export function KhieuNaiModule({ user }: { user: AppUser }) {
               ))}
             </div>
             <div className="hidden md:block">
-              <Table
-                columns={columns}
-                rows={query.data.items}
-                rowKey={(r) => r.id}
-                onRowClick={(r) => setDetailId(r.id)}
-              />
+              <Table columns={columns} rows={query.data.items} rowKey={(r) => r.id} onRowClick={(r) => setDetailId(r.id)} />
             </div>
             <div className="mt-4 flex items-center justify-between text-sm text-ink-soft">
-              <span>
-                Tổng {total} khiếu nại — Trang {page}/{totalPages}
-              </span>
+              <span>Tổng {total} khiếu nại — Trang {page}/{totalPages}</span>
               <div className="flex gap-2">
-                <Btn size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-                  Trước
-                </Btn>
-                <Btn size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                  Sau
-                </Btn>
+                <Btn size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</Btn>
+                <Btn size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Sau</Btn>
               </div>
             </div>
           </>
@@ -152,23 +309,14 @@ export function KhieuNaiModule({ user }: { user: AppUser }) {
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo khiếu nại mới" width="lg">
         <KhieuNaiForm
-          onCreated={(id) => {
-            setCreateOpen(false);
-            query.refetch();
-            setDetailId(id);
-          }}
+          onCreated={(id) => { setCreateOpen(false); query.refetch(); setDetailId(id); }}
           onCancel={() => setCreateOpen(false)}
         />
       </Modal>
 
       <Modal open={!!detailId} onClose={() => setDetailId(null)} title={detailId ? `Chi tiết ${detailId}` : ""} width="xl">
         {detailId && (
-          <KhieuNaiDetail
-            id={detailId}
-            user={user}
-            onClose={() => setDetailId(null)}
-            onChanged={() => query.refetch()}
-          />
+          <KhieuNaiDetail id={detailId} user={user} onClose={() => setDetailId(null)} onChanged={() => query.refetch()} />
         )}
       </Modal>
     </div>
