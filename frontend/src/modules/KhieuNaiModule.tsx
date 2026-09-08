@@ -308,14 +308,14 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
         )}
       </Card>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo khiếu nại mới" width="xl">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo khiếu nại mới" width="full">
         <KhieuNaiForm
           onCreated={(id) => { setCreateOpen(false); query.refetch(); setDetailId(id); }}
           onCancel={() => setCreateOpen(false)}
         />
       </Modal>
 
-      <Modal open={!!detailId} onClose={closeDetail} width="wide">
+      <Modal open={!!detailId} onClose={closeDetail} width="full">
         {detailId && (
           <KhieuNaiDetail id={detailId} user={user} onClose={closeDetail} onChanged={() => query.refetch()} />
         )}

@@ -226,7 +226,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
         </Card>
       </div>
 
-      <Modal open={!!detailId} onClose={closeDetail} width="wide">
+      <Modal open={!!detailId} onClose={closeDetail} width="full">
         {detailId && (
           <KhieuNaiDetail
             id={detailId}

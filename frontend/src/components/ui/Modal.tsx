@@ -5,7 +5,7 @@ interface ModalProps {
   onClose: () => void;
   title?: ReactNode;
   children: ReactNode;
-  width?: "md" | "lg" | "xl" | "wide" | "full";
+  width?: "md" | "lg" | "xl" | "full";
 }
 
 const WIDTH_CLASSES: Record<"md" | "lg" | "xl", string> = {
@@ -71,15 +71,10 @@ export function Modal({ open, onClose, title, children, width = "lg" }: ModalPro
 
   if (!open) return null;
 
-  // "full" / "wide": không có thanh tiêu đề mặc định — nội dung con tự dựng bố cục
-  // (header + vùng cuộn). Vẫn giữ bẫy focus / khoá cuộn / Esc.
-  //  - full: ~95% màn hình (dùng cho màn nhập liệu lớn)
-  //  - wide: rộng vừa, cao theo nội dung tối đa 90vh (dùng cho màn tra cứu)
-  if (width === "full" || width === "wide") {
-    const panelCls =
-      width === "full"
-        ? "flex h-[95vh] w-[97vw] max-w-[1700px] flex-col overflow-hidden rounded-lg bg-surface shadow-2xl outline-none"
-        : "flex max-h-[90vh] w-[min(1120px,96vw)] flex-col overflow-hidden rounded-lg bg-surface shadow-2xl outline-none";
+  // "full": popup chiếm ~95% màn hình (95vh × 97vw). Giữ bẫy focus / khoá cuộn / Esc.
+  //  - không truyền `title` → bare, nội dung con tự dựng header + vùng cuộn (màn Chi tiết KN).
+  //  - có `title` → thanh tiêu đề + ✕ mặc định + vùng cuộn (màn Tạo KN).
+  if (width === "full") {
     return (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4"
@@ -87,8 +82,31 @@ export function Modal({ open, onClose, title, children, width = "lg" }: ModalPro
           if (e.target === e.currentTarget) onClose();
         }}
       >
-        <div ref={panelRef} role="dialog" aria-modal="true" tabIndex={-1} className={panelCls}>
-          {children}
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
+          className="flex h-[95vh] w-[97vw] max-w-[1700px] flex-col overflow-hidden rounded-lg bg-surface shadow-2xl outline-none"
+        >
+          {title === undefined ? (
+            children
+          ) : (
+            <>
+              <div className="flex shrink-0 items-center justify-between border-b border-line px-5 py-3.5">
+                <h2 className="text-base font-semibold text-ink">{title}</h2>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink"
+                  aria-label="Đóng"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+            </>
+          )}
         </div>
       </div>
     );

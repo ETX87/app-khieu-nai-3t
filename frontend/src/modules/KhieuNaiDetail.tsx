@@ -324,7 +324,7 @@ export function KhieuNaiDetail({
   const tocDo = fmtVN.gioXuLy(kn.ngay_tiep_nhan, isClosed ? kn.ngay_ket_thuc : null);
 
   return (
-    <div className="flex max-h-full min-h-0 flex-col bg-bg">
+    <div className="flex h-full min-h-0 flex-col bg-bg">
       {/* ===== TIÊU ĐỀ: trạng thái · kết quả · tốc độ · nút xử lý ===== */}
       <div className="shrink-0 border-b border-line bg-surface">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
