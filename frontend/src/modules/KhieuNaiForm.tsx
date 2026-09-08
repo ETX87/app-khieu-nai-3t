@@ -18,6 +18,8 @@ interface FormState {
   tinh: string;
   quan_huyen: string;
   phuong_xa: string;
+  tinh_moi: string;
+  phuong_xa_moi: string;
   hang: string;
   model: string;
   thong_tin_ban_dau: string;
@@ -34,6 +36,7 @@ const EMPTY: FormState = {
   id_crm_karofi: "", id_lada: "",
   ten_khach: "", sdt_khach: "", phan_loai_kh: "Thường",
   tinh: "", quan_huyen: "", phuong_xa: "",
+  tinh_moi: "", phuong_xa_moi: "",
   hang: "", model: "",
   thong_tin_ban_dau: "", ghi_chu_nguoi_tao: "",
   nhom_yeu_cau: "", nhom_van_de: "", van_de_dau_vao: "", muc_do: "Trung bình",
@@ -88,7 +91,7 @@ interface TraCuuResponse {
 // Cac field cho phep tra cuu tu dien de (chi dien vao o dang trong).
 const FILLABLE = new Set<keyof FormState>([
   "ten_khach", "sdt_khach", "phan_loai_kh", "tinh", "quan_huyen", "phuong_xa",
-  "hang", "model", "sale_khu_vuc",
+  "tinh_moi", "phuong_xa_moi", "hang", "model", "sale_khu_vuc",
 ]);
 
 function loadDraft(): DraftShape | null {
@@ -129,6 +132,9 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
   // Cascading: huyen theo tinh, xa theo huyen. Chua chon cap tren -> khong goi API.
   const quanHuyenOpts = useSettingsOptions("quan_huyen", form.tinh);
   const phuongXaOpts = useSettingsOptions("phuong_xa", form.quan_huyen);
+  // Địa chính mới (2025): bỏ cấp huyện — tỉnh → phường/xã.
+  const tinhMoiOpts = useSettingsOptions("tinh_moi");
+  const phuongXaMoiOpts = useSettingsOptions("phuong_xa_moi", form.tinh_moi);
 
   const filteredVanDeDauVao = (vanDeDauVaoOpts.data ?? []).filter(
     (o) => !form.nhom_van_de || o.parent === form.nhom_van_de,
@@ -378,10 +384,10 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
         </div>
       </fieldset>
 
-      {/* ── 3. Địa chỉ (cascading) + 4. Sản phẩm ───────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      {/* ── 3. Địa chỉ (cũ / mới) + 4. Sản phẩm ────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-3">
         <fieldset className={fsCls}>
-          <legend className={legendCls}>Địa chỉ</legend>
+          <legend className={legendCls}>Địa chính cũ (63 tỉnh)</legend>
           <div className="grid grid-cols-1 gap-3">
             <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới">
               <Combobox
@@ -418,6 +424,37 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
                 onCreate={(v) => addPending("phuong_xa", v, form.quan_huyen)}
               />
             </Field>
+          </div>
+        </fieldset>
+
+        <fieldset className={fsCls}>
+          <legend className={legendCls}>Địa chính mới (2025)</legend>
+          <div className="grid grid-cols-1 gap-3">
+            <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới">
+              <Combobox
+                options={optsFor(tinhMoiOpts.data, "tinh_moi")}
+                value={form.tinh_moi}
+                onChange={(v) => setForm((p) => ({ ...p, tinh_moi: v, phuong_xa_moi: "" }))}
+                creatable
+                onCreate={(v) => addPending("tinh_moi", v)}
+              />
+            </Field>
+            <Field
+              label="Phường / Xã"
+              hint={form.tinh_moi ? "Gõ để tìm / thêm mới" : "Chọn Tỉnh trước"}
+            >
+              <Combobox
+                options={optsFor(phuongXaMoiOpts.data, "phuong_xa_moi", form.tinh_moi)}
+                value={form.phuong_xa_moi}
+                onChange={(v) => setField("phuong_xa_moi", v)}
+                disabled={!form.tinh_moi}
+                creatable
+                onCreate={(v) => addPending("phuong_xa_moi", v, form.tinh_moi)}
+              />
+            </Field>
+            <p className="text-[11px] leading-tight text-ink-faint">
+              Điền theo địa chính cũ, mới, hoặc cả hai — không bắt buộc.
+            </p>
           </div>
         </fieldset>
 

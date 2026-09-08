@@ -27,6 +27,8 @@ export interface KhieuNai {
   tinh: string | null;
   quan_huyen: string | null;
   phuong_xa: string | null;
+  tinh_moi: string | null;
+  phuong_xa_moi: string | null;
   model: string | null;
   hang: string | null;
   thong_tin_ban_dau: string | null;
@@ -122,6 +124,8 @@ export type SettingsNhom =
   | "tinh"
   | "quan_huyen"
   | "phuong_xa"
+  | "tinh_moi"
+  | "phuong_xa_moi"
   | "bo_phan_ban_giao";
 
 export interface KhieuNaiStats {

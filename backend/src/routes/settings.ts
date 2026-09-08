@@ -30,6 +30,7 @@ const USAGE_COLUMN: Record<string, string> = {
   muc_do: "muc_do", nhom_yeu_cau: "nhom_yeu_cau", nhom_van_de: "nhom_van_de",
   van_de_dau_vao: "van_de_dau_vao", phan_loai_kh: "phan_loai_kh", sale_khu_vuc: "sale_khu_vuc",
   model: "model", hang: "hang", tinh: "tinh", quan_huyen: "quan_huyen", phuong_xa: "phuong_xa",
+  tinh_moi: "tinh_moi", phuong_xa_moi: "phuong_xa_moi",
   bo_phan_ban_giao: "bo_phan_ban_giao", ly_do_cham: "ghi_chu_ly_do_cham", danh_gia_cskh: "danh_gia_ql",
 };
 
@@ -45,7 +46,10 @@ app.get("/options/usage", async (c) => {
 
 // Cac nhom "nguoi dung tu tao list va tai su dung" theo dac ta Ma tran goc - moi vai tro
 // (tru Viewer) duoc tu them gia tri moi ngay khi nhap lieu, khong can vao Cau hinh.
-const USER_CREATABLE_GROUPS = new Set(["sale_khu_vuc", "hang", "model", "tinh", "quan_huyen", "phuong_xa"]);
+const USER_CREATABLE_GROUPS = new Set([
+  "sale_khu_vuc", "hang", "model",
+  "tinh", "quan_huyen", "phuong_xa", "tinh_moi", "phuong_xa_moi",
+]);
 
 app.post("/options", async (c) => {
   const user = c.get("user");

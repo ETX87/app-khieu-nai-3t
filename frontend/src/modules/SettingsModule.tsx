@@ -20,11 +20,18 @@ const TAB_GROUPS: { group: string; items: { key: SettingsNhom; label: string }[]
     ],
   },
   {
-    group: "Địa lý",
+    group: "Địa lý (địa chính cũ)",
     items: [
       { key: "tinh", label: "Tỉnh" },
       { key: "quan_huyen", label: "Quận/Huyện" },
       { key: "phuong_xa", label: "Phường/Xã" },
+    ],
+  },
+  {
+    group: "Địa lý (địa chính mới 2025)",
+    items: [
+      { key: "tinh_moi", label: "Tỉnh/TP" },
+      { key: "phuong_xa_moi", label: "Phường/Xã" },
     ],
   },
   {
@@ -247,5 +254,7 @@ const TABS_LABEL: Record<SettingsNhom, string> = {
   tinh: "Tỉnh",
   quan_huyen: "Quận/Huyện",
   phuong_xa: "Phường/Xã",
+  tinh_moi: "Tỉnh/TP (mới)",
+  phuong_xa_moi: "Phường/Xã (mới)",
   bo_phan_ban_giao: "Bộ phận bàn giao",
 };

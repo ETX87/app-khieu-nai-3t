@@ -13,7 +13,8 @@ const DANH_GIA_VALUES = new Set(["Khong", "Co", "Chua danh gia"]);
 
 // Thong tin khach hang + CRM - chi CSKH/Admin sua
 const CSKH_FIELDS = [
-  "ten_khach", "sdt_khach", "id_lada", "sale_khu_vuc", "tinh", "quan_huyen", "phuong_xa", "model", "hang",
+  "ten_khach", "sdt_khach", "id_lada", "sale_khu_vuc",
+  "tinh", "quan_huyen", "phuong_xa", "tinh_moi", "phuong_xa_moi", "model", "hang",
   "thong_tin_ban_dau", "nguoi_bao", "muc_do", "nhom_yeu_cau", "nhom_van_de", "van_de_dau_vao",
   "phan_loai_kh", "ghi_chu_nguoi_tao", "id_crm_karofi",
 ];
@@ -180,8 +181,16 @@ app.get("/stats", async (c) => {
 //  - id_crm:  goi API DVBH goc, neu khop tra thong tin co ban + tu dien model/tinh/huyen/xa/sdt.
 // Dat TRUOC "/:id" (Hono khop route theo thu tu).
 const LADA_FILL_COLUMNS = [
-  "ten_khach", "sdt_khach", "tinh", "quan_huyen", "phuong_xa", "hang", "model", "sale_khu_vuc", "phan_loai_kh",
+  "ten_khach", "sdt_khach", "tinh", "quan_huyen", "phuong_xa", "tinh_moi", "phuong_xa_moi",
+  "hang", "model", "sale_khu_vuc", "phan_loai_kh",
 ];
+
+async function optionExists(db: D1Database, nhom: string, giaTri: string): Promise<boolean> {
+  const r = await db.prepare(
+    "SELECT 1 FROM settings_option WHERE nhom = ? AND gia_tri = ? AND active = 1 LIMIT 1",
+  ).bind(nhom, giaTri).first();
+  return !!r;
+}
 
 app.get("/tra-cuu", async (c) => {
   const idLada = c.req.query("id_lada")?.trim();
@@ -219,9 +228,17 @@ app.get("/tra-cuu", async (c) => {
       put("ten_khach", p.khach_hang);
       put("sdt_khach", p.so_dien_thoai);
       put("model", p.model);
-      put("tinh", p.tinh);
-      put("quan_huyen", p.quan_huyen);
-      put("phuong_xa", p.phuong_xa);
+      // Địa chỉ: ưu tiên khớp địa chính MỚI (sau sáp nhập 2025); không khớp thì điền theo địa chính CŨ.
+      const tinhVal = typeof p.tinh === "string" ? p.tinh.trim() : "";
+      const xaVal = typeof p.phuong_xa === "string" ? p.phuong_xa.trim() : "";
+      if (tinhVal && (await optionExists(c.env.DB, "tinh_moi", tinhVal))) {
+        fill.tinh_moi = tinhVal;
+        if (xaVal && (await optionExists(c.env.DB, "phuong_xa_moi", xaVal))) fill.phuong_xa_moi = xaVal;
+      } else {
+        put("tinh", p.tinh);
+        put("quan_huyen", p.quan_huyen);
+        put("phuong_xa", p.phuong_xa);
+      }
       return c.json({
         found: true, source: "crm", fill,
         preview: {
@@ -303,6 +320,8 @@ app.post("/", requireRole("CSKH", "KTV", "TN CSKH", "QL", "Admin"), async (c) =>
     tinh: body.tinh ?? null,
     quan_huyen: body.quan_huyen ?? null,
     phuong_xa: body.phuong_xa ?? null,
+    tinh_moi: body.tinh_moi ?? null,
+    phuong_xa_moi: body.phuong_xa_moi ?? null,
     model: body.model ?? null,
     hang: body.hang ?? null,
     thong_tin_ban_dau: body.thong_tin_ban_dau ?? null,

@@ -603,11 +603,14 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
   const modelOpts = useSettingsOptions("model");
   const hangOpts = useSettingsOptions("hang");
   const tinhOpts = useSettingsOptions("tinh");
+  const tinhMoiOpts = useSettingsOptions("tinh_moi");
   const createSaleKhuVuc = useCreateSettingsOption("sale_khu_vuc");
   const createHang = useCreateSettingsOption("hang");
   const createTinh = useCreateSettingsOption("tinh");
   const createQuanHuyen = useCreateSettingsOption("quan_huyen");
   const createPhuongXa = useCreateSettingsOption("phuong_xa");
+  const createTinhMoi = useCreateSettingsOption("tinh_moi");
+  const createPhuongXaMoi = useCreateSettingsOption("phuong_xa_moi");
 
   const [form, setForm] = useState({
     ten_khach: kn.ten_khach ?? "",
@@ -617,6 +620,8 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
     tinh: kn.tinh ?? "",
     quan_huyen: kn.quan_huyen ?? "",
     phuong_xa: kn.phuong_xa ?? "",
+    tinh_moi: kn.tinh_moi ?? "",
+    phuong_xa_moi: kn.phuong_xa_moi ?? "",
     model: kn.model ?? "",
     hang: kn.hang ?? "",
     thong_tin_ban_dau: kn.thong_tin_ban_dau ?? "",
@@ -631,14 +636,16 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
 
   const setField = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((p) => ({ ...p, [k]: v }));
 
-  // Địa lý cascading: huyện theo tỉnh, xã theo huyện.
+  // Địa lý cascading: huyện theo tỉnh, xã theo huyện (địa chính cũ); tỉnh mới → xã mới.
   const quanHuyenOpts = useSettingsOptions("quan_huyen", form.tinh);
   const phuongXaOpts = useSettingsOptions("phuong_xa", form.quan_huyen);
+  const phuongXaMoiOpts = useSettingsOptions("phuong_xa_moi", form.tinh_moi);
 
   const serverForm = {
     ten_khach: kn.ten_khach ?? "", sdt_khach: kn.sdt_khach ?? "", id_lada: kn.id_lada ?? "",
     sale_khu_vuc: kn.sale_khu_vuc ?? "", tinh: kn.tinh ?? "", quan_huyen: kn.quan_huyen ?? "",
-    phuong_xa: kn.phuong_xa ?? "", model: kn.model ?? "", hang: kn.hang ?? "",
+    phuong_xa: kn.phuong_xa ?? "", tinh_moi: kn.tinh_moi ?? "", phuong_xa_moi: kn.phuong_xa_moi ?? "",
+    model: kn.model ?? "", hang: kn.hang ?? "",
     thong_tin_ban_dau: kn.thong_tin_ban_dau ?? "", nguoi_bao: kn.nguoi_bao ?? "",
     muc_do: kn.muc_do ?? "", nhom_yeu_cau: kn.nhom_yeu_cau ?? "", nhom_van_de: kn.nhom_van_de ?? "",
     van_de_dau_vao: kn.van_de_dau_vao ?? "", phan_loai_kh: kn.phan_loai_kh ?? "",
@@ -677,9 +684,11 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
           <ReadField label="ID Lada" value={kn.id_lada} />
           <ReadField label="Sale khu vực" value={kn.sale_khu_vuc} />
           <ReadField label="Người báo" value={kn.nguoi_bao} />
-          <ReadField label="Tỉnh" value={kn.tinh} />
-          <ReadField label="Quận/Huyện" value={kn.quan_huyen} />
-          <ReadField label="Phường/Xã" value={kn.phuong_xa} />
+          <ReadField label="Tỉnh (cũ)" value={kn.tinh} />
+          <ReadField label="Quận/Huyện (cũ)" value={kn.quan_huyen} />
+          <ReadField label="Phường/Xã (cũ)" value={kn.phuong_xa} />
+          <ReadField label="Tỉnh (mới)" value={kn.tinh_moi} />
+          <ReadField label="Phường/Xã (mới)" value={kn.phuong_xa_moi} />
           <ReadField label="Model" value={kn.model} />
           <ReadField label="Hãng" value={kn.hang} />
           <ReadField label="Mức độ" value={kn.muc_do} />
@@ -722,7 +731,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
         <Field label="Người báo">
           <Input value={form.nguoi_bao} onChange={(e) => setField("nguoi_bao", e.target.value)} />
         </Field>
-        <Field label="Tỉnh">
+        <Field label="Tỉnh (cũ)">
           <Combobox
             options={(tinhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
             value={form.tinh}
@@ -731,7 +740,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
             onCreate={createTinh}
           />
         </Field>
-        <Field label="Quận/Huyện">
+        <Field label="Quận/Huyện (cũ)">
           <Combobox
             options={(quanHuyenOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
             value={form.quan_huyen}
@@ -741,7 +750,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
             onCreate={(v) => createQuanHuyen(v, form.tinh)}
           />
         </Field>
-        <Field label="Phường/Xã">
+        <Field label="Phường/Xã (cũ)">
           <Combobox
             options={(phuongXaOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
             value={form.phuong_xa}
@@ -749,6 +758,25 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
             disabled={!form.quan_huyen}
             creatable
             onCreate={(v) => createPhuongXa(v, form.quan_huyen)}
+          />
+        </Field>
+        <Field label="Tỉnh (mới)">
+          <Combobox
+            options={(tinhMoiOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+            value={form.tinh_moi}
+            onChange={(v) => setForm((p) => ({ ...p, tinh_moi: v, phuong_xa_moi: "" }))}
+            creatable
+            onCreate={createTinhMoi}
+          />
+        </Field>
+        <Field label="Phường/Xã (mới)">
+          <Combobox
+            options={(phuongXaMoiOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+            value={form.phuong_xa_moi}
+            onChange={(v) => setField("phuong_xa_moi", v)}
+            disabled={!form.tinh_moi}
+            creatable
+            onCreate={(v) => createPhuongXaMoi(v, form.tinh_moi)}
           />
         </Field>
         <Field label="Model">
