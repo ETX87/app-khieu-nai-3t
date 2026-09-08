@@ -101,6 +101,13 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailDirty, setDetailDirty] = useState(false);
+
+  const closeDetail = () => {
+    if (detailDirty && !window.confirm("Còn thay đổi chưa lưu ở màn chi tiết. Đóng và bỏ thay đổi?")) return;
+    setDetailDirty(false);
+    setDetailId(null);
+  };
 
   const mucDoOpts = useSettingsOptions("muc_do");
   const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
@@ -314,9 +321,15 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
         />
       </Modal>
 
-      <Modal open={!!detailId} onClose={() => setDetailId(null)} title={detailId ? `Chi tiết ${detailId}` : ""} width="xl">
+      <Modal open={!!detailId} onClose={closeDetail} title={detailId ? `Chi tiết ${detailId}` : ""} width="xl">
         {detailId && (
-          <KhieuNaiDetail id={detailId} user={user} onClose={() => setDetailId(null)} onChanged={() => query.refetch()} />
+          <KhieuNaiDetail
+            id={detailId}
+            user={user}
+            onClose={closeDetail}
+            onChanged={() => query.refetch()}
+            onDirtyChange={setDetailDirty}
+          />
         )}
       </Modal>
     </div>

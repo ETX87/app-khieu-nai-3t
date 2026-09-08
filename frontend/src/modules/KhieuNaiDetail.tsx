@@ -1,8 +1,29 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import {
+  createContext, useContext, useEffect, useMemo, useRef, useState,
+  type FormEvent, type ReactNode,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
 import type { AppUser, DanhGia3, KhieuNai, LichSu, TienTrinh } from "../api/types";
 import { fmtVN } from "../lib/formatVN";
+
+// --- Theo dõi thay đổi chưa lưu ở tất cả các khu con ---
+interface DirtyReg {
+  setDirty: (id: string, v: boolean) => void;
+  setSaver: (id: string, fn: () => Promise<unknown>) => void;
+}
+const DirtyCtx = createContext<DirtyReg | null>(null);
+
+function useRegisterDirty(id: string, isDirty: boolean, save: () => Promise<unknown>) {
+  const ctx = useContext(DirtyCtx);
+  useEffect(() => {
+    ctx?.setDirty(id, isDirty);
+  }, [ctx, id, isDirty]);
+  useEffect(() => {
+    ctx?.setSaver(id, save);
+  });
+  useEffect(() => () => ctx?.setDirty(id, false), [ctx, id]);
+}
 import { useCreateSettingsOption, useSettingsOptions } from "../api/useSettingsOptions";
 import { Card } from "../components/ui/Card";
 import { Btn } from "../components/ui/Btn";
@@ -77,11 +98,13 @@ export function KhieuNaiDetail({
   user,
   onClose,
   onChanged,
+  onDirtyChange,
 }: {
   id: string;
   user: AppUser;
   onClose: () => void;
   onChanged: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const qc = useQueryClient();
   const { showToast } = useToast();
@@ -91,9 +114,39 @@ export function KhieuNaiDetail({
     queryFn: () => api.get<DetailResponse>(`/khieu-nai/${id}`),
   });
 
+  // Registry theo dõi khu nào có thay đổi chưa lưu (hooks phải đặt trước mọi return sớm).
+  const [dirtyMap, setDirtyMap] = useState<Record<string, boolean>>({});
+  const saversRef = useRef<Record<string, () => Promise<unknown>>>({});
+  const dirtyReg = useMemo<DirtyReg>(
+    () => ({
+      setDirty: (sid, v) => setDirtyMap((m) => (m[sid] === v ? m : { ...m, [sid]: v })),
+      setSaver: (sid, fn) => {
+        saversRef.current[sid] = fn;
+      },
+    }),
+    [],
+  );
+  const dirtyIds = Object.keys(dirtyMap).filter((k) => dirtyMap[k]);
+  useEffect(() => {
+    onDirtyChange?.(dirtyIds.length > 0);
+  }, [dirtyIds.length, onDirtyChange]);
+  const [savingAll, setSavingAll] = useState(false);
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["khieu-nai", id] });
     onChanged();
+  };
+
+  const saveAll = async () => {
+    setSavingAll(true);
+    try {
+      for (const sid of dirtyIds) await saversRef.current[sid]?.();
+      showToast("Đã lưu tất cả thay đổi", "success");
+    } catch {
+      showToast("Có khu chưa lưu được — kiểm tra lại", "error");
+    } finally {
+      setSavingAll(false);
+    }
   };
 
   if (detail.isLoading) return <p className="py-8 text-center text-sm text-ink-soft">Đang tải...</p>;
@@ -120,6 +173,7 @@ export function KhieuNaiDetail({
   };
 
   return (
+    <DirtyCtx.Provider value={dirtyReg}>
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <StatusBadge trangThai={kn.trang_thai} />
@@ -151,8 +205,18 @@ export function KhieuNaiDetail({
       <TnCskhSection kn={kn} editable={canDanhGia4Loi} onSaved={invalidate} />
       <QlSection kn={kn} editable={isQl} onSaved={invalidate} />
 
+      {dirtyIds.length > 0 && (
+        <div className="sticky bottom-0 z-10 -mx-5 flex items-center justify-between gap-3 border-t border-amber-300 bg-amber-50 px-5 py-2.5 text-sm text-amber-900">
+          <span>{dirtyIds.length} khu có thay đổi chưa lưu.</span>
+          <Btn variant="primary" size="sm" disabled={savingAll} onClick={saveAll}>
+            {savingAll ? "Đang lưu..." : "Lưu tất cả thay đổi"}
+          </Btn>
+        </div>
+      )}
+
       <ActionBar kn={kn} user={user} onDone={() => { invalidate(); }} onError={(m) => showToast(m, "error")} onClose={onClose} />
     </div>
+    </DirtyCtx.Provider>
   );
 }
 
@@ -247,6 +311,17 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
 
   const setField = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((p) => ({ ...p, [k]: v }));
 
+  const serverForm = {
+    ten_khach: kn.ten_khach ?? "", sdt_khach: kn.sdt_khach ?? "", id_lada: kn.id_lada ?? "",
+    sale_khu_vuc: kn.sale_khu_vuc ?? "", tinh: kn.tinh ?? "", quan_huyen: kn.quan_huyen ?? "",
+    phuong_xa: kn.phuong_xa ?? "", model: kn.model ?? "", hang: kn.hang ?? "",
+    thong_tin_ban_dau: kn.thong_tin_ban_dau ?? "", nguoi_bao: kn.nguoi_bao ?? "",
+    muc_do: kn.muc_do ?? "", nhom_yeu_cau: kn.nhom_yeu_cau ?? "", nhom_van_de: kn.nhom_van_de ?? "",
+    van_de_dau_vao: kn.van_de_dau_vao ?? "", phan_loai_kh: kn.phan_loai_kh ?? "",
+    ghi_chu_nguoi_tao: kn.ghi_chu_nguoi_tao ?? "",
+  };
+  const isDirty = editable && JSON.stringify(form) !== JSON.stringify(serverForm);
+
   const mutation = useMutation({
     mutationFn: () => {
       const body: Record<string, string | null> = {};
@@ -259,6 +334,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
     },
     onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
   });
+  useRegisterDirty("khach", isDirty, () => mutation.mutateAsync());
 
   const filteredVanDeDauVao = (vanDeDauVaoOpts.data ?? []).filter(
     (o) => !form.nhom_van_de || o.parent === form.nhom_van_de,
@@ -447,6 +523,7 @@ function CrmSection({ kn, user, onSaved }: { kn: KhieuNai; user: AppUser; onSave
     },
     onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
   });
+  useRegisterDirty("crm_id", editable && crmId.trim() !== (kn.id_crm_karofi ?? ""), () => saveId.mutateAsync());
 
   const resync = useMutation({
     mutationFn: () => api.post<{ ok: true }>(`/khieu-nai/${kn.id}/dong-bo-crm`),
@@ -537,6 +614,13 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
   const setField = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((p) => ({ ...p, [k]: v }));
 
+  const serverForm = {
+    loi_nha_san_xuat: kn.loi_nha_san_xuat, loi_lap_dat: kn.loi_lap_dat,
+    loi_thai_do_ktv: kn.loi_thai_do_ktv, loi_quy_trinh_nskx: kn.loi_quy_trinh_nskx,
+    ket_luan_khieu_nai: kn.ket_luan_khieu_nai ?? "Chua danh gia",
+  };
+  const isDirty = editable && JSON.stringify(form) !== JSON.stringify(serverForm);
+
   const mutation = useMutation({
     mutationFn: () => api.patch<{ khieuNai: KhieuNai }>(`/khieu-nai/${kn.id}`, form),
     onSuccess: () => {
@@ -545,6 +629,7 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
     },
     onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
   });
+  useRegisterDirty("danh_gia_loi", isDirty, () => mutation.mutateAsync());
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -616,6 +701,13 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
 
   const setField = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((p) => ({ ...p, [k]: v }));
 
+  const serverForm = {
+    danh_gia_ql: kn.danh_gia_ql ?? "",
+    ql_chon_ngay_hen: kn.ql_chon_ngay_hen ?? "",
+    ql_chon_ly_do: kn.ql_chon_ly_do ?? "",
+  };
+  const isDirty = editable && JSON.stringify(form) !== JSON.stringify(serverForm);
+
   const mutation = useMutation({
     mutationFn: () =>
       api.patch<{ khieuNai: KhieuNai }>(`/khieu-nai/${kn.id}`, {
@@ -629,6 +721,7 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
     },
     onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
   });
+  useRegisterDirty("danh_gia_ql", isDirty, () => mutation.mutateAsync());
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -705,6 +798,15 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
   const setField = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((p) => ({ ...p, [k]: v }));
 
+  const serverForm = {
+    bo_phan_ban_giao: kn.bo_phan_ban_giao ?? "", ma_duyet_doi_linh_kien: kn.ma_duyet_doi_linh_kien ?? "",
+    cam_co: kn.cam_co ?? "Khong co", ghi_chu_ly_do_cham: kn.ghi_chu_ly_do_cham ?? "",
+    id_lada_phat_sinh: kn.id_lada_phat_sinh ?? "", ngay_ghi_nhan_doi_may: kn.ngay_ghi_nhan_doi_may ?? "",
+    ngay_dong_doi_may: kn.ngay_dong_doi_may ?? "", giai_trinh_cham_doi_may: kn.giai_trinh_cham_doi_may ?? "",
+    ket_qua_doi_may: kn.ket_qua_doi_may ?? "", nguoi_xac_nhan_doi_may: kn.nguoi_xac_nhan_doi_may ?? "",
+  };
+  const isDirty = editable && JSON.stringify(form) !== JSON.stringify(serverForm);
+
   const mutation = useMutation({
     mutationFn: () => {
       const body: Record<string, string | null> = {};
@@ -717,6 +819,7 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
     },
     onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
   });
+  useRegisterDirty("doi_may", isDirty, () => mutation.mutateAsync());
 
   const submit = (e: FormEvent) => {
     e.preventDefault();

@@ -9,45 +9,73 @@ import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { useToast } from "../components/ui/Toast";
 
-const TABS: { key: SettingsNhom; label: string }[] = [
-  { key: "ly_do_cham", label: "Lý do chậm" },
-  { key: "nhom_van_de", label: "Nhóm vấn đề" },
-  { key: "van_de_dau_vao", label: "Vấn đề đầu vào" },
-  { key: "danh_gia_cskh", label: "Đánh giá QL (kết thúc ca)" },
-  { key: "phan_loai_kh", label: "Phân loại KH" },
-  { key: "muc_do", label: "Mức độ" },
-  { key: "nhom_yeu_cau", label: "Nhóm yêu cầu" },
-  { key: "sale_khu_vuc", label: "Sale khu vực" },
-  { key: "model", label: "Model" },
-  { key: "hang", label: "Hãng" },
-  { key: "tinh", label: "Tỉnh" },
-  { key: "quan_huyen", label: "Quận/Huyện" },
-  { key: "phuong_xa", label: "Phường/Xã" },
-  { key: "bo_phan_ban_giao", label: "Bộ phận bàn giao" },
+const TAB_GROUPS: { group: string; items: { key: SettingsNhom; label: string }[] }[] = [
+  {
+    group: "Phân loại vấn đề",
+    items: [
+      { key: "nhom_van_de", label: "Nhóm vấn đề" },
+      { key: "van_de_dau_vao", label: "Vấn đề đầu vào" },
+      { key: "muc_do", label: "Mức độ" },
+      { key: "nhom_yeu_cau", label: "Nhóm yêu cầu" },
+    ],
+  },
+  {
+    group: "Địa lý",
+    items: [
+      { key: "tinh", label: "Tỉnh" },
+      { key: "quan_huyen", label: "Quận/Huyện" },
+      { key: "phuong_xa", label: "Phường/Xã" },
+    ],
+  },
+  {
+    group: "Sản phẩm",
+    items: [
+      { key: "hang", label: "Hãng" },
+      { key: "model", label: "Model" },
+    ],
+  },
+  {
+    group: "Quy trình xử lý",
+    items: [
+      { key: "ly_do_cham", label: "Lý do chậm" },
+      { key: "danh_gia_cskh", label: "Đánh giá QL (kết thúc ca)" },
+      { key: "phan_loai_kh", label: "Phân loại KH" },
+      { key: "sale_khu_vuc", label: "Sale khu vực" },
+      { key: "bo_phan_ban_giao", label: "Bộ phận bàn giao" },
+    ],
+  },
 ];
 
 export function SettingsModule() {
-  const [tab, setTab] = useState<SettingsNhom>("ly_do_cham");
+  const [tab, setTab] = useState<SettingsNhom>("nhom_van_de");
 
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-lg font-semibold text-ink">Cấu hình danh mục</h2>
 
-      <div className="flex flex-wrap gap-1 border-b border-line">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`rounded-t-md border-b-2 px-3 py-2 text-sm font-medium ${
-              tab === t.key ? "border-accent text-accent" : "border-transparent text-ink-soft hover:text-ink"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="flex flex-col gap-4 md:flex-row md:items-start">
+        <nav className="flex shrink-0 flex-col gap-3 md:w-52">
+          {TAB_GROUPS.map((g) => (
+            <div key={g.group}>
+              <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{g.group}</p>
+              {g.items.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  className={`block w-full rounded-md px-2 py-1.5 text-left text-sm font-medium ${
+                    tab === t.key ? "bg-accent-soft text-accent" : "text-ink-soft hover:bg-gray-100 hover:text-ink"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div className="min-w-0 flex-1">
+          <OptionsPanel nhom={tab} />
+        </div>
       </div>
-
-      <OptionsPanel nhom={tab} />
     </div>
   );
 }

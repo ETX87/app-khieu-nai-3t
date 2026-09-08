@@ -1,6 +1,7 @@
 import { api } from "../api/client";
 import type { AppUser } from "../api/types";
 import { MODULE_LABELS, NAV_GROUPS, type ModuleKey } from "./navConfig";
+import { NAV_ICONS } from "./BottomNav";
 
 interface SidebarProps {
   modules: ModuleKey[];
@@ -24,10 +25,11 @@ function NavButton({ moduleKey, active, onSelect }: { moduleKey: ModuleKey; acti
   return (
     <button
       onClick={() => onSelect(moduleKey)}
-      className={`block w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${
+      className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${
         active ? "bg-accent-soft text-accent" : "text-ink hover:bg-gray-100"
       }`}
     >
+      <span className="shrink-0 [&_svg]:h-[18px] [&_svg]:w-[18px]">{NAV_ICONS[moduleKey]}</span>
       {MODULE_LABELS[moduleKey]}
     </button>
   );

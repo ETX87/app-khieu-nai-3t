@@ -3,7 +3,7 @@ import { MODULE_LABELS, type ModuleKey } from "./navConfig";
 
 const ICON_PROPS = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
-const ICONS: Record<ModuleKey, ReactNode> = {
+export const NAV_ICONS: Record<ModuleKey, ReactNode> = {
   "trang-chu": (
     <svg {...ICON_PROPS}>
       <path d="M3 11.5 12 4l9 7.5" />
@@ -32,11 +32,10 @@ const ICONS: Record<ModuleKey, ReactNode> = {
   ),
 };
 
-const MORE_ICON = (
+const ACCOUNT_ICON = (
   <svg {...ICON_PROPS}>
-    <circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none" />
-    <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
-    <circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="8" r="3.2" />
+    <path d="M5.5 20c.7-3.6 3.4-5.5 6.5-5.5s5.8 1.9 6.5 5.5" />
   </svg>
 );
 
@@ -48,6 +47,7 @@ interface BottomNavProps {
 }
 
 export function BottomNav({ modules, active, onSelect, onMore }: BottomNavProps) {
+  // Hiện tất cả module (tối đa 4) + một mục "Tài khoản" luôn có (mở ngăn kéo: hồ sơ + đăng xuất).
   const primary = modules.slice(0, 4);
 
   return (
@@ -60,13 +60,13 @@ export function BottomNav({ modules, active, onSelect, onMore }: BottomNavProps)
             active === m ? "text-accent" : "text-ink-soft"
           }`}
         >
-          {ICONS[m]}
+          {NAV_ICONS[m]}
           <span className="truncate">{MODULE_LABELS[m]}</span>
         </button>
       ))}
       <button onClick={onMore} className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-ink-soft">
-        {MORE_ICON}
-        <span>Thêm</span>
+        {ACCOUNT_ICON}
+        <span>Tài khoản</span>
       </button>
     </nav>
   );
