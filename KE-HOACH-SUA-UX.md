@@ -232,12 +232,19 @@ Frontend:
 | WI-11 Cấu hình | ✅ Đạt | Bộ lọc "Đang dùng / Đã ẩn / Tất cả" + đếm "15 mục" + ô tìm trong tab. Ẩn 1 mục → xuất hiện ở tab "Đã ẩn" với nút "Bật lại" (hết cửa một chiều). Endpoint `/options/usage` để đếm tham chiếu. |
 | X7 Modal | ✅ Đạt | Bẫy focus (Tab vòng trong modal) + khoá cuộn nền + trả focus khi đóng + đóng khi bấm nền. Mở Chi tiết KN — không lỗi console. |
 
-### Còn lại (đợt 3)
+### Đợt 3 — 08/09/2026 · commit `e19137f`
 
-| WI | Nội dung |
-|----|----------|
-| WI-09 (phần còn) | Thu gọn khu Chi tiết theo trạng thái + nhãn "đã điền n trường"; thanh dính "n thay đổi chưa lưu · Lưu tất cả" + chặn rời khi còn dở. (Đã xong: copy mã đơn, đổi tên khu, dịch mã, tiến trình textarea + tên người, header, thứ tự khu, bẫy focus modal.) |
-| WI-14 (P2) | Icon hệ thống cho sidebar/KPI; bottom nav mobile bỏ "Thêm" khi ≤3 mục + thêm "Tài khoản". |
-| WI-15 (P2) | Chế độ tối (token đã sẵn) + công tắc Sáng/Tối/Theo hệ thống. |
-| S4 (P2) | Nhóm 14 tab Cấu hình theo chủ đề. |
-| U3 (P2) | Mời người dùng trước (tiền cấp quyền email). |
+| WI | Trạng thái | Tái kiểm thử thực tế trên app |
+|----|-----------|------------------------------|
+| WI-09 (chống mất dữ liệu) | ✅ Đạt | Gõ vào "Ghi chú người tạo" (khu Khách hàng) → thanh dính "1 khu có thay đổi chưa lưu · Lưu tất cả thay đổi". Bấm "Lưu tất cả" → 2 toast "Đã lưu…", thanh biến mất, DB đã ghi. Bấm ✕ khi còn dở → `window.confirm` chặn, modal không đóng. |
+| WI-14 | ✅ Đạt | Sidebar: mỗi mục có icon. Bottom nav mobile (Admin): Trang chủ · Khiếu nại · Cấu hình · Người dùng · **Tài khoản** — hết mục "Thêm" cụt. |
+| S4 | ✅ Đạt | Màn Cấu hình: 14 tab phẳng → menu nhóm 2 cột (Phân loại vấn đề / Địa lý / Sản phẩm / Quy trình xử lý); panel dùng hết chiều rộng. |
+
+### Còn lại (chưa làm — khuyến nghị làm thành đợt riêng)
+
+| WI | Nội dung | Ghi chú |
+|----|----------|---------|
+| WI-15 | Chế độ tối + công tắc Sáng/Tối/Theo hệ thống | **Cần đợt riêng.** Có ~98 chỗ dùng màu Tailwind cứng (`bg-white`, `text-green-700`, `bg-amber-50`…) rải khắp ~15 file. Làm nửa vời sẽ tệ hơn không làm. Cần một lượt chuẩn hoá bảng màu qua token trước. |
+| WI-09 (phần thu gọn) | Thu gọn khu Chi tiết theo trạng thái + nhãn "đã điền n trường" | Phần chống-mất-dữ-liệu (quan trọng hơn) đã xong; phần thu gọn thuần thẩm mỹ. |
+| U3 | Mời người dùng trước (tiền cấp quyền email) | Cần cột/endpoint mới; giá trị thấp nếu đội nhỏ ổn định. |
+| KPI icons | Icon cho 6 thẻ KPI Trang chủ | Thuần trang trí. |
