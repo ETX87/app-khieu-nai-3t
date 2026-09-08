@@ -5,7 +5,7 @@ interface ModalProps {
   onClose: () => void;
   title?: ReactNode;
   children: ReactNode;
-  width?: "md" | "lg" | "xl" | "full";
+  width?: "md" | "lg" | "xl" | "wide" | "full";
 }
 
 const WIDTH_CLASSES: Record<"md" | "lg" | "xl", string> = {
@@ -71,23 +71,23 @@ export function Modal({ open, onClose, title, children, width = "lg" }: ModalPro
 
   if (!open) return null;
 
-  // "full": popup gần toàn màn hình (~95% diện tích), không có thanh tiêu đề mặc định —
-  // nội dung con tự dựng bố cục (header cố định + vùng cuộn). Vẫn giữ bẫy focus / khoá cuộn / Esc.
-  if (width === "full") {
+  // "full" / "wide": không có thanh tiêu đề mặc định — nội dung con tự dựng bố cục
+  // (header + vùng cuộn). Vẫn giữ bẫy focus / khoá cuộn / Esc.
+  //  - full: ~95% màn hình (dùng cho màn nhập liệu lớn)
+  //  - wide: rộng vừa, cao theo nội dung tối đa 90vh (dùng cho màn tra cứu)
+  if (width === "full" || width === "wide") {
+    const panelCls =
+      width === "full"
+        ? "flex h-[95vh] w-[97vw] max-w-[1700px] flex-col overflow-hidden rounded-lg bg-surface shadow-2xl outline-none"
+        : "flex max-h-[90vh] w-[min(1120px,96vw)] flex-col overflow-hidden rounded-lg bg-surface shadow-2xl outline-none";
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-3"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4"
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
       >
-        <div
-          ref={panelRef}
-          role="dialog"
-          aria-modal="true"
-          tabIndex={-1}
-          className="flex h-[95vh] w-[97vw] max-w-[1700px] flex-col overflow-hidden rounded-lg bg-surface shadow-2xl outline-none"
-        >
+        <div ref={panelRef} role="dialog" aria-modal="true" tabIndex={-1} className={panelCls}>
           {children}
         </div>
       </div>

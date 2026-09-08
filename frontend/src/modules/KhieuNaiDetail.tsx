@@ -1,29 +1,8 @@
-import {
-  createContext, useContext, useEffect, useMemo, useRef, useState,
-  type FormEvent, type ReactNode,
-} from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
 import type { AppUser, DanhGia3, KhieuNai, LichSu, TienTrinh } from "../api/types";
 import { fmtVN } from "../lib/formatVN";
-
-// --- Theo dõi thay đổi chưa lưu ở tất cả các khu con ---
-interface DirtyReg {
-  setDirty: (id: string, v: boolean) => void;
-  setSaver: (id: string, fn: () => Promise<unknown>) => void;
-}
-const DirtyCtx = createContext<DirtyReg | null>(null);
-
-function useRegisterDirty(id: string, isDirty: boolean, save: () => Promise<unknown>) {
-  const ctx = useContext(DirtyCtx);
-  useEffect(() => {
-    ctx?.setDirty(id, isDirty);
-  }, [ctx, id, isDirty]);
-  useEffect(() => {
-    ctx?.setSaver(id, save);
-  });
-  useEffect(() => () => ctx?.setDirty(id, false), [ctx, id]);
-}
 import { useCreateSettingsOption, useSettingsOptions } from "../api/useSettingsOptions";
 import { Btn } from "../components/ui/Btn";
 import { Field, Input, Textarea } from "../components/ui/Input";
@@ -215,65 +194,40 @@ function dongCaChecklist(kn: KhieuNai) {
   ];
 }
 
+type EditKey = "khach" | "log" | "crm" | "doimay" | "loi" | "ql";
+
 export function KhieuNaiDetail({
   id,
   user,
   onClose,
   onChanged,
-  onDirtyChange,
 }: {
   id: string;
   user: AppUser;
   onClose: () => void;
   onChanged: () => void;
-  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const qc = useQueryClient();
   const { showToast } = useToast();
+  const nameOf = useNameMap();
+  const [editing, setEditing] = useState<EditKey | null>(null);
 
   const detail = useQuery({
     queryKey: ["khieu-nai", id],
     queryFn: () => api.get<DetailResponse>(`/khieu-nai/${id}`),
   });
 
-  // Registry theo dõi khu nào có thay đổi chưa lưu (hooks phải đặt trước mọi return sớm).
-  const [dirtyMap, setDirtyMap] = useState<Record<string, boolean>>({});
-  const saversRef = useRef<Record<string, () => Promise<unknown>>>({});
-  const dirtyReg = useMemo<DirtyReg>(
-    () => ({
-      setDirty: (sid, v) => setDirtyMap((m) => (m[sid] === v ? m : { ...m, [sid]: v })),
-      setSaver: (sid, fn) => {
-        saversRef.current[sid] = fn;
-      },
-    }),
-    [],
-  );
-  const dirtyIds = Object.keys(dirtyMap).filter((k) => dirtyMap[k]);
-  useEffect(() => {
-    onDirtyChange?.(dirtyIds.length > 0);
-  }, [dirtyIds.length, onDirtyChange]);
-  const [savingAll, setSavingAll] = useState(false);
-  const nameOf = useNameMap();
-
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["khieu-nai", id] });
     onChanged();
   };
-
-  const saveAll = async () => {
-    setSavingAll(true);
-    try {
-      for (const sid of dirtyIds) await saversRef.current[sid]?.();
-      showToast("Đã lưu tất cả thay đổi", "success");
-    } catch {
-      showToast("Có khu chưa lưu được — kiểm tra lại", "error");
-    } finally {
-      setSavingAll(false);
-    }
+  const savedAndClose = () => {
+    invalidate();
+    setEditing(null);
   };
 
-  if (detail.isLoading) return <p className="py-8 text-center text-sm text-ink-soft">Đang tải...</p>;
-  if (detail.isError || !detail.data) return <p className="py-8 text-center text-sm text-red-600">Không tải được khiếu nại.</p>;
+  if (detail.isLoading) return <p className="p-8 text-center text-sm text-ink-soft">Đang tải...</p>;
+  if (detail.isError || !detail.data) return <p className="p-8 text-center text-sm text-red-600">Không tải được khiếu nại.</p>;
 
   const kn = detail.data.khieuNai;
   const tienTrinh = detail.data.tienTrinh;
@@ -281,12 +235,11 @@ export function KhieuNaiDetail({
 
   const isClosed = kn.trang_thai === "Da ket thuc";
   const isCskh = (user.vai_tro === "CSKH" || user.vai_tro === "Admin") && !isClosed;
-  const isTnCskh = (user.vai_tro === "TN CSKH" || user.vai_tro === "Admin") && !isClosed;
   const isQl = (user.vai_tro === "QL" || user.vai_tro === "Admin") && !isClosed;
-  const canDanhGia4Loi = isCskh || isTnCskh || isQl;
-  const canXuLyDoiMay = isCskh || isTnCskh || isQl;
-  const canThemTienTrinh = (["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "")) && !isClosed;
-  const canPhuTrach = (["CSKH", "KTV", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "")) && !isClosed;
+  const canDanhGia4Loi = isCskh || (user.vai_tro === "TN CSKH" && !isClosed) || isQl;
+  const canXuLyDoiMay = canDanhGia4Loi;
+  const canThemTienTrinh = ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed;
+  const canPhuTrach = ["CSKH", "KTV", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed;
 
   const copyId = () => {
     navigator.clipboard?.writeText(kn.id).then(
@@ -305,127 +258,224 @@ export function KhieuNaiDetail({
     kn.ngay_ghi_nhan_doi_may || kn.ket_qua_doi_may || (kn.cam_co && kn.cam_co !== "Khong co")
   );
 
+  // Kết quả ngắn gọn cho tiêu đề
+  const ketLuanDone = kn.ket_luan_khieu_nai && kn.ket_luan_khieu_nai !== "Chua danh gia";
+  const ketQua =
+    kn.trang_thai === "Huy"
+      ? `Hủy${kn.ly_do_huy ? " · " + kn.ly_do_huy : ""}`
+      : kn.ket_qua_crm
+        ? kn.ket_qua_crm
+        : ketLuanDone
+          ? `Kết luận: ${translateDanhGia(kn.ket_luan_khieu_nai)}`
+          : "Chưa có kết quả";
+  const tocDo = fmtVN.gioXuLy(kn.ngay_tiep_nhan, isClosed ? kn.ngay_ket_thuc : null);
+
   return (
-    <DirtyCtx.Provider value={dirtyReg}>
-      <div className="flex h-full min-h-0 flex-col bg-bg">
-        {/* ===== HEADER CỐ ĐỊNH ===== */}
-        <div className="shrink-0 border-b border-line bg-surface">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
-            <StatusBadge trangThai={kn.trang_thai} />
+    <div className="flex max-h-full min-h-0 flex-col bg-bg">
+      {/* ===== TIÊU ĐỀ: trạng thái · kết quả · tốc độ · nút xử lý ===== */}
+      <div className="shrink-0 border-b border-line bg-surface">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
+          <StatusBadge trangThai={kn.trang_thai} />
+          <button
+            type="button"
+            onClick={copyId}
+            className="rounded border border-line px-2 py-0.5 font-mono text-xs text-ink-soft hover:bg-gray-50"
+            title="Sao chép mã đơn — gửi cho người cần xem"
+          >
+            {kn.id} ⧉
+          </button>
+          <span className="text-sm">
+            <span className="text-ink-soft">Kết quả: </span>
+            <span className="font-semibold text-ink">{ketQua}</span>
+          </span>
+          <span className="text-sm">
+            <span className="text-ink-soft">Tốc độ: </span>
+            <span className="font-semibold text-ink">{tocDo}</span>
+          </span>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <ActionBar kn={kn} user={user} onDone={invalidate} onError={(m) => showToast(m, "error")} />
             <button
               type="button"
-              onClick={copyId}
-              className="rounded border border-line px-2 py-0.5 font-mono text-xs text-ink-soft hover:bg-gray-50"
-              title="Sao chép mã đơn"
+              onClick={onClose}
+              aria-label="Đóng"
+              className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink"
             >
-              {kn.id} ⧉
+              ✕
             </button>
-            <NextStepChip kn={kn} />
-            <span className="text-xs text-ink-soft">{fmtVN.gioXuLy(kn.ngay_tiep_nhan, isClosed ? kn.ngay_ket_thuc : null)} xử lý</span>
-
-            <div className="ml-auto flex flex-wrap items-center gap-2">
-              {dirtyIds.length > 0 && (
-                <span className="flex items-center gap-2 rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900 ring-1 ring-inset ring-amber-300">
-                  {dirtyIds.length} khu chưa lưu
-                  <Btn variant="primary" size="sm" disabled={savingAll} onClick={saveAll}>
-                    {savingAll ? "Đang lưu..." : "Lưu tất cả"}
-                  </Btn>
-                </span>
-              )}
-              <ActionBar kn={kn} user={user} onDone={invalidate} onError={(m) => showToast(m, "error")} />
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Đóng"
-                className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink"
-              >
-                ✕
-              </button>
-            </div>
           </div>
-
-          {/* Ô dữ liệu khoá — nắm nhanh trong 2–3s */}
-          <div className="flex flex-wrap gap-1.5 border-t border-line px-4 py-2">
-            <KeyTile label="Khách hàng" value={kn.ten_khach} tone="blue" strong />
-            <KeyTile label="SĐT" value={kn.sdt_khach} mono />
-            <KeyTile label="Mức độ" value={kn.muc_do} tone={mucDoTone(kn.muc_do)} strong />
-            <KeyTile label="Phân loại" value={kn.phan_loai_kh} tone={kn.phan_loai_kh === "S.VIP" ? "violet" : "gray"} />
-            <KeyTile label="Nhóm yêu cầu" value={kn.nhom_yeu_cau} tone="blue" />
-            <KeyTile label="Nhóm vấn đề" value={kn.nhom_van_de} tone="blue" />
-            <KeyTile label="Vấn đề đầu vào" value={kn.van_de_dau_vao} />
-            <KeyTile label="Phụ trách" value={kn.nguoi_phu_trach ? nameOf(kn.nguoi_phu_trach) : null} />
-            <KeyTile label="Tiếp nhận" value={fmtVN.dateTime(kn.ngay_tiep_nhan)} />
-          </div>
-
-          {(kn.thong_tin_ban_dau || kn.ket_qua_crm) && (
-            <div className="flex flex-wrap gap-x-6 gap-y-0.5 border-t border-line px-4 py-1.5 text-xs">
-              {kn.thong_tin_ban_dau && (
-                <span className="text-ink"><span className="font-semibold text-ink-soft">Mô tả ban đầu: </span>{kn.thong_tin_ban_dau}</span>
-              )}
-              {kn.ket_qua_crm && (
-                <span className="text-ink"><span className="font-semibold text-ink-soft">Kết quả CRM: </span>{kn.ket_qua_crm}</span>
-              )}
-            </div>
-          )}
-
-          {dongCaBlocked && (
-            <div className="border-t border-amber-300 bg-amber-50 px-4 py-1.5 text-xs text-amber-900">
-              <span className="font-semibold">Chưa đủ điều kiện đóng ca:</span>{" "}
-              {checklist.map((c) => (
-                <span key={c.label} className={`mr-2 inline-block ${c.ok ? "text-green-700" : "font-medium"}`}>
-                  {c.ok ? "✓" : "✗"} {c.label}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {isClosed && (
-            <div className="flex items-center justify-between border-t border-line bg-gray-100 px-4 py-1.5 text-xs font-medium text-ink-soft">
-              <span>Ca đã kết thúc — chỉ xem. Mọi thay đổi đã bị khoá.</span>
-              {user.vai_tro === "Admin" && <MoLaiButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />}
-            </div>
-          )}
         </div>
 
-        {/* ===== THÂN: 2 CỘT CUỘN ĐỘC LẬP ===== */}
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:flex-row lg:overflow-hidden">
-          <div className="flex min-h-0 flex-col gap-3 lg:w-[55%] lg:overflow-y-auto lg:pr-1">
+        <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-2 text-xs">
+          <NextStepChip kn={kn} />
+          <NguoiPhuTrachInline kn={kn} user={user} canEdit={canPhuTrach} onSaved={invalidate} nameOf={nameOf} />
+          <span className="text-ink-soft">· Tiếp nhận {fmtVN.dateTime(kn.ngay_tiep_nhan)}</span>
+          <span className="text-ink-soft">· Cập nhật {fmtVN.relative(kn.ngay_thay_doi)}</span>
+        </div>
+
+        {dongCaBlocked && (
+          <div className="border-t border-amber-300 bg-amber-50 px-4 py-1.5 text-xs text-amber-900">
+            <span className="font-semibold">Chưa đủ điều kiện đóng ca:</span>{" "}
+            {checklist.map((c) => (
+              <span key={c.label} className={`mr-2 inline-block ${c.ok ? "text-green-700" : "font-medium"}`}>
+                {c.ok ? "✓" : "✗"} {c.label}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {isClosed && (
+          <div className="flex items-center justify-between border-t border-line bg-gray-100 px-4 py-1.5 text-xs font-medium text-ink-soft">
+            <span>Ca đã kết thúc — chỉ xem. Mọi thay đổi đã bị khoá.</span>
+            {user.vai_tro === "Admin" && <MoLaiButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />}
+          </div>
+        )}
+      </div>
+
+      {/* ===== THÂN: DASHBOARD TRA CỨU (chỉ đọc) — nhập liệu qua nút ===== */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <div className="flex flex-col gap-3">
             <Zone
               accent="slate"
               icon={ICON.doc}
               title="Thông tin đầu vào"
-              actions={<NguoiPhuTrachInline kn={kn} user={user} canEdit={canPhuTrach} onSaved={invalidate} nameOf={nameOf} />}
+              actions={isCskh && <ZoneBtn onClick={() => setEditing("khach")}>Sửa</ZoneBtn>}
             >
-              <CustomerInfoSection kn={kn} editable={isCskh} onSaved={invalidate} />
+              <CustomerInfoSection kn={kn} editable={false} onSaved={invalidate} />
             </Zone>
-            <Zone accent="violet" icon={ICON.log} title="Tiến trình & lịch sử">
-              <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem={canThemTienTrinh} onSaved={invalidate} />
+
+            <Zone
+              accent="violet"
+              icon={ICON.log}
+              title="Tiến trình & lịch sử"
+              actions={canThemTienTrinh && <ZoneBtn onClick={() => setEditing("log")}>+ Ghi chú</ZoneBtn>}
+            >
+              <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem={false} onSaved={invalidate} />
             </Zone>
           </div>
 
-          <div className="flex min-h-0 flex-col gap-3 lg:flex-1 lg:overflow-y-auto lg:pl-1">
-            <Zone accent="teal" icon={ICON.sync} title="Đồng bộ CRM Karofi">
-              <CrmSection kn={kn} user={user} onSaved={invalidate} />
+          <div className="flex flex-col gap-3">
+            <Zone
+              accent="teal"
+              icon={ICON.sync}
+              title="Đồng bộ CRM Karofi"
+              actions={isCskh && <ZoneBtn onClick={() => setEditing("crm")}>Sửa ID CRM</ZoneBtn>}
+            >
+              <CrmSection kn={kn} user={user} onSaved={invalidate} forceEditable={false} />
             </Zone>
-            <Zone accent="amber" icon={ICON.swap} title="Nhánh đổi máy" collapsible defaultOpen={hasDoiMay}>
-              <DoiMaySection kn={kn} editable={canXuLyDoiMay} onSaved={invalidate} />
+
+            <Zone
+              accent="amber"
+              icon={ICON.swap}
+              title="Nhánh đổi máy"
+              collapsible
+              defaultOpen={hasDoiMay}
+              actions={canXuLyDoiMay && <ZoneBtn onClick={() => setEditing("doimay")}>Cập nhật đổi máy</ZoneBtn>}
+            >
+              <DoiMaySection kn={kn} editable={false} onSaved={invalidate} />
             </Zone>
-            <Zone accent="rose" icon={ICON.scale} title="Kết luận & đánh giá">
-              <div className="space-y-4">
+
+            <Zone
+              accent="rose"
+              icon={ICON.scale}
+              title="Kết luận & đánh giá"
+              actions={
+                <>
+                  {canDanhGia4Loi && <ZoneBtn onClick={() => setEditing("loi")}>Đánh giá lỗi</ZoneBtn>}
+                  {isQl && <ZoneBtn onClick={() => setEditing("ql")}>Đánh giá QL</ZoneBtn>}
+                </>
+              }
+            >
+              <div className="space-y-3">
                 <div>
                   <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Nguyên nhân lỗi · điều kiện đóng ca</p>
-                  <TnCskhSection kn={kn} editable={canDanhGia4Loi} onSaved={invalidate} />
+                  <TnCskhSection kn={kn} editable={false} onSaved={invalidate} />
                 </div>
                 <div className="border-t border-line pt-3">
                   <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Đánh giá QL · điều kiện chốt</p>
-                  <QlSection kn={kn} editable={isQl} onSaved={invalidate} />
+                  <QlSection kn={kn} editable={false} onSaved={invalidate} />
                 </div>
               </div>
             </Zone>
           </div>
         </div>
       </div>
-    </DirtyCtx.Provider>
+
+      {/* ===== POPUP NHẬP LIỆU RIÊNG TỪNG MỤC ===== */}
+      {editing === "khach" && (
+        <EditDialog title="Sửa thông tin đầu vào" onClose={() => setEditing(null)}>
+          <CustomerInfoSection kn={kn} editable onSaved={savedAndClose} />
+        </EditDialog>
+      )}
+      {editing === "log" && (
+        <EditDialog title="Thêm ghi chú tiến trình" onClose={() => setEditing(null)}>
+          <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem addOnly onSaved={savedAndClose} />
+        </EditDialog>
+      )}
+      {editing === "crm" && (
+        <EditDialog title="Sửa ID CRM Karofi" onClose={() => setEditing(null)}>
+          <CrmSection kn={kn} user={user} onSaved={savedAndClose} forceEditable />
+        </EditDialog>
+      )}
+      {editing === "doimay" && (
+        <EditDialog title="Cập nhật nhánh đổi máy" onClose={() => setEditing(null)}>
+          <DoiMaySection kn={kn} editable onSaved={savedAndClose} />
+        </EditDialog>
+      )}
+      {editing === "loi" && (
+        <EditDialog title="Đánh giá nguyên nhân lỗi" onClose={() => setEditing(null)}>
+          <TnCskhSection kn={kn} editable onSaved={savedAndClose} />
+        </EditDialog>
+      )}
+      {editing === "ql" && (
+        <EditDialog title="Đánh giá QL" onClose={() => setEditing(null)}>
+          <QlSection kn={kn} editable onSaved={savedAndClose} />
+        </EditDialog>
+      )}
+    </div>
+  );
+}
+
+function ZoneBtn({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-md border border-line bg-white px-2 py-0.5 text-xs font-medium text-accent hover:bg-accent-soft"
+    >
+      {children}
+    </button>
+  );
+}
+
+function EditDialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopImmediatePropagation();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [onClose]);
+  return (
+    <div
+      className="fixed inset-0 z-[130] flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:p-8"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-3xl rounded-lg bg-surface shadow-2xl">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h3 className="text-sm font-semibold text-ink">{title}</h3>
+          <button type="button" onClick={onClose} aria-label="Đóng" className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink">
+            ✕
+          </button>
+        </div>
+        <div className="max-h-[76vh] overflow-y-auto p-4">{children}</div>
+      </div>
+    </div>
   );
 }
 
@@ -546,7 +596,6 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
     },
     onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
   });
-  useRegisterDirty("khach", isDirty, () => mutation.mutateAsync());
 
   const filteredVanDeDauVao = (vanDeDauVaoOpts.data ?? []).filter(
     (o) => !form.nhom_van_de || o.parent === form.nhom_van_de,
@@ -715,10 +764,13 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
 
 // ---------- CRM Karofi ----------
 
-function CrmSection({ kn, user, onSaved }: { kn: KhieuNai; user: AppUser; onSaved: () => void }) {
+function CrmSection({
+  kn, user, onSaved, forceEditable,
+}: { kn: KhieuNai; user: AppUser; onSaved: () => void; forceEditable?: boolean }) {
   const { showToast } = useToast();
-  const editable = user.vai_tro === "CSKH" || user.vai_tro === "Admin";
-  const canResync = !!user.vai_tro && user.vai_tro !== "Viewer" && kn.trang_thai !== "Da ket thuc";
+  const editable = forceEditable ?? (user.vai_tro === "CSKH" || user.vai_tro === "Admin");
+  const canResync =
+    forceEditable !== true && !!user.vai_tro && user.vai_tro !== "Viewer" && kn.trang_thai !== "Da ket thuc";
   const [crmId, setCrmId] = useState(kn.id_crm_karofi ?? "");
 
   useEffect(() => setCrmId(kn.id_crm_karofi ?? ""), [kn.id_crm_karofi]);
@@ -735,7 +787,6 @@ function CrmSection({ kn, user, onSaved }: { kn: KhieuNai; user: AppUser; onSave
     },
     onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
   });
-  useRegisterDirty("crm_id", editable && crmId.trim() !== (kn.id_crm_karofi ?? ""), () => saveId.mutateAsync());
 
   const resync = useMutation({
     mutationFn: () => api.post<{ ok: true }>(`/khieu-nai/${kn.id}/dong-bo-crm`),
@@ -841,7 +892,6 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
     },
     onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
   });
-  useRegisterDirty("danh_gia_loi", isDirty, () => mutation.mutateAsync());
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -933,7 +983,6 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
     },
     onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
   });
-  useRegisterDirty("danh_gia_ql", isDirty, () => mutation.mutateAsync());
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -1031,7 +1080,6 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
     },
     onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
   });
-  useRegisterDirty("doi_may", isDirty, () => mutation.mutateAsync());
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -1153,12 +1201,14 @@ function TienTrinhSection({
   lichSu,
   canThem,
   onSaved,
+  addOnly,
 }: {
   id: string;
   items: TienTrinh[];
   lichSu: LichSu[];
   canThem: boolean;
   onSaved: () => void;
+  addOnly?: boolean;
 }) {
   const { showToast } = useToast();
   const nameOf = useNameMap();
@@ -1212,25 +1262,29 @@ function TienTrinhSection({
     })),
   ].sort((a, b) => (a.ts < b.ts ? 1 : -1));
 
+  const addForm = (
+    <form onSubmit={submit} className="mb-4 flex flex-col gap-2">
+      <Field label="Nội dung ghi chép">
+        <Textarea rows={addOnly ? 4 : 2} value={noiDung} onChange={(e) => setNoiDung(e.target.value)} placeholder="Ghi chú xử lý..." autoFocus={addOnly} />
+      </Field>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <Field label="Lý do xử lý chậm (nếu có)">
+            <Input value={lyDo} onChange={(e) => setLyDo(e.target.value)} placeholder="Lý do chậm..." />
+          </Field>
+        </div>
+        <Btn type="submit" variant="primary" disabled={mutation.isPending}>
+          {mutation.isPending ? "Đang lưu..." : "Thêm ghi chú"}
+        </Btn>
+      </div>
+    </form>
+  );
+
+  if (addOnly) return addForm;
+
   return (
     <>
-      {canThem && (
-        <form onSubmit={submit} className="mb-4 flex flex-col gap-2">
-          <Field label="Nội dung ghi chép">
-            <Textarea rows={2} value={noiDung} onChange={(e) => setNoiDung(e.target.value)} placeholder="Ghi chú xử lý..." />
-          </Field>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <div className="flex-1">
-              <Field label="Lý do xử lý chậm (nếu có)">
-                <Input value={lyDo} onChange={(e) => setLyDo(e.target.value)} placeholder="Lý do chậm..." />
-              </Field>
-            </div>
-            <Btn type="submit" variant="secondary" disabled={mutation.isPending}>
-              {mutation.isPending ? "Đang lưu..." : "Thêm ghi chú"}
-            </Btn>
-          </div>
-        </form>
-      )}
+      {canThem && addForm}
 
       <ul className="flex flex-col gap-3">
         {rows.length === 0 && <li className="text-sm text-ink-soft">Chưa có ghi chép tiến trình.</li>}

@@ -101,13 +101,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [detailDirty, setDetailDirty] = useState(false);
-
-  const closeDetail = () => {
-    if (detailDirty && !window.confirm("Còn thay đổi chưa lưu ở màn chi tiết. Đóng và bỏ thay đổi?")) return;
-    setDetailDirty(false);
-    setDetailId(null);
-  };
+  const closeDetail = () => setDetailId(null);
 
   const mucDoOpts = useSettingsOptions("muc_do");
   const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
@@ -314,22 +308,16 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
         )}
       </Card>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo khiếu nại mới" width="lg">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo khiếu nại mới" width="xl">
         <KhieuNaiForm
           onCreated={(id) => { setCreateOpen(false); query.refetch(); setDetailId(id); }}
           onCancel={() => setCreateOpen(false)}
         />
       </Modal>
 
-      <Modal open={!!detailId} onClose={closeDetail} width="full">
+      <Modal open={!!detailId} onClose={closeDetail} width="wide">
         {detailId && (
-          <KhieuNaiDetail
-            id={detailId}
-            user={user}
-            onClose={closeDetail}
-            onChanged={() => query.refetch()}
-            onDirtyChange={setDetailDirty}
-          />
+          <KhieuNaiDetail id={detailId} user={user} onClose={closeDetail} onChanged={() => query.refetch()} />
         )}
       </Modal>
     </div>

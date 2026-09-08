@@ -55,14 +55,8 @@ interface HomeProps {
 
 export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [detailDirty, setDetailDirty] = useState(false);
   const { showToast } = useToast();
-
-  const closeDetail = () => {
-    if (detailDirty && !window.confirm("Còn thay đổi chưa lưu ở màn chi tiết. Đóng và bỏ thay đổi?")) return;
-    setDetailDirty(false);
-    setDetailId(null);
-  };
+  const closeDetail = () => setDetailId(null);
 
   const statsQuery = useQuery({
     queryKey: ["khieu-nai-stats"],
@@ -232,13 +226,12 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
         </Card>
       </div>
 
-      <Modal open={!!detailId} onClose={closeDetail} width="full">
+      <Modal open={!!detailId} onClose={closeDetail} width="wide">
         {detailId && (
           <KhieuNaiDetail
             id={detailId}
             user={user}
             onClose={closeDetail}
-            onDirtyChange={setDetailDirty}
             onChanged={() => {
               statsQuery.refetch();
               activeQuery.refetch();

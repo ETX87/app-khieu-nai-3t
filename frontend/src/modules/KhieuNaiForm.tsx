@@ -171,11 +171,12 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
     setRestored(false);
   };
 
-  const gridCls = "grid grid-cols-1 gap-3 sm:grid-cols-3";
+  const gridCls = "grid grid-cols-1 gap-3 sm:grid-cols-2";
   const legendCls = "mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft";
+  const fsCls = "rounded-lg border border-line p-3";
 
   return (
-    <form onSubmit={submit} onKeyDown={onFormKeyDown} className="flex flex-col gap-5">
+    <form onSubmit={submit} onKeyDown={onFormKeyDown} className="flex flex-col gap-4">
       {restored && (
         <div className="flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-300">
           <span>Đã khôi phục nội dung nhập dở lần trước.</span>
@@ -185,11 +186,11 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
         </div>
       )}
 
-      <fieldset>
+      <fieldset className={fsCls}>
         <legend className={legendCls}>Khách hàng &amp; liên hệ</legend>
-        <div className={gridCls}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Tên khách hàng *">
-            <Input value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} />
+            <Input value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} autoFocus />
           </Field>
           <Field label="Số điện thoại" hint="Có thể bổ sung sau">
             <Input value={form.sdt_khach} onChange={(e) => setField("sdt_khach", e.target.value)} inputMode="tel" />
@@ -207,19 +208,20 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
         </div>
       </fieldset>
 
-      <fieldset>
+      <fieldset className={fsCls}>
         <legend className={legendCls}>Nội dung khiếu nại</legend>
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           <Field label="Thông tin ban đầu *">
             <Textarea rows={3} value={form.thong_tin_ban_dau} onChange={(e) => setField("thong_tin_ban_dau", e.target.value)} />
           </Field>
           <Field label="Ghi chú người tạo">
-            <Textarea rows={2} value={form.ghi_chu_nguoi_tao} onChange={(e) => setField("ghi_chu_nguoi_tao", e.target.value)} />
+            <Textarea rows={3} value={form.ghi_chu_nguoi_tao} onChange={(e) => setField("ghi_chu_nguoi_tao", e.target.value)} />
           </Field>
         </div>
       </fieldset>
 
-      <fieldset>
+      <div className="grid gap-4 lg:grid-cols-2">
+      <fieldset className={fsCls}>
         <legend className={legendCls}>Địa chỉ</legend>
         <div className={gridCls}>
           <Field label="Tỉnh" hint="Gõ để tìm / thêm mới">
@@ -243,7 +245,7 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
         </div>
       </fieldset>
 
-      <fieldset>
+      <fieldset className={fsCls}>
         <legend className={legendCls}>Sản phẩm</legend>
         <div className={gridCls}>
           <Field label="Hãng" hint="Gõ để tìm / thêm mới">
@@ -261,7 +263,7 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
         </div>
       </fieldset>
 
-      <fieldset>
+      <fieldset className={fsCls}>
         <legend className={legendCls}>Phân loại vấn đề</legend>
         <div className={gridCls}>
           <Field label="Nhóm yêu cầu">
@@ -294,7 +296,7 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
         </div>
       </fieldset>
 
-      <fieldset>
+      <fieldset className={fsCls}>
         <legend className={legendCls}>CRM &amp; nội bộ</legend>
         <div className={gridCls}>
           <Field label="ID CRM Karofi" hint="Có thể bổ sung sau">
@@ -314,8 +316,9 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
           </Field>
         </div>
       </fieldset>
+      </div>
 
-      <div className="flex items-center justify-end gap-3 border-t border-line pt-3">
+      <div className="sticky bottom-0 -mx-5 flex items-center justify-end gap-3 border-t border-line bg-surface px-5 py-2.5">
         {missing.length > 0 && (
           <span className="mr-auto text-xs text-amber-700">
             Còn thiếu: {missing.map((m) => m.label).join(", ")}
