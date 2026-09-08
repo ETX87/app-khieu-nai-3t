@@ -68,7 +68,7 @@ export function Sidebar({ modules, active, onSelect, user, open, onClose }: Side
         <div className="flex items-center gap-3 border-b border-line px-4 py-4">
           <img src="/icon-192.png" alt="3T" className="h-10 w-10 shrink-0 rounded-xl" />
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-sm font-bold text-ink">3T</h1>
+            <h1 className="truncate text-sm font-bold text-ink">Tiếp nhận phản ánh 3T</h1>
             <p className="truncate text-xs text-ink-soft">Tiếp nhận · Xử lý · Đồng hành</p>
           </div>
           <button

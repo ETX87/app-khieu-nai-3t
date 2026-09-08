@@ -9,6 +9,7 @@ import { Modal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
 import { fmtVN } from "../lib/formatVN";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
+import { KhieuNaiForm } from "./KhieuNaiForm";
 import { KhieuNaiCard } from "./KhieuNaiCard";
 import { useState } from "react";
 import type { AppUser } from "../api/types";
@@ -55,8 +56,10 @@ interface HomeProps {
 
 export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const { showToast } = useToast();
   const closeDetail = () => setDetailId(null);
+  const canCreate = ["CSKH", "KTV", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "");
 
   const statsQuery = useQuery({
     queryKey: ["khieu-nai-stats"],
@@ -122,13 +125,24 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl bg-gradient-to-br from-accent to-accent-dark px-6 py-6 text-white">
-        <h2 className="text-xl font-bold">Hệ thống ghi nhận khiếu nại</h2>
-        <p className="mt-1 text-sm text-white/80">Kết nối KTV hiện trường - CSKH - Xử lý nhanh chóng - Hiệu quả</p>
+      <div className="flex flex-col gap-3 rounded-xl bg-gradient-to-br from-accent to-accent-dark px-6 py-6 text-white sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-xl font-bold">Hệ thống ghi nhận phản ánh</h2>
+          <p className="mt-1 text-sm text-white/80">Kết nối KTV hiện trường - CSKH - Xử lý nhanh chóng - Hiệu quả</p>
+        </div>
+        {canCreate && (
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="shrink-0 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-accent shadow-sm transition-shadow hover:shadow-md"
+          >
+            + Tạo phản ánh mới
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Tổng khiếu nại" value={s?.tong ?? 0} tone="blue" onClick={() => onOpenList({})} />
+        <StatCard label="Tổng phản ánh" value={s?.tong ?? 0} tone="blue" onClick={() => onOpenList({})} />
         <StatCard label="Đang xử lý" value={s?.dang_xu_ly ?? 0} tone="amber" onClick={() => onOpenList({ trang_thai: "Dang xu ly" })} />
         <StatCard label="Chờ chốt kết thúc" value={s?.cho_chot_ket_thuc ?? 0} tone="amber" onClick={() => onOpenList({ trang_thai: "Cho chot ket thuc" })} />
         <StatCard label="Đã kết thúc" value={s?.da_ket_thuc ?? 0} tone="green" onClick={() => onOpenList({ trang_thai: "Da ket thuc" })} />
@@ -180,13 +194,13 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card title="Khiếu nại đang xử lý" className="lg:col-span-2">
+        <Card title="Phản ánh đang xử lý" className="lg:col-span-2">
           {activeQuery.isLoading && <p className="py-6 text-center text-sm text-ink-soft">Đang tải...</p>}
           {activeQuery.data && (
             <>
               <div className="flex flex-col gap-2 md:hidden">
                 {activeQuery.data.items.length === 0 && (
-                  <p className="py-6 text-center text-sm text-ink-soft">Không có khiếu nại đang xử lý.</p>
+                  <p className="py-6 text-center text-sm text-ink-soft">Không có phản ánh đang xử lý.</p>
                 )}
                 {activeQuery.data.items.map((r) => (
                   <KhieuNaiCard key={r.id} kn={r} onClick={() => setDetailId(r.id)} />
@@ -198,14 +212,14 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
                   rows={activeQuery.data.items}
                   rowKey={(r) => r.id}
                   onRowClick={(r) => setDetailId(r.id)}
-                  emptyText="Không có khiếu nại đang xử lý."
+                  emptyText="Không có phản ánh đang xử lý."
                 />
               </div>
             </>
           )}
         </Card>
 
-        <Card title="Khiếu nại theo nhóm vấn đề">
+        <Card title="Phản ánh theo nhóm vấn đề">
           {(s?.theoNhomVanDe.length ?? 0) === 0 && <p className="text-sm text-ink-soft">Chưa có dữ liệu.</p>}
           <div className="space-y-2">
             {s?.theoNhomVanDe.map((row) => (
@@ -225,6 +239,19 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
           </div>
         </Card>
       </div>
+
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo phản ánh mới" width="full">
+        <KhieuNaiForm
+          onCreated={(id) => {
+            setCreateOpen(false);
+            statsQuery.refetch();
+            activeQuery.refetch();
+            myQuery.refetch();
+            setDetailId(id);
+          }}
+          onCancel={() => setCreateOpen(false)}
+        />
+      </Modal>
 
       <Modal open={!!detailId} onClose={closeDetail} width="full">
         {detailId && (

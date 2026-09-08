@@ -16,7 +16,7 @@ export const DEFAULT_MODULES: ModuleKey[] = ["trang-chu", "khieu-nai"];
 
 export const MODULE_LABELS: Record<ModuleKey, string> = {
   "trang-chu": "Trang chủ",
-  "khieu-nai": "Khiếu nại",
+  "khieu-nai": "Phản ánh",
   settings: "Cấu hình",
   users: "Người dùng",
 };
@@ -31,6 +31,6 @@ export interface NavGroup {
 }
 
 export const NAV_GROUPS: NavGroup[] = [
-  { label: "Quản lý khiếu nại", modules: ["khieu-nai"] },
+  { label: "Quản lý phản ánh", modules: ["khieu-nai"] },
   { label: "Hệ thống", modules: ["settings", "users"] },
 ];

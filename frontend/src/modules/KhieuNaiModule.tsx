@@ -227,9 +227,9 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-ink">Khiếu nại</h2>
+        <h2 className="text-lg font-semibold text-ink">Phản ánh</h2>
         {canCreate && (
-          <Btn variant="primary" onClick={() => setCreateOpen(true)}>+ Tạo khiếu nại mới</Btn>
+          <Btn variant="primary" onClick={() => setCreateOpen(true)}>+ Tạo phản ánh mới</Btn>
         )}
       </div>
 
@@ -298,7 +298,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
               <Table columns={columns} rows={query.data.items} rowKey={(r) => r.id} onRowClick={(r) => setDetailId(r.id)} />
             </div>
             <div className="mt-4 flex items-center justify-between text-sm text-ink-soft">
-              <span>Tổng {total} khiếu nại — Trang {page}/{totalPages}</span>
+              <span>Tổng {total} phản ánh — Trang {page}/{totalPages}</span>
               <div className="flex gap-2">
                 <Btn size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</Btn>
                 <Btn size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Sau</Btn>
@@ -308,7 +308,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
         )}
       </Card>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo khiếu nại mới" width="full">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo phản ánh mới" width="full">
         <KhieuNaiForm
           onCreated={(id) => { setCreateOpen(false); query.refetch(); setDetailId(id); }}
           onCancel={() => setCreateOpen(false)}

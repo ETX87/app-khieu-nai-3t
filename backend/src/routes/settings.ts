@@ -12,11 +12,16 @@ app.get("/options", async (c) => {
   if (!nhom) return c.json({ error: "MISSING_NHOM" }, 400);
   // active: "1" (mặc định) chỉ mục đang dùng · "0" mục đã ẩn · "all" tất cả (cho màn Cấu hình)
   const active = c.req.query("active") ?? "1";
-  const where =
-    active === "all" ? "" : active === "0" ? " AND active = 0" : " AND active = 1";
+  // parent: lọc cấp con theo cha (địa lý cascading: quan_huyen theo tinh, phuong_xa theo quan_huyen)
+  const parent = c.req.query("parent");
+  const conds: string[] = ["nhom = ?"];
+  const binds: unknown[] = [nhom];
+  if (active === "0") conds.push("active = 0");
+  else if (active !== "all") conds.push("active = 1");
+  if (parent !== undefined) { conds.push("parent = ?"); binds.push(parent); }
   const rows = await c.env.DB.prepare(
-    `SELECT id, nhom, gia_tri, parent, active FROM settings_option WHERE nhom = ?${where} ORDER BY gia_tri`,
-  ).bind(nhom).all();
+    `SELECT id, nhom, gia_tri, parent, active FROM settings_option WHERE ${conds.join(" AND ")} ORDER BY gia_tri`,
+  ).bind(...binds).all();
   return c.json({ items: rows.results });
 });
 
@@ -40,7 +45,7 @@ app.get("/options/usage", async (c) => {
 
 // Cac nhom "nguoi dung tu tao list va tai su dung" theo dac ta Ma tran goc - moi vai tro
 // (tru Viewer) duoc tu them gia tri moi ngay khi nhap lieu, khong can vao Cau hinh.
-const USER_CREATABLE_GROUPS = new Set(["sale_khu_vuc", "hang", "tinh", "quan_huyen", "phuong_xa"]);
+const USER_CREATABLE_GROUPS = new Set(["sale_khu_vuc", "hang", "model", "tinh", "quan_huyen", "phuong_xa"]);
 
 app.post("/options", async (c) => {
   const user = c.get("user");

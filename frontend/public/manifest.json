@@ -1,6 +1,6 @@
 {
-  "name": "3T — Tiếp nhận · Xử lý · Đồng hành",
-  "short_name": "3T",
+  "name": "Tiếp nhận phản ánh 3T",
+  "short_name": "Phản ánh 3T",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f6f9",

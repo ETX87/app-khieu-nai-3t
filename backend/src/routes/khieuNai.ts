@@ -174,6 +174,74 @@ app.get("/stats", async (c) => {
   return c.json({ ...row, theoNhomVanDe });
 });
 
+// GET /api/khieu-nai/tra-cuu?id_lada=... | ?id_crm=...
+// Tra cuu nhanh khi nguoi tao phan anh nhap ID o dau form (item 8, item 10):
+//  - id_lada: soi trong cac phan anh cu cung id_lada, lay ban ghi moi nhat de tu dien + liet ke don cu.
+//  - id_crm:  goi API DVBH goc, neu khop tra thong tin co ban + tu dien model/tinh/huyen/xa/sdt.
+// Dat TRUOC "/:id" (Hono khop route theo thu tu).
+const LADA_FILL_COLUMNS = [
+  "ten_khach", "sdt_khach", "tinh", "quan_huyen", "phuong_xa", "hang", "model", "sale_khu_vuc", "phan_loai_kh",
+];
+
+app.get("/tra-cuu", async (c) => {
+  const idLada = c.req.query("id_lada")?.trim();
+  const idCrm = c.req.query("id_crm")?.trim();
+
+  if (idLada) {
+    const { results } = await c.env.DB.prepare(
+      `SELECT id, ngay_tiep_nhan, trang_thai, nhom_van_de, van_de_dau_vao, thong_tin_ban_dau,
+              ${LADA_FILL_COLUMNS.join(", ")}
+       FROM khieu_nai WHERE id_lada = ? ORDER BY ngay_tiep_nhan DESC LIMIT 20`,
+    ).bind(idLada).all<Record<string, string | null>>();
+
+    if (results.length === 0) return c.json({ found: false, source: "lada" });
+
+    const latest = results[0];
+    const fill: Record<string, string> = {};
+    for (const col of LADA_FILL_COLUMNS) {
+      const v = latest[col];
+      if (v != null && v !== "") fill[col] = v;
+    }
+    const recent = results.map((r) => ({
+      id: r.id, ngay_tiep_nhan: r.ngay_tiep_nhan, trang_thai: r.trang_thai,
+      nhom_van_de: r.nhom_van_de, van_de_dau_vao: r.van_de_dau_vao,
+    }));
+    return c.json({ found: true, source: "lada", fill, recent });
+  }
+
+  if (idCrm) {
+    try {
+      const result = await lookupDvbhCase(c.env, idCrm);
+      if (!result.found || !result.preview) return c.json({ found: false, source: "crm", warning: "DVBH_NOT_FOUND" });
+      const p = result.preview;
+      const fill: Record<string, string> = {};
+      const put = (k: string, v: unknown) => { if (typeof v === "string" && v.trim() !== "") fill[k] = v.trim(); };
+      put("ten_khach", p.khach_hang);
+      put("sdt_khach", p.so_dien_thoai);
+      put("model", p.model);
+      put("tinh", p.tinh);
+      put("quan_huyen", p.quan_huyen);
+      put("phuong_xa", p.phuong_xa);
+      return c.json({
+        found: true, source: "crm", fill,
+        preview: {
+          khach_hang: p.khach_hang ?? null,
+          ky_thuat_vien: p.ky_thuat_vien ?? null,
+          tien_do_hoan_thanh: p.tien_do_hoan_thanh ?? null,
+          noi_dung_xu_ly: p.noi_dung_xu_ly ?? null,
+          thoi_gian_cskh_tiep_nhan: p.thoi_gian_cskh_tiep_nhan ?? null,
+          thoi_gian_hoan_thanh: p.thoi_gian_hoan_thanh ?? null,
+        },
+        giaiTrinh: formatGiaiTrinhHistory(result.giaiTrinh),
+      });
+    } catch {
+      return c.json({ found: false, source: "crm", warning: "DVBH_LOOKUP_FAILED" });
+    }
+  }
+
+  return c.json({ error: "MISSING_QUERY" }, 400);
+});
+
 app.get("/:id", async (c) => {
   const id = c.req.param("id");
   const [khieuNai, tienTrinh, lichSu] = await Promise.all([

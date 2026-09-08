@@ -22,7 +22,7 @@ function MainApp({ user }: { user: AppUser }) {
     return modules[0] ?? "trang-chu";
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Bộ lọc khởi tạo cho màn Khiếu nại khi mở từ KPI Trang chủ. Đổi tham chiếu mỗi lần điều hướng.
+  // Bộ lọc khởi tạo cho màn Phản ánh khi mở từ KPI Trang chủ. Đổi tham chiếu mỗi lần điều hướng.
   const [listFilter, setListFilter] = useState<{ trang_thai?: string } | null>(null);
 
   useEffect(() => {

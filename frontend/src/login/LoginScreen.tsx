@@ -11,8 +11,8 @@ export function LoginScreen({ variant }: { variant: Variant }) {
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
       <div className="w-full max-w-sm rounded-lg border border-line bg-surface p-8 text-center shadow-sm">
         <img src="/icon-192.png" alt="3T" className="mx-auto mb-4 h-14 w-14 rounded-xl" />
-        <h1 className="mb-1 text-lg font-semibold text-ink">3T — Tiếp nhận · Xử lý · Đồng hành</h1>
-        <p className="mb-6 text-sm text-ink-soft">Hệ thống ghi nhận khiếu nại bảo hành máy lọc nước Karofi</p>
+        <h1 className="mb-1 text-lg font-semibold text-ink">Tiếp nhận phản ánh 3T</h1>
+        <p className="mb-6 text-sm text-ink-soft">Hệ thống ghi nhận phản ánh bảo hành máy lọc nước Karofi</p>
 
         {variant === "anonymous" ? (
           <div className="flex flex-col gap-2">

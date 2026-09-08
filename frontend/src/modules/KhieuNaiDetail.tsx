@@ -39,7 +39,7 @@ const KET_QUA_DOI_MAY_OPTIONS = [
 
 const LY_DO_HUY_OPTIONS = [
   "Trùng lặp với đơn khác",
-  "Khách hàng rút khiếu nại",
+  "Khách hàng rút phản ánh",
   "Nhập nhầm / sai hệ thống",
   "Không liên hệ được khách",
   "Không thuộc phạm vi xử lý",
@@ -58,7 +58,7 @@ const ketQuaDoiMayLabel = (v: string | null | undefined) => labelFrom(KET_QUA_DO
 const CRM_WARNING_MESSAGES: Record<string, string> = {
   DVBH_NOT_FOUND: "Không tìm thấy case trên CRM Karofi",
   DVBH_LOOKUP_FAILED: "Không thể kết nối CRM Karofi lúc này",
-  CASE_CLOSED: "Khiếu nại đã kết thúc, không thể đồng bộ lại",
+  CASE_CLOSED: "Phản ánh đã kết thúc, không thể đồng bộ lại",
   RESYNC_TOO_SOON: "Vui lòng đợi ít nhất 5 giây giữa 2 lần đồng bộ",
 };
 
@@ -283,7 +283,7 @@ export function KhieuNaiDetail({
   };
 
   if (detail.isLoading) return <p className="p-8 text-center text-sm text-ink-soft">Đang tải...</p>;
-  if (detail.isError || !detail.data) return <p className="p-8 text-center text-sm text-red-600">Không tải được khiếu nại.</p>;
+  if (detail.isError || !detail.data) return <p className="p-8 text-center text-sm text-red-600">Không tải được phản ánh.</p>;
 
   const kn = detail.data.khieuNai;
   const tienTrinh = detail.data.tienTrinh;
@@ -603,8 +603,6 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
   const modelOpts = useSettingsOptions("model");
   const hangOpts = useSettingsOptions("hang");
   const tinhOpts = useSettingsOptions("tinh");
-  const quanHuyenOpts = useSettingsOptions("quan_huyen");
-  const phuongXaOpts = useSettingsOptions("phuong_xa");
   const createSaleKhuVuc = useCreateSettingsOption("sale_khu_vuc");
   const createHang = useCreateSettingsOption("hang");
   const createTinh = useCreateSettingsOption("tinh");
@@ -632,6 +630,10 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
   });
 
   const setField = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((p) => ({ ...p, [k]: v }));
+
+  // Địa lý cascading: huyện theo tỉnh, xã theo huyện.
+  const quanHuyenOpts = useSettingsOptions("quan_huyen", form.tinh);
+  const phuongXaOpts = useSettingsOptions("phuong_xa", form.quan_huyen);
 
   const serverForm = {
     ten_khach: kn.ten_khach ?? "", sdt_khach: kn.sdt_khach ?? "", id_lada: kn.id_lada ?? "",
@@ -724,7 +726,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
           <Combobox
             options={(tinhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
             value={form.tinh}
-            onChange={(v) => setField("tinh", v)}
+            onChange={(v) => setForm((p) => ({ ...p, tinh: v, quan_huyen: "", phuong_xa: "" }))}
             creatable
             onCreate={createTinh}
           />
@@ -733,9 +735,10 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
           <Combobox
             options={(quanHuyenOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
             value={form.quan_huyen}
-            onChange={(v) => setField("quan_huyen", v)}
+            onChange={(v) => setForm((p) => ({ ...p, quan_huyen: v, phuong_xa: "" }))}
+            disabled={!form.tinh}
             creatable
-            onCreate={createQuanHuyen}
+            onCreate={(v) => createQuanHuyen(v, form.tinh)}
           />
         </Field>
         <Field label="Phường/Xã">
@@ -743,8 +746,9 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
             options={(phuongXaOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
             value={form.phuong_xa}
             onChange={(v) => setField("phuong_xa", v)}
+            disabled={!form.quan_huyen}
             creatable
-            onCreate={createPhuongXa}
+            onCreate={(v) => createPhuongXa(v, form.quan_huyen)}
           />
         </Field>
         <Field label="Model">
@@ -882,7 +886,7 @@ function CrmSection({
             variant="secondary"
             size="sm"
             disabled={!kn.id_crm_karofi || resync.isPending}
-            title={kn.trang_thai === "Da ket thuc" ? "Khiếu nại đã kết thúc, không thể đồng bộ lại" : undefined}
+            title={kn.trang_thai === "Da ket thuc" ? "Phản ánh đã kết thúc, không thể đồng bộ lại" : undefined}
             onClick={() => resync.mutate()}
           >
             {resync.isPending ? "Đang đồng bộ..." : "Đồng bộ lại"}
@@ -966,7 +970,7 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
           <ReadField label="Lỗi lắp đặt" value={translateDanhGia(kn.loi_lap_dat)} />
           <ReadField label="Lỗi thái độ KTV" value={translateDanhGia(kn.loi_thai_do_ktv)} />
           <ReadField label="Lỗi quy trình NSKX" value={translateDanhGia(kn.loi_quy_trinh_nskx)} />
-          <ReadField label="Kết luận khiếu nại" value={translateDanhGia(kn.ket_luan_khieu_nai)} />
+          <ReadField label="Kết luận phản ánh" value={translateDanhGia(kn.ket_luan_khieu_nai)} />
         </div>
       </>
     );
@@ -987,7 +991,7 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
         <Field label="Lỗi quy trình NSKX">
           <Select options={DANH_GIA_OPTIONS} value={form.loi_quy_trinh_nskx} onChange={(e) => setField("loi_quy_trinh_nskx", e.target.value as DanhGia3)} />
         </Field>
-        <Field label="Kết luận khiếu nại">
+        <Field label="Kết luận phản ánh">
           <Select options={DANH_GIA_OPTIONS} value={form.ket_luan_khieu_nai} onChange={(e) => setField("ket_luan_khieu_nai", e.target.value as DanhGia3)} />
         </Field>
         <div className="col-span-2 flex items-end justify-end sm:col-span-3">
@@ -1250,7 +1254,7 @@ const LS_LABEL: Record<string, string> = {
   chuyen_trang_thai: "Chuyển trạng thái",
   danh_gia_loi: "Đánh giá nguyên nhân lỗi",
   danh_gia_ql: "Đánh giá QL",
-  huy: "Hủy khiếu nại",
+  huy: "Hủy phản ánh",
   mo_lai: "Mở lại ca",
   phu_trach: "Đổi người phụ trách",
 };
@@ -1434,17 +1438,17 @@ function ActionBar({
       )}
       {canHuy && (
         <Btn variant="danger" size="sm" disabled={huy.isPending} onClick={() => setHuyOpen(true)}>
-          Hủy khiếu nại
+          Hủy phản ánh
         </Btn>
       )}
 
       {confirmChot && (
         <ConfirmBox
-          title="Xác nhận chốt khiếu nại"
+          title="Xác nhận chốt phản ánh"
           body={
             <>
               <p>Mã đơn: <span className="font-mono">{kn.id}</span></p>
-              <p>Kết luận khiếu nại: <b>{translateDanhGia(kn.ket_luan_khieu_nai)}</b></p>
+              <p>Kết luận phản ánh: <b>{translateDanhGia(kn.ket_luan_khieu_nai)}</b></p>
               <p>Đánh giá QL: <b>{kn.danh_gia_ql || "(chưa nhập — không chốt được)"}</b></p>
               <p className="mt-1 text-ink-soft">Sau khi chốt, ca chuyển sang “Đã kết thúc” và bị khoá.</p>
             </>
@@ -1458,7 +1462,7 @@ function ActionBar({
 
       {huyOpen && (
         <ConfirmBox
-          title="Hủy khiếu nại"
+          title="Hủy phản ánh"
           body={
             <div className="flex flex-col gap-2">
               <p>Mã đơn: <span className="font-mono">{kn.id}</span></p>
