@@ -238,7 +238,11 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         let filledCount = 0;
         for (const [k, v] of Object.entries(res.fill)) {
           const key = k as keyof FormState;
-          if (FILLABLE.has(key) && next[key].trim() === "" && v) {
+          if (!FILLABLE.has(key) || !v) continue;
+          // Model tra tu CRM la nguon xac thuc (model may thuc te) -> luon ghi de, kha cac field
+          // khac chi tu dien khi dang trong de khong mat du lieu nguoi dung da go tay.
+          const alwaysOverwrite = kind === "crm" && key === "model";
+          if (alwaysOverwrite ? v !== next[key] : next[key].trim() === "") {
             next[key] = v;
             filledCount++;
           }
