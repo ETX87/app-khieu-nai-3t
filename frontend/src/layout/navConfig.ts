@@ -6,7 +6,8 @@ export const ROLE_MODULES: Record<VaiTro, ModuleKey[]> = {
   Admin: ["trang-chu", "khieu-nai", "settings", "users"],
   Viewer: ["trang-chu", "khieu-nai"],
   CSKH: ["trang-chu", "khieu-nai"],
-  KTV: ["trang-chu", "khieu-nai"],
+  "NV Sale": ["trang-chu", "khieu-nai"],
+  "Tổng đài viên": ["trang-chu", "khieu-nai"],
   "TN CSKH": ["trang-chu", "khieu-nai"],
   QL: ["trang-chu", "khieu-nai"],
 };

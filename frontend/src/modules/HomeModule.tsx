@@ -59,7 +59,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const { showToast } = useToast();
   const closeDetail = () => setDetailId(null);
-  const canCreate = ["CSKH", "KTV", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "");
+  const canCreate = ["CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "");
 
   const statsQuery = useQuery({
     queryKey: ["khieu-nai-stats"],
@@ -85,13 +85,21 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
     queryFn: () => {
       if (role === "QL") return api.get<ListResponse>("/khieu-nai?trang_thai=Cho+chot+ket+thuc&pageSize=10");
       if (role === "TN CSKH") return api.get<ListResponse>("/khieu-nai?trang_thai=Dang+xu+ly&pageSize=20");
+      if (role === "CSKH" || role === "Admin")
+        return api.get<ListResponse>("/khieu-nai?trang_thai=Cho+tiep+nhan&pageSize=20");
       return api.get<ListResponse>(
         `/khieu-nai?nguoi_phu_trach=${encodeURIComponent(user.email)}&pageSize=10`,
       );
     },
   });
   const myTitle =
-    role === "QL" ? "Ca chờ tôi chốt" : role === "TN CSKH" ? "Ca đang xử lý (sẵn sàng đóng)" : "Ca tôi phụ trách";
+    role === "QL"
+      ? "Ca chờ tôi chốt"
+      : role === "TN CSKH"
+        ? "Ca đang xử lý (sẵn sàng đóng)"
+        : role === "CSKH" || role === "Admin"
+          ? "Phản ánh chờ tiếp nhận"
+          : "Ca tôi phụ trách";
   const myItems = (myQuery.data?.items ?? []).filter((r) =>
     role === "TN CSKH"
       ? r.loi_nha_san_xuat !== "Chua danh gia" &&
@@ -141,8 +149,9 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
         <StatCard label="Tổng phản ánh" value={s?.tong ?? 0} tone="blue" onClick={() => onOpenList({})} />
+        <StatCard label="Chờ tiếp nhận" value={s?.cho_tiep_nhan ?? 0} tone="red" onClick={() => onOpenList({ trang_thai: "Cho tiep nhan" })} />
         <StatCard label="Đang xử lý" value={s?.dang_xu_ly ?? 0} tone="amber" onClick={() => onOpenList({ trang_thai: "Dang xu ly" })} />
         <StatCard label="Chờ chốt kết thúc" value={s?.cho_chot_ket_thuc ?? 0} tone="amber" onClick={() => onOpenList({ trang_thai: "Cho chot ket thuc" })} />
         <StatCard label="Đã kết thúc" value={s?.da_ket_thuc ?? 0} tone="green" onClick={() => onOpenList({ trang_thai: "Da ket thuc" })} />

@@ -45,6 +45,11 @@ interface ListResponse {
   pageSize: number;
 }
 
+const NGUOI_TAO_VAI_TRO_OPTIONS = [
+  { value: "NV Sale", label: "NV Sale" },
+  { value: "Tổng đài viên", label: "Tổng đài viên" },
+];
+
 interface Filters {
   trangThai: string;
   mucDo: string;
@@ -53,6 +58,7 @@ interface Filters {
   denNgay: string;
   chuaDongBo: boolean;
   caCuaToi: boolean;
+  nguoiTaoVaiTro: string;
   q: string;
   sort: string; // "field|dir"
   pageSize: string;
@@ -60,7 +66,7 @@ interface Filters {
 
 const EMPTY_FILTERS: Filters = {
   trangThai: "", mucDo: "", nhomVanDe: "", tuNgay: "", denNgay: "",
-  chuaDongBo: false, caCuaToi: false, q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
+  chuaDongBo: false, caCuaToi: false, nguoiTaoVaiTro: "", q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
 };
 
 function loadFilters(): Filters {
@@ -141,6 +147,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
       if (f.denNgay) p.set("den_ngay", f.denNgay);
       if (f.chuaDongBo) p.set("chua_dong_bo", "1");
       if (f.caCuaToi) p.set("nguoi_phu_trach", user.email);
+      if (f.nguoiTaoVaiTro) p.set("nguoi_tao_vai_tro", f.nguoiTaoVaiTro);
       if (f.q) p.set("q", f.q);
       p.set("sort", sortField);
       p.set("dir", sortDir);
@@ -222,7 +229,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   const totalPages = Math.max(1, Math.ceil(total / pageSizeN));
 
   const activeFilterCount =
-    [f.trangThai, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.q].filter(Boolean).length +
+    [f.trangThai, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.nguoiTaoVaiTro, f.q].filter(Boolean).length +
     (f.chuaDongBo ? 1 : 0) + (f.caCuaToi ? 1 : 0);
 
   const selCls = "rounded-md border border-line bg-white px-2 py-1 text-xs text-ink focus:border-accent focus:outline-none";
@@ -262,6 +269,10 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
           <label className="flex items-center gap-1 text-xs text-ink-soft">
             <input type="checkbox" checked={f.caCuaToi} onChange={(e) => set("caCuaToi", e.target.checked)} /> Ca của tôi
           </label>
+          <select className={selCls} value={f.nguoiTaoVaiTro} onChange={(e) => set("nguoiTaoVaiTro", e.target.value)}>
+            <option value="">Mọi người tạo</option>
+            {NGUOI_TAO_VAI_TRO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
           {activeFilterCount > 0 && (
             <button onClick={resetFilters} className="text-xs font-medium text-accent hover:underline">
               Xoá lọc ({activeFilterCount})

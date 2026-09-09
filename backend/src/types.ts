@@ -1,4 +1,7 @@
-export const VAI_TRO_VALUES = ["Admin", "Viewer", "CSKH", "KTV", "TN CSKH", "QL"] as const;
+// "KTV" (2026-09) tách thành "NV Sale" + "Tổng đài viên" - 2 vai trò cùng luồng quy trình/quyền hạn
+// như KTV cũ, chỉ khác nhãn hiển thị để phân loại người tạo phản ánh. Xem KTV_LIKE_ROLES (routes/
+// khieuNai.ts) cho danh sách nơi 2 vai trò này được xử lý gộp như KTV cũ.
+export const VAI_TRO_VALUES = ["Admin", "Viewer", "CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL"] as const;
 export type VaiTro = (typeof VAI_TRO_VALUES)[number];
 export type TrangThaiDuyet = "Cho duyet" | "Da duyet" | "Tu choi";
 

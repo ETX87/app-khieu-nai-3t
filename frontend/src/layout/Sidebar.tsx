@@ -18,7 +18,8 @@ const ROLE_LABEL: Record<string, string> = {
   Admin: "Admin",
   Viewer: "Viewer",
   CSKH: "CSKH",
-  KTV: "KTV",
+  "NV Sale": "NV Sale",
+  "Tổng đài viên": "Tổng đài viên",
   "TN CSKH": "TN CSKH",
   QL: "Quản lý",
 };

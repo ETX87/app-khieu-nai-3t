@@ -15,7 +15,8 @@ const VAI_TRO_OPTIONS = [
   { value: "Admin", label: "Admin" },
   { value: "Viewer", label: "Viewer" },
   { value: "CSKH", label: "CSKH" },
-  { value: "KTV", label: "KTV" },
+  { value: "NV Sale", label: "NV Sale" },
+  { value: "Tổng đài viên", label: "Tổng đài viên" },
   { value: "TN CSKH", label: "TN CSKH" },
   { value: "QL", label: "QL" },
 ];

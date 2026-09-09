@@ -64,6 +64,7 @@ const CRM_WARNING_MESSAGES: Record<string, string> = {
   DVBH_LOOKUP_FAILED: "Không thể kết nối CRM Karofi lúc này",
   CASE_CLOSED: "Phản ánh đã kết thúc, không thể đồng bộ lại",
   RESYNC_TOO_SOON: "Vui lòng đợi ít nhất 5 giây giữa 2 lần đồng bộ",
+  CHUA_TIEP_NHAN: "Phản ánh chưa được CSKH tiếp nhận",
 };
 
 // yyyy-mm-dd hh:mm:ss (naive, gio VN) -> epoch ms, dung tinh khoang cach giua 2 moc cho Timeline.
@@ -207,8 +208,8 @@ function NextStepChip({ kn }: { kn: KhieuNai }) {
     text = "Đã hoàn tất"; cls = "bg-green-100 text-green-800";
   } else if (kn.trang_thai === "Huy") {
     text = `Đã hủy${kn.ly_do_huy ? ": " + kn.ly_do_huy : ""}`; cls = "bg-gray-200 text-ink-soft";
-  } else {
-    text = "Chờ tiếp nhận";
+  } else if (kn.trang_thai === "Cho tiep nhan") {
+    text = "Bước kế: CSKH tiếp nhận"; cls = "bg-red-100 text-red-800";
   }
   return <span className={`rounded-md px-2 py-1 text-xs font-semibold ${cls}`}>{text}</span>;
 }
@@ -320,12 +321,15 @@ export function KhieuNaiDetail({
   const giaiTrinhDeadline = detail.data.giaiTrinhDeadline?.deadline;
 
   const isClosed = kn.trang_thai === "Da ket thuc";
-  const isCskh = (user.vai_tro === "CSKH" || user.vai_tro === "Admin") && !isClosed && !overdue;
-  const isQl = (user.vai_tro === "QL" || user.vai_tro === "Admin") && !isClosed && !overdue;
-  const canDanhGia4Loi = isCskh || (user.vai_tro === "TN CSKH" && !isClosed && !overdue) || isQl;
+  const chuaTiepNhan = kn.trang_thai === "Cho tiep nhan";
+  const isCskh = (user.vai_tro === "CSKH" || user.vai_tro === "Admin") && !isClosed && !overdue && !chuaTiepNhan;
+  const isQl = (user.vai_tro === "QL" || user.vai_tro === "Admin") && !isClosed && !overdue && !chuaTiepNhan;
+  const canDanhGia4Loi = isCskh || (user.vai_tro === "TN CSKH" && !isClosed && !overdue && !chuaTiepNhan) || isQl;
   const canXuLyDoiMay = canDanhGia4Loi;
-  const canThemTienTrinh = ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed;
-  const canPhuTrach = ["CSKH", "KTV", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed;
+  const canThemTienTrinh = ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed && !chuaTiepNhan;
+  const canPhuTrach =
+    ["CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed && !chuaTiepNhan;
+  const canTiepNhan = (user.vai_tro === "CSKH" || user.vai_tro === "Admin") && chuaTiepNhan;
 
   const copyId = () => {
     navigator.clipboard?.writeText(kn.id).then(
@@ -421,6 +425,19 @@ export function KhieuNaiDetail({
             <CamCoButtons kn={kn} canEdit={canXuLyDoiMay} onSaved={invalidate} />
           </div>
         </div>
+
+        {chuaTiepNhan && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-red-300 bg-red-50 px-4 py-2 text-xs text-red-900">
+            <span>
+              <span className="font-semibold">⚠ Chờ tiếp nhận</span> — phản ánh chưa được sửa/cập nhật cho đến khi CSKH bấm tiếp nhận.
+            </span>
+            {canTiepNhan ? (
+              <TiepNhanButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />
+            ) : (
+              <span className="italic text-red-800">Đang chờ CSKH tiếp nhận…</span>
+            )}
+          </div>
+        )}
 
         {dongCaBlocked && (
           <div className="border-t border-amber-300 bg-amber-50 px-4 py-1.5 text-xs text-amber-900">
@@ -632,6 +649,19 @@ function NguoiPhuTrachInline({
         <button type="button" disabled={m.isPending} onClick={() => m.mutate(null)} className="text-ink-faint hover:text-ink">Gỡ</button>
       )}
     </span>
+  );
+}
+
+function TiepNhanButton({ id, onDone, onError }: { id: string; onDone: () => void; onError: (m: string) => void }) {
+  const m = useMutation({
+    mutationFn: () => api.post<{ khieuNai: KhieuNai }>(`/khieu-nai/${id}/tiep-nhan`),
+    onSuccess: onDone,
+    onError: (e) => onError(e instanceof ApiError ? `Tiếp nhận thất bại: ${e.code}` : "Tiếp nhận thất bại"),
+  });
+  return (
+    <Btn variant="primary" size="sm" disabled={m.isPending} onClick={() => m.mutate()}>
+      {m.isPending ? "Đang tiếp nhận..." : "✓ Tiếp nhận phản ánh"}
+    </Btn>
   );
 }
 
@@ -1370,6 +1400,7 @@ const LS_LABEL: Record<string, string> = {
   huy: "Hủy phản ánh",
   mo_lai: "Mở lại ca",
   phu_trach: "Đổi người phụ trách",
+  tiep_nhan: "Tiếp nhận",
 };
 
 // Nhãn field ngắn gọn cho log "cập nhật 1 trường" (item: badge cụ thể thay vì chung chung).
@@ -1412,6 +1443,8 @@ function lichSuBadge(l: LichSu): { badge: string; tone: LsTone } {
       return { badge: "Hủy phản ánh", tone: "red" };
     case "phu_trach":
       return { badge: "Đổi người phụ trách", tone: "gray" };
+    case "tiep_nhan":
+      return { badge: "Tiếp nhận", tone: "green" };
     default:
       return { badge: LS_LABEL[l.hanh_dong] ?? l.hanh_dong, tone: "gray" };
   }

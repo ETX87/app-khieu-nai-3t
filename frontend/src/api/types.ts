@@ -1,4 +1,4 @@
-export type VaiTro = "Admin" | "Viewer" | "CSKH" | "KTV" | "TN CSKH" | "QL";
+export type VaiTro = "Admin" | "Viewer" | "CSKH" | "NV Sale" | "Tổng đài viên" | "TN CSKH" | "QL";
 
 export interface AppUser {
   email: string;
@@ -131,6 +131,7 @@ export type SettingsNhom =
 
 export interface KhieuNaiStats {
   tong: number;
+  cho_tiep_nhan: number;
   dang_xu_ly: number;
   cho_chot_ket_thuc: number;
   da_ket_thuc: number;

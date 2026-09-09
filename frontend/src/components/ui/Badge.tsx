@@ -21,7 +21,7 @@ export function Badge({ tone = "gray", children }: { tone?: Tone; children: Reac
 }
 
 const STATUS_TONE: Record<string, Tone> = {
-  "Cho tiep nhan": "gray",
+  "Cho tiep nhan": "red",
   "Dang xu ly": "blue",
   "Cho chot ket thuc": "amber",
   "Da ket thuc": "green",
