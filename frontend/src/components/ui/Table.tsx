@@ -16,9 +16,12 @@ interface TableProps<T> {
   emptyText?: string;
   sort?: { field: string; dir: "asc" | "desc" };
   onSort?: (field: string) => void;
+  rowClassName?: (row: T) => string; // vd nen mau theo muc do, vien vang KH VIP...
 }
 
-export function Table<T>({ columns, rows, rowKey, onRowClick, emptyText = "Không có dữ liệu", sort, onSort }: TableProps<T>) {
+export function Table<T>({
+  columns, rows, rowKey, onRowClick, emptyText = "Không có dữ liệu", sort, onSort, rowClassName,
+}: TableProps<T>) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
@@ -57,7 +60,7 @@ export function Table<T>({ columns, rows, rowKey, onRowClick, emptyText = "Khôn
             <tr
               key={rowKey(row)}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
-              className={`border-b border-line last:border-0 ${onRowClick ? "cursor-pointer hover:bg-gray-50" : ""}`}
+              className={`border-b border-line last:border-0 ${onRowClick ? "cursor-pointer hover:bg-gray-50" : ""} ${rowClassName?.(row) ?? ""}`}
             >
               {columns.map((col) => (
                 <td key={col.key} className={`px-3 py-2 align-middle ${col.className ?? ""}`}>

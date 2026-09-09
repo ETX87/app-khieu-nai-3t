@@ -1,6 +1,6 @@
 import type { KhieuNai } from "../api/types";
 import { StatusBadge } from "../components/ui/Badge";
-import { mucDoTone, MUC_DO_CARD_BG, camCoBorderClass } from "../lib/severity";
+import { mucDoTone, MUC_DO_CARD_BG, camCoBorderClass, vipGlowClass } from "../lib/severity";
 
 // Chuoi ngay gio luu boi backend la "VN-local nhung khong co timezone" (xem nowVN()).
 // Parse nhu UTC roi so sanh voi "now" cung quy uoc +7h de phan chenh lech trieu tieu, ra dung so gio thuc te.
@@ -25,10 +25,11 @@ export function KhieuNaiCard({ kn, onClick }: { kn: KhieuNai; onClick: () => voi
   const maCrmHoacLada = kn.id_lada ?? kn.id_crm_karofi ?? "—";
   const severityBg = MUC_DO_CARD_BG[mucDoTone(kn.muc_do)];
   const flagBorder = camCoBorderClass(kn.cam_co);
+  const vipGlow = vipGlowClass(kn.phan_loai_kh);
   return (
     <button
       onClick={onClick}
-      className={`flex w-full flex-col gap-1 rounded-lg px-3 py-2.5 text-left active:bg-gray-50 ${severityBg} ${flagBorder}`}
+      className={`flex w-full flex-col gap-1 rounded-lg px-3 py-2.5 text-left active:bg-gray-50 ${severityBg} ${flagBorder} ${vipGlow}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{kn.ten_khach ?? "—"}</span>

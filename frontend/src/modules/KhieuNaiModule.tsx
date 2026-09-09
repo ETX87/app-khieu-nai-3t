@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import type { AppUser, KhieuNai } from "../api/types";
 import { useSettingsOptions } from "../api/useSettingsOptions";
 import { fmtVN } from "../lib/formatVN";
+import { mucDoTone, MUC_DO_CARD_BG, vipGlowClass } from "../lib/severity";
 import { Card } from "../components/ui/Card";
 import { Btn } from "../components/ui/Btn";
 import { Select } from "../components/ui/Select";
@@ -84,14 +85,6 @@ function loadFilters(): Filters {
     if (raw) return { ...EMPTY_FILTERS, ...JSON.parse(raw) };
   } catch { /* ignore */ }
   return EMPTY_FILTERS;
-}
-
-function mucDoTone(v: string | null): "red" | "amber" | "blue" | "gray" {
-  if (!v) return "gray";
-  if (/nghiêm trọng|gấp/i.test(v)) return "red";
-  if (/trung bình|trung binh/i.test(v)) return "amber";
-  if (/quà tặng|qua tang/i.test(v)) return "blue";
-  return "gray";
 }
 
 function chiBao(r: KhieuNai): { text: string; tone: "amber" | "green" | "red" | "gray" } | null {
@@ -210,6 +203,15 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
     },
     { key: "nhom_van_de", header: "Nhóm vấn đề", sortKey: "nhom_van_de", render: (r) => r.nhom_van_de ?? "—" },
     { key: "trang_thai", header: "Trạng thái", sortKey: "trang_thai", render: (r) => <StatusBadge trangThai={r.trang_thai} /> },
+    {
+      key: "gio_xu_ly",
+      header: "Số giờ xử lý",
+      render: (r) => (
+        <span className="text-xs text-ink">
+          {fmtVN.gioXuLy(r.ngay_tiep_nhan, r.trang_thai === "Da ket thuc" ? r.ngay_ket_thuc : null)}
+        </span>
+      ),
+    },
     {
       key: "chi_bao",
       header: "Chỉ báo",
@@ -344,6 +346,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
                 onRowClick={(r) => setDetailId(r.id)}
                 sort={{ field: sortField, dir: sortDir === "asc" ? "asc" : "desc" }}
                 onSort={handleSort}
+                rowClassName={(r) => `${MUC_DO_CARD_BG[mucDoTone(r.muc_do)]} ${vipGlowClass(r.phan_loai_kh)}`}
               />
             </div>
             <div className="mt-4 flex items-center justify-between text-sm text-ink-soft">

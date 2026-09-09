@@ -29,3 +29,14 @@ export function camCoBorderClass(v: string | null | undefined): string {
   if (v === "Co vang") return "border-[3px] border-amber-500 flag-glow-amber";
   return "border border-line";
 }
+
+// Khach VIP: "Phan loai KH" (settings_option nhom=phan_loai_kh) co gia tri "S.VIP".
+export function isVipKh(phanLoaiKh: string | null | undefined): boolean {
+  return !!phanLoaiKh && /vip/i.test(phanLoaiKh);
+}
+
+// Ap dung cho <tr>/<div> bao ngoai 1 dong danh sach: vien vang sang ruc ro (item: KH VIP), dung
+// class ".vip-glow" khai bao trong index.css (box-shadow inset + toa sang, khong doi border-collapse).
+export function vipGlowClass(phanLoaiKh: string | null | undefined): string {
+  return isVipKh(phanLoaiKh) ? "vip-glow" : "";
+}
