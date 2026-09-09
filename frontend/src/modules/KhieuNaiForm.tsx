@@ -370,7 +370,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   };
 
   const legendCls = "mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft";
-  const fsCls = "rounded-lg border border-line p-3";
+  // Nen mau nhat (surface-2) khac voi nen trang cua modal - lam noi cac khoi nhap lieu (item: cho
+  // gian doi luong data lon, cung giup nguoi dung phan biet nhanh cac khu vuc).
+  const fsCls = "rounded-lg border border-line bg-surface-2 p-3";
   const rowCls = "flex flex-wrap items-start gap-x-3 gap-y-2.5";
   // Khổ ô nhập gọn: đủ đọc giá trị, không kéo dài chiếm diện tích như trước.
   const W_XS = "block w-24"; // Phân loại KH
@@ -404,7 +406,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         {/* ── Trái: Tra cứu · Khách hàng/Địa chỉ · Sản phẩm · Nội bộ ─────────── */}
         <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 pr-1 lg:pr-3">
           {/* Tra cứu ID — ô gọn, nút kính lúp */}
-          <fieldset className="rounded-lg border border-accent/40 bg-accent-soft/40 p-2.5">
+          <fieldset className="rounded-lg border border-accent/40 bg-accent-soft p-2.5">
             <legend className={legendCls}>Tra cứu nhanh theo ID</legend>
             <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
               <div className="block">

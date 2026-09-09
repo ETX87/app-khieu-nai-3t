@@ -214,6 +214,11 @@ app.get("/", async (c) => {
     );
     binds.push(tonToiThieuNgay);
   }
+  const thangDong = c.req.query("thang_dong"); // "YYYY-MM" - loc theo thang cua ngay_ket_thuc (item: du lieu tang manh, can loc theo thang de bao cao/tra cuu khong phai quet toan bo).
+  if (thangDong && /^\d{4}-\d{2}$/.test(thangDong)) {
+    conditions.push("ngay_ket_thuc >= ? AND ngay_ket_thuc < datetime(? , '+1 month')");
+    binds.push(`${thangDong}-01 00:00:00`, `${thangDong}-01 00:00:00`);
+  }
   if (q) {
     conditions.push("(ten_khach LIKE ? OR id_lada LIKE ? OR id LIKE ? OR id_crm_karofi LIKE ? OR sdt_khach LIKE ?)");
     binds.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
@@ -389,10 +394,12 @@ app.get("/bao-cao/sla", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"),
   if (tuNgay) { conditions.push("ngay_tiep_nhan >= ?"); binds.push(`${tuNgay} 00:00:00`); }
   if (denNgay) { conditions.push("ngay_tiep_nhan <= ?"); binds.push(`${denNgay} 23:59:59`); }
 
+  // LIMIT phong ho: du lieu du kien tang 10-20k/thang, khong de 1 lan tra cuu khong loc ngay keo
+  // toan bo bang vao Worker (CPU/rows_read) khi so lieu lon dan theo thoi gian.
   const { results } = await c.env.DB.prepare(
     `SELECT trang_thai, nhom_van_de,
             (julianday(COALESCE(ngay_ket_thuc, datetime('now','+7 hours'))) - julianday(ngay_tiep_nhan)) as so_ngay
-     FROM khieu_nai WHERE ${conditions.join(" AND ")}`,
+     FROM khieu_nai WHERE ${conditions.join(" AND ")} ORDER BY ngay_tiep_nhan DESC LIMIT 20000`,
   ).bind(...binds).all<{ trang_thai: string; nhom_van_de: string | null; so_ngay: number }>();
 
   const buckets = SLA_BUCKETS.map((b) => ({ label: b.label, da_ket_thuc: 0, dang_xu_ly: 0 }));
@@ -455,9 +462,11 @@ app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
   if (tuNgay) { conditions.push("ngay_tiep_nhan >= ?"); binds.push(`${tuNgay} 00:00:00`); }
   if (denNgay) { conditions.push("ngay_tiep_nhan <= ?"); binds.push(`${denNgay} 23:59:59`); }
 
+  // LIMIT phong ho giong /bao-cao/sla (xem giai thich phia tren) - lay 20k dong gan nhat, du du
+  // cho union-find nhom theo ID Lada ma khong quet toan bo bang khi du lieu lon dan.
   const { results } = await c.env.DB.prepare(
     `SELECT id, id_lada, id_lada_phat_sinh, ngay_tiep_nhan, ten_khach, van_de_dau_vao, trang_thai
-     FROM khieu_nai WHERE ${conditions.join(" AND ")} ORDER BY ngay_tiep_nhan ASC`,
+     FROM khieu_nai WHERE ${conditions.join(" AND ")} ORDER BY ngay_tiep_nhan DESC LIMIT 20000`,
   ).bind(...binds).all<TrungLapRow>();
 
   const parent = new Map<string, string>();

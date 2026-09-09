@@ -1,9 +1,12 @@
 // Phân loại "Mức độ" thành tông màu dùng chung cho card danh sách và nền UI chi tiết.
-export type SeverityTone = "red" | "amber" | "blue" | "gray";
+// "Gấp" và "Nghiêm trọng" là 2 mức khác nhau -> phai khac mau (truoc day gop chung "red" nen
+// nhin giong het nhau, item: tach rieng "Nghiem trong" sang tim nhat).
+export type SeverityTone = "red" | "violet" | "amber" | "blue" | "gray";
 
 export function mucDoTone(v: string | null | undefined): SeverityTone {
   if (!v) return "gray";
-  if (/nghiêm trọng|gấp/i.test(v)) return "red";
+  if (/nghiêm trọng|nghiem trong/i.test(v)) return "violet";
+  if (/gấp|gap/i.test(v)) return "red";
   if (/trung bình|trung binh/i.test(v)) return "amber";
   if (/quà tặng|qua tang/i.test(v)) return "blue";
   return "gray";
@@ -11,6 +14,7 @@ export function mucDoTone(v: string | null | undefined): SeverityTone {
 
 export const MUC_DO_BG: Record<SeverityTone, string> = {
   red: "bg-red-50",
+  violet: "bg-violet-50",
   amber: "bg-amber-50",
   blue: "bg-blue-50",
   gray: "bg-bg",
@@ -18,6 +22,7 @@ export const MUC_DO_BG: Record<SeverityTone, string> = {
 
 export const MUC_DO_CARD_BG: Record<SeverityTone, string> = {
   red: "bg-red-50",
+  violet: "bg-violet-50",
   amber: "bg-amber-50",
   blue: "bg-blue-50",
   gray: "bg-white",

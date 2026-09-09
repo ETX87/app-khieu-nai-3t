@@ -68,6 +68,7 @@ interface Filters {
   caCuaToi: boolean;
   nguoiTaoVaiTro: string;
   tonToiThieu: string;
+  thangDong: string; // "YYYY-MM" - loc theo thang cua ngay_ket_thuc
   q: string;
   sort: string; // "field|dir"
   pageSize: string;
@@ -75,7 +76,7 @@ interface Filters {
 
 const EMPTY_FILTERS: Filters = {
   trangThai: "", mucDo: "", nhomVanDe: "", tuNgay: "", denNgay: "",
-  chuaDongBo: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "",
+  chuaDongBo: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "", thangDong: "",
   q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
 };
 
@@ -151,6 +152,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
       if (f.caCuaToi) p.set("nguoi_phu_trach", user.email);
       if (f.nguoiTaoVaiTro) p.set("nguoi_tao_vai_tro", f.nguoiTaoVaiTro);
       if (f.tonToiThieu) p.set("ton_toi_thieu_ngay", f.tonToiThieu);
+      if (f.thangDong) p.set("thang_dong", f.thangDong);
       if (f.q) p.set("q", f.q);
       p.set("sort", sortField);
       p.set("dir", sortDir);
@@ -246,7 +248,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   const totalPages = Math.max(1, Math.ceil(total / pageSizeN));
 
   const activeFilterCount =
-    [f.trangThai, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.nguoiTaoVaiTro, f.tonToiThieu, f.q].filter(Boolean).length +
+    [f.trangThai, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.q].filter(Boolean).length +
     (f.chuaDongBo ? 1 : 0) + (f.caCuaToi ? 1 : 0);
 
   const handleSort = (field: string) => {
@@ -303,6 +305,10 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
             <option value="">Mọi thời gian tồn</option>
             {TON_TOI_THIEU_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
+          <label className="flex items-center gap-1 text-xs text-ink-soft">
+            Tháng đóng
+            <input type="month" className={selCls} value={f.thangDong} onChange={(e) => set("thangDong", e.target.value)} />
+          </label>
           {activeFilterCount > 0 && (
             <button onClick={resetFilters} className="text-xs font-medium text-accent hover:underline">
               Xoá lọc ({activeFilterCount})
