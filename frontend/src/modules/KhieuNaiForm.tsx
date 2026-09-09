@@ -12,6 +12,7 @@ import { useToast } from "../components/ui/Toast";
 import { fmtVN } from "../lib/formatVN";
 import { STATUS_LABEL } from "../components/ui/Badge";
 import { Timeline, type TimelineEvent } from "../components/ui/Timeline";
+import { mucDoTone, MUC_DO_BG, vipGlowClass } from "../lib/severity";
 
 export interface KhieuNaiFormHandle {
   submit: () => void;
@@ -376,8 +377,19 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   const W_SM = "block w-36"; // SĐT, Tỉnh/Huyện/Xã, Mức độ, Nhóm yêu cầu, Người báo
   const W_MD = "block w-56"; // Tên khách hàng, Nhóm vấn đề, Vấn đề đầu vào, Hãng, Model, Sale khu vực
 
+  // Phan hoi tuc thi khi chon Muc do / Phan loai KH (VIP): to mau + vien ngay trong luc nhap,
+  // giong het mau/vien se hien trong danh sach sau khi tao (item: cho nguoi tao biet truoc).
+  const formTone = mucDoTone(form.muc_do);
+  const formSeverityBg = formTone === "gray" ? "" : MUC_DO_BG[formTone];
+  const formVipGlow = vipGlowClass(form.phan_loai_kh);
+
   return (
-    <form ref={formElRef} onSubmit={submit} onKeyDown={onFormKeyDown} className="flex h-full min-h-0 flex-col">
+    <form
+      ref={formElRef}
+      onSubmit={submit}
+      onKeyDown={onFormKeyDown}
+      className={`flex h-full min-h-0 flex-col rounded-lg p-2 transition-colors duration-300 ${formSeverityBg} ${formVipGlow}`}
+    >
       {restored && (
         <div className="mb-2 flex shrink-0 items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-300">
           <span>Đã khôi phục nội dung nhập dở lần trước.</span>
