@@ -1,13 +1,25 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  forwardRef, useEffect, useImperativeHandle, useRef, useState,
+  type FormEvent, type KeyboardEvent,
+} from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
 import type { KhieuNai, SettingsNhom } from "../api/types";
 import { useSettingsOptions } from "../api/useSettingsOptions";
 import { Field, Input, Textarea } from "../components/ui/Input";
 import { Combobox } from "../components/ui/Combobox";
-import { Btn } from "../components/ui/Btn";
 import { useToast } from "../components/ui/Toast";
 import { fmtVN } from "../lib/formatVN";
+
+export interface KhieuNaiFormHandle {
+  submit: () => void;
+  cancel: () => void;
+}
+export interface KhieuNaiFormHeaderState {
+  missing: string[];
+  pendingCount: number;
+  submitting: boolean;
+}
 
 interface FormState {
   id_crm_karofi: string;
@@ -112,11 +124,10 @@ function loadDraft(): DraftShape | null {
   }
 }
 
-type InfoTab = "khach" | "dia_cu" | "dia_moi";
-const INFO_TABS: { key: InfoTab; label: string }[] = [
-  { key: "khach", label: "Khách hàng" },
-  { key: "dia_cu", label: "Địa chính cũ" },
-  { key: "dia_moi", label: "Địa chính mới" },
+type AddrTab = "cu" | "moi";
+const ADDRESS_TABS: { key: AddrTab; label: string }[] = [
+  { key: "cu", label: "Địa chính cũ" },
+  { key: "moi", label: "Địa chính mới" },
 ];
 
 const SearchIcon = () => (
@@ -126,12 +137,17 @@ const SearchIcon = () => (
   </svg>
 );
 
-export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) => void; onCancel: () => void }) {
+export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
+  onCreated: (id: string) => void;
+  onCancel: () => void;
+  onStateChange?: (s: KhieuNaiFormHeaderState) => void;
+}>(function KhieuNaiForm({ onCreated, onCancel, onStateChange }, ref) {
   const draftRef = useRef<DraftShape | null>(loadDraft());
+  const formElRef = useRef<HTMLFormElement>(null);
   const [form, setForm] = useState<FormState>(() => draftRef.current?.form ?? { ...EMPTY });
   const [pendingOpts, setPendingOpts] = useState<PendingOpt[]>(() => draftRef.current?.pendingOpts ?? []);
   const [restored, setRestored] = useState(!!draftRef.current);
-  const [infoTab, setInfoTab] = useState<InfoTab>("khach");
+  const [addrTab, setAddrTab] = useState<AddrTab>("cu");
   const { showToast } = useToast();
   const qc = useQueryClient();
 
@@ -242,6 +258,8 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
   }, [form, pendingOpts, dirty]);
 
   const missing = REQUIRED.filter((r) => form[r.key].trim() === "");
+  const diaCuCount = [form.tinh, form.quan_huyen, form.phuong_xa].filter((v) => v.trim() !== "").length;
+  const diaMoiCount = [form.tinh_moi, form.phuong_xa_moi].filter((v) => v.trim() !== "").length;
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -301,6 +319,17 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
     onCancel();
   };
 
+  useImperativeHandle(ref, () => ({
+    submit: () => formElRef.current?.requestSubmit(),
+    cancel,
+  }), [cancel]);
+
+  const missingKey = missing.map((m) => m.key).join(",");
+  useEffect(() => {
+    onStateChange?.({ missing: missing.map((m) => m.label), pendingCount: pendingOpts.length, submitting: mutation.isPending });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [missingKey, pendingOpts.length, mutation.isPending]);
+
   const clearDraft = () => {
     try {
       localStorage.removeItem(DRAFT_KEY);
@@ -322,28 +351,9 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
   const W_MD = "block w-56"; // Tên khách hàng, Nhóm vấn đề, Vấn đề đầu vào, Hãng, Model, Sale khu vực
 
   return (
-    <form onSubmit={submit} onKeyDown={onFormKeyDown} className="mx-auto flex w-full max-w-[1140px] flex-col gap-3">
-      {/* ── Banner thao tác (luôn thấy khi cuộn) ────────────────────────────── */}
-      <div className="sticky top-0 z-10 -mt-1 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2 shadow-sm">
-        <span className="text-sm font-semibold text-ink">Tạo phản ánh mới</span>
-        {pendingOpts.length > 0 && (
-          <span className="text-[11px] text-ink-soft">
-            {pendingOpts.length} lựa chọn mới sẽ được lưu vào danh mục khi bấm Tạo
-          </span>
-        )}
-        {missing.length > 0 && pendingOpts.length === 0 && (
-          <span className="text-xs text-amber-700">Còn thiếu: {missing.map((m) => m.label).join(", ")}</span>
-        )}
-        <div className="ml-auto flex items-center gap-2">
-          <Btn type="button" variant="secondary" size="sm" onClick={cancel}>Hủy</Btn>
-          <Btn type="submit" variant="primary" size="sm" disabled={mutation.isPending || missing.length > 0}>
-            {mutation.isPending ? "Đang tạo..." : "Tạo phản ánh"}
-          </Btn>
-        </div>
-      </div>
-
+    <form ref={formElRef} onSubmit={submit} onKeyDown={onFormKeyDown} className="flex h-full min-h-0 flex-col">
       {restored && (
-        <div className="flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-300">
+        <div className="mb-2 flex shrink-0 items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-300">
           <span>Đã khôi phục nội dung nhập dở lần trước.</span>
           <button type="button" onClick={clearDraft} className="font-medium underline">
             Xoá &amp; nhập mới
@@ -351,255 +361,273 @@ export function KhieuNaiForm({ onCreated, onCancel }: { onCreated: (id: string) 
         </div>
       )}
 
-      {/* ── 1. Tra cứu ID (ưu tiên nhập đầu tiên) — ô gọn, nút kính lúp ─────── */}
-      <fieldset className="rounded-lg border border-accent/40 bg-accent-soft/40 p-2.5">
-        <legend className={legendCls}>Tra cứu nhanh theo ID</legend>
-        <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-          <div className="block">
-            <span className="mb-0.5 block text-xs font-medium text-ink-soft">ID CRM Karofi</span>
-            <div className="flex gap-1">
-              <Input
-                className="w-32 !py-1"
-                value={form.id_crm_karofi}
-                onChange={(e) => setField("id_crm_karofi", e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void runLookup("crm"); } }}
-              />
-              <button
-                type="button"
-                aria-label="Tra cứu ID CRM Karofi"
-                title="Tra cứu"
-                onClick={() => void runLookup("crm")}
-                disabled={!form.id_crm_karofi.trim() || lookupBusy === "crm"}
-                className="flex items-center justify-center rounded-md border border-line bg-white px-2 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {lookupBusy === "crm" ? "…" : <SearchIcon />}
-              </button>
+      {/* 2 mảng độc lập: trái = KH + SP, phải = vấn đề + nội dung — mỗi bên cuộn riêng */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* ── Trái: Tra cứu · Khách hàng/Địa chỉ · Sản phẩm · Nội bộ ─────────── */}
+        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 pr-1 lg:pr-3">
+          {/* Tra cứu ID — ô gọn, nút kính lúp */}
+          <fieldset className="rounded-lg border border-accent/40 bg-accent-soft/40 p-2.5">
+            <legend className={legendCls}>Tra cứu nhanh theo ID</legend>
+            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+              <div className="block">
+                <span className="mb-0.5 block text-xs font-medium text-ink-soft">ID CRM Karofi</span>
+                <div className="flex gap-1">
+                  <Input
+                    className="w-32 !py-1"
+                    value={form.id_crm_karofi}
+                    onChange={(e) => setField("id_crm_karofi", e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void runLookup("crm"); } }}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Tra cứu ID CRM Karofi"
+                    title="Tra cứu"
+                    onClick={() => void runLookup("crm")}
+                    disabled={!form.id_crm_karofi.trim() || lookupBusy === "crm"}
+                    className="flex items-center justify-center rounded-md border border-line bg-white px-2 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {lookupBusy === "crm" ? "…" : <SearchIcon />}
+                  </button>
+                </div>
+              </div>
+              <div className="block">
+                <span className="mb-0.5 block text-xs font-medium text-ink-soft">ID Lada</span>
+                <div className="flex gap-1">
+                  <Input
+                    className="w-32 !py-1"
+                    value={form.id_lada}
+                    onChange={(e) => setField("id_lada", e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void runLookup("lada"); } }}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Tra cứu ID Lada"
+                    title="Tra cứu"
+                    onClick={() => void runLookup("lada")}
+                    disabled={!form.id_lada.trim() || lookupBusy === "lada"}
+                    className="flex items-center justify-center rounded-md border border-line bg-white px-2 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {lookupBusy === "lada" ? "…" : <SearchIcon />}
+                  </button>
+                </div>
+              </div>
+              <p className="mb-1 max-w-[14rem] text-[11px] leading-tight text-ink-faint">
+                Nhập ID rồi Enter / bấm kính lúp — tự điền vào các ô còn trống.
+              </p>
             </div>
-          </div>
-          <div className="block">
-            <span className="mb-0.5 block text-xs font-medium text-ink-soft">ID Lada</span>
-            <div className="flex gap-1">
-              <Input
-                className="w-32 !py-1"
-                value={form.id_lada}
-                onChange={(e) => setField("id_lada", e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void runLookup("lada"); } }}
-              />
-              <button
-                type="button"
-                aria-label="Tra cứu ID Lada"
-                title="Tra cứu"
-                onClick={() => void runLookup("lada")}
-                disabled={!form.id_lada.trim() || lookupBusy === "lada"}
-                className="flex items-center justify-center rounded-md border border-line bg-white px-2 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {lookupBusy === "lada" ? "…" : <SearchIcon />}
-              </button>
+
+            {lookup && <LookupResult res={lookup} />}
+          </fieldset>
+
+          {/* Khách hàng (luôn hiện, trái) + Địa chính (tab, phải) */}
+          <fieldset className={fsCls}>
+            <legend className={legendCls}>Thông tin khách hàng &amp; địa chỉ</legend>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Khách hàng</p>
+                <div className={rowCls}>
+                  <Field label="Tên khách hàng *" className={W_MD}>
+                    <Input value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} autoFocus />
+                  </Field>
+                  <Field label="Số điện thoại" hint="Có thể bổ sung sau" className={W_SM}>
+                    <Input value={form.sdt_khach} onChange={(e) => setField("sdt_khach", e.target.value)} inputMode="tel" />
+                  </Field>
+                  <Field label="Phân loại KH" className={W_XS}>
+                    <Combobox
+                      options={(phanLoaiKhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                      value={form.phan_loai_kh}
+                      onChange={(v) => setField("phan_loai_kh", v)}
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 flex gap-1 border-b border-line">
+                  {ADDRESS_TABS.map((t) => {
+                    const count = t.key === "cu" ? diaCuCount : diaMoiCount;
+                    const active = addrTab === t.key;
+                    return (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => setAddrTab(t.key)}
+                        className={`-mb-px border-b-2 px-2 py-1.5 text-xs ${
+                          active
+                            ? "border-accent font-semibold text-accent"
+                            : count > 0
+                              ? "border-transparent font-semibold text-ink hover:text-accent"
+                              : "border-transparent font-medium text-ink-soft hover:text-ink"
+                        }`}
+                      >
+                        {t.label}
+                        {count > 0 ? ` (${count})` : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {addrTab === "cu" && (
+                  <div className={rowCls}>
+                    <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới" className={W_SM}>
+                      <Combobox
+                        options={optsFor(tinhOpts.data, "tinh")}
+                        value={form.tinh}
+                        onChange={(v) => setForm((p) => ({ ...p, tinh: v, quan_huyen: "", phuong_xa: "" }))}
+                        creatable
+                        onCreate={(v) => addPending("tinh", v)}
+                      />
+                    </Field>
+                    <Field label="Quận / Huyện" hint={form.tinh ? "Gõ để tìm / thêm mới" : "Chọn Tỉnh trước"} className={W_SM}>
+                      <Combobox
+                        options={optsFor(quanHuyenOpts.data, "quan_huyen", form.tinh)}
+                        value={form.quan_huyen}
+                        onChange={(v) => setForm((p) => ({ ...p, quan_huyen: v, phuong_xa: "" }))}
+                        disabled={!form.tinh}
+                        creatable
+                        onCreate={(v) => addPending("quan_huyen", v, form.tinh)}
+                      />
+                    </Field>
+                    <Field label="Phường / Xã" hint={form.quan_huyen ? "Gõ để tìm / thêm mới" : "Chọn Quận/Huyện trước"} className={W_SM}>
+                      <Combobox
+                        options={optsFor(phuongXaOpts.data, "phuong_xa", form.quan_huyen)}
+                        value={form.phuong_xa}
+                        onChange={(v) => setField("phuong_xa", v)}
+                        disabled={!form.quan_huyen}
+                        creatable
+                        onCreate={(v) => addPending("phuong_xa", v, form.quan_huyen)}
+                      />
+                    </Field>
+                  </div>
+                )}
+
+                {addrTab === "moi" && (
+                  <div className={rowCls}>
+                    <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới" className={W_SM}>
+                      <Combobox
+                        options={optsFor(tinhMoiOpts.data, "tinh_moi")}
+                        value={form.tinh_moi}
+                        onChange={(v) => setForm((p) => ({ ...p, tinh_moi: v, phuong_xa_moi: "" }))}
+                        creatable
+                        onCreate={(v) => addPending("tinh_moi", v)}
+                      />
+                    </Field>
+                    <Field label="Phường / Xã" hint={form.tinh_moi ? "Gõ để tìm / thêm mới" : "Chọn Tỉnh trước"} className={W_SM}>
+                      <Combobox
+                        options={optsFor(phuongXaMoiOpts.data, "phuong_xa_moi", form.tinh_moi)}
+                        value={form.phuong_xa_moi}
+                        onChange={(v) => setField("phuong_xa_moi", v)}
+                        disabled={!form.tinh_moi}
+                        creatable
+                        onCreate={(v) => addPending("phuong_xa_moi", v, form.tinh_moi)}
+                      />
+                    </Field>
+                    <p className="mb-1 w-full text-[11px] leading-tight text-ink-faint">
+                      Điền theo địa chính cũ, mới, hoặc cả hai — không bắt buộc.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-          <p className="mb-1 max-w-[16rem] text-[11px] leading-tight text-ink-faint">
-            Nhập ID rồi Enter / bấm kính lúp — hệ thống tự điền vào các ô còn trống bên dưới.
-          </p>
-        </div>
+          </fieldset>
 
-        {lookup && <LookupResult res={lookup} />}
-      </fieldset>
+          <fieldset className={fsCls}>
+            <legend className={legendCls}>Sản phẩm</legend>
+            <div className={rowCls}>
+              <Field label="Hãng" hint="Gõ để tìm / thêm mới" className={W_MD}>
+                <Combobox
+                  options={optsFor(hangOpts.data, "hang")}
+                  value={form.hang}
+                  onChange={(v) => setField("hang", v)}
+                  creatable
+                  onCreate={(v) => addPending("hang", v)}
+                />
+              </Field>
+              <Field label="Model" hint="Gõ để tìm / thêm mới" className={W_MD}>
+                <Combobox
+                  options={optsFor(modelOpts.data, "model")}
+                  value={form.model}
+                  onChange={(v) => setField("model", v)}
+                  creatable
+                  onCreate={(v) => addPending("model", v)}
+                />
+              </Field>
+            </div>
+          </fieldset>
 
-      {/* ── 2. Khách hàng + Địa chính cũ + Địa chính mới — gộp 1 khối, chuyển bằng tab ── */}
-      <fieldset className={fsCls}>
-        <legend className={legendCls}>Thông tin khách hàng &amp; địa chỉ</legend>
-        <div className="mb-2.5 flex gap-1 border-b border-line">
-          {INFO_TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setInfoTab(t.key)}
-              className={`-mb-px border-b-2 px-2.5 py-1.5 text-xs font-medium ${
-                infoTab === t.key ? "border-accent text-accent" : "border-transparent text-ink-soft hover:text-ink"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {infoTab === "khach" && (
-          <div className={rowCls}>
-            <Field label="Tên khách hàng *" className={W_MD}>
-              <Input value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} autoFocus />
-            </Field>
-            <Field label="Số điện thoại" hint="Có thể bổ sung sau" className={W_SM}>
-              <Input value={form.sdt_khach} onChange={(e) => setField("sdt_khach", e.target.value)} inputMode="tel" />
-            </Field>
-            <Field label="Phân loại KH" className={W_XS}>
-              <Combobox
-                options={(phanLoaiKhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-                value={form.phan_loai_kh}
-                onChange={(v) => setField("phan_loai_kh", v)}
-              />
-            </Field>
-          </div>
-        )}
-
-        {infoTab === "dia_cu" && (
-          <div className={rowCls}>
-            <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới" className={W_SM}>
-              <Combobox
-                options={optsFor(tinhOpts.data, "tinh")}
-                value={form.tinh}
-                onChange={(v) => setForm((p) => ({ ...p, tinh: v, quan_huyen: "", phuong_xa: "" }))}
-                creatable
-                onCreate={(v) => addPending("tinh", v)}
-              />
-            </Field>
-            <Field label="Quận / Huyện" hint={form.tinh ? "Gõ để tìm / thêm mới" : "Chọn Tỉnh trước"} className={W_SM}>
-              <Combobox
-                options={optsFor(quanHuyenOpts.data, "quan_huyen", form.tinh)}
-                value={form.quan_huyen}
-                onChange={(v) => setForm((p) => ({ ...p, quan_huyen: v, phuong_xa: "" }))}
-                disabled={!form.tinh}
-                creatable
-                onCreate={(v) => addPending("quan_huyen", v, form.tinh)}
-              />
-            </Field>
-            <Field label="Phường / Xã" hint={form.quan_huyen ? "Gõ để tìm / thêm mới" : "Chọn Quận/Huyện trước"} className={W_SM}>
-              <Combobox
-                options={optsFor(phuongXaOpts.data, "phuong_xa", form.quan_huyen)}
-                value={form.phuong_xa}
-                onChange={(v) => setField("phuong_xa", v)}
-                disabled={!form.quan_huyen}
-                creatable
-                onCreate={(v) => addPending("phuong_xa", v, form.quan_huyen)}
-              />
-            </Field>
-          </div>
-        )}
-
-        {infoTab === "dia_moi" && (
-          <div className={rowCls}>
-            <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới" className={W_SM}>
-              <Combobox
-                options={optsFor(tinhMoiOpts.data, "tinh_moi")}
-                value={form.tinh_moi}
-                onChange={(v) => setForm((p) => ({ ...p, tinh_moi: v, phuong_xa_moi: "" }))}
-                creatable
-                onCreate={(v) => addPending("tinh_moi", v)}
-              />
-            </Field>
-            <Field label="Phường / Xã" hint={form.tinh_moi ? "Gõ để tìm / thêm mới" : "Chọn Tỉnh trước"} className={W_SM}>
-              <Combobox
-                options={optsFor(phuongXaMoiOpts.data, "phuong_xa_moi", form.tinh_moi)}
-                value={form.phuong_xa_moi}
-                onChange={(v) => setField("phuong_xa_moi", v)}
-                disabled={!form.tinh_moi}
-                creatable
-                onCreate={(v) => addPending("phuong_xa_moi", v, form.tinh_moi)}
-              />
-            </Field>
-            <p className="mb-1 max-w-[16rem] self-end text-[11px] leading-tight text-ink-faint">
-              Điền theo địa chính cũ, mới, hoặc cả hai — không bắt buộc.
+          <fieldset className={fsCls}>
+            <legend className={legendCls}>Nội bộ</legend>
+            <div className={rowCls}>
+              <Field label="Sale khu vực" hint="Gõ để tìm / thêm mới" className={W_MD}>
+                <Combobox
+                  options={optsFor(saleKhuVucOpts.data, "sale_khu_vuc")}
+                  value={form.sale_khu_vuc}
+                  onChange={(v) => setField("sale_khu_vuc", v)}
+                  creatable
+                  onCreate={(v) => addPending("sale_khu_vuc", v)}
+                />
+              </Field>
+              <Field label="Người báo" className={W_SM}>
+                <Input value={form.nguoi_bao} onChange={(e) => setField("nguoi_bao", e.target.value)} />
+              </Field>
+            </div>
+            <p className="mt-2 text-[11px] leading-tight text-ink-soft">
+              Ngày tiếp nhận &amp; các dữ liệu CRM khác được hệ thống tự đồng bộ, không cần nhập.
             </p>
-          </div>
-        )}
-      </fieldset>
+          </fieldset>
+        </div>
 
-      {/* ── 3. Sản phẩm + 4. Nội bộ (cùng hàng, ô gọn) ──────────────────────── */}
-      <div className="grid gap-3 lg:grid-cols-2">
-        <fieldset className={fsCls}>
-          <legend className={legendCls}>Sản phẩm</legend>
-          <div className={rowCls}>
-            <Field label="Hãng" hint="Gõ để tìm / thêm mới" className={W_MD}>
-              <Combobox
-                options={optsFor(hangOpts.data, "hang")}
-                value={form.hang}
-                onChange={(v) => setField("hang", v)}
-                creatable
-                onCreate={(v) => addPending("hang", v)}
-              />
-            </Field>
-            <Field label="Model" hint="Gõ để tìm / thêm mới" className={W_MD}>
-              <Combobox
-                options={optsFor(modelOpts.data, "model")}
-                value={form.model}
-                onChange={(v) => setField("model", v)}
-                creatable
-                onCreate={(v) => addPending("model", v)}
-              />
-            </Field>
-          </div>
-        </fieldset>
+        {/* ── Phải: Phân loại vấn đề · Nội dung phản ánh — cố định, cuộn riêng ── */}
+        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 pl-1 lg:border-l lg:border-line lg:pl-4">
+          <fieldset className={fsCls}>
+            <legend className={legendCls}>Phân loại vấn đề</legend>
+            <div className={rowCls}>
+              <Field label="Nhóm yêu cầu" className={W_SM}>
+                <Combobox
+                  options={(nhomYeuCauOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                  value={form.nhom_yeu_cau} onChange={(v) => setField("nhom_yeu_cau", v)}
+                />
+              </Field>
+              <Field label="Nhóm vấn đề *" className={W_MD}>
+                <Combobox
+                  options={(nhomVanDeOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                  value={form.nhom_van_de}
+                  onChange={(v) => { setField("nhom_van_de", v); setField("van_de_dau_vao", ""); }}
+                />
+              </Field>
+              <Field label="Vấn đề đầu vào" className={W_MD}>
+                <Combobox
+                  options={filteredVanDeDauVao.map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                  value={form.van_de_dau_vao}
+                  onChange={(v) => setField("van_de_dau_vao", v)}
+                  disabled={!form.nhom_van_de}
+                />
+              </Field>
+              <Field label="Mức độ" className={W_SM}>
+                <Combobox
+                  options={(mucDoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                  value={form.muc_do} onChange={(v) => setField("muc_do", v)}
+                />
+              </Field>
+            </div>
+          </fieldset>
 
-        <fieldset className={fsCls}>
-          <legend className={legendCls}>Nội bộ</legend>
-          <div className={rowCls}>
-            <Field label="Sale khu vực" hint="Gõ để tìm / thêm mới" className={W_MD}>
-              <Combobox
-                options={optsFor(saleKhuVucOpts.data, "sale_khu_vuc")}
-                value={form.sale_khu_vuc}
-                onChange={(v) => setField("sale_khu_vuc", v)}
-                creatable
-                onCreate={(v) => addPending("sale_khu_vuc", v)}
-              />
-            </Field>
-            <Field label="Người báo" className={W_SM}>
-              <Input value={form.nguoi_bao} onChange={(e) => setField("nguoi_bao", e.target.value)} />
-            </Field>
-          </div>
-          <p className="mt-2 text-[11px] leading-tight text-ink-soft">
-            Ngày tiếp nhận &amp; các dữ liệu CRM khác được hệ thống tự đồng bộ, không cần nhập.
-          </p>
-        </fieldset>
+          <fieldset className={fsCls}>
+            <legend className={legendCls}>Nội dung phản ánh</legend>
+            <div className="flex flex-col gap-2.5">
+              <Field label="Thông tin ban đầu *">
+                <Textarea rows={3} value={form.thong_tin_ban_dau} onChange={(e) => setField("thong_tin_ban_dau", e.target.value)} />
+              </Field>
+              <Field label="Ghi chú người tạo">
+                <Textarea rows={3} value={form.ghi_chu_nguoi_tao} onChange={(e) => setField("ghi_chu_nguoi_tao", e.target.value)} />
+              </Field>
+            </div>
+          </fieldset>
+        </div>
       </div>
-
-      {/* ── 5. Nội dung phản ánh ───────────────────────────────────────────── */}
-      <fieldset className={fsCls}>
-        <legend className={legendCls}>Nội dung phản ánh</legend>
-        <div className="grid grid-cols-1 gap-x-4 gap-y-2.5 lg:grid-cols-2">
-          <Field label="Thông tin ban đầu *">
-            <Textarea rows={2} value={form.thong_tin_ban_dau} onChange={(e) => setField("thong_tin_ban_dau", e.target.value)} />
-          </Field>
-          <Field label="Ghi chú người tạo">
-            <Textarea rows={2} value={form.ghi_chu_nguoi_tao} onChange={(e) => setField("ghi_chu_nguoi_tao", e.target.value)} />
-          </Field>
-        </div>
-      </fieldset>
-
-      {/* ── 6. Phân loại vấn đề ─────────────────────────────────────────────── */}
-      <fieldset className={fsCls}>
-        <legend className={legendCls}>Phân loại vấn đề</legend>
-        <div className={rowCls}>
-          <Field label="Nhóm yêu cầu" className={W_SM}>
-            <Combobox
-              options={(nhomYeuCauOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-              value={form.nhom_yeu_cau} onChange={(v) => setField("nhom_yeu_cau", v)}
-            />
-          </Field>
-          <Field label="Nhóm vấn đề *" className={W_MD}>
-            <Combobox
-              options={(nhomVanDeOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-              value={form.nhom_van_de}
-              onChange={(v) => { setField("nhom_van_de", v); setField("van_de_dau_vao", ""); }}
-            />
-          </Field>
-          <Field label="Vấn đề đầu vào" className={W_MD}>
-            <Combobox
-              options={filteredVanDeDauVao.map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-              value={form.van_de_dau_vao}
-              onChange={(v) => setField("van_de_dau_vao", v)}
-              disabled={!form.nhom_van_de}
-            />
-          </Field>
-          <Field label="Mức độ" className={W_SM}>
-            <Combobox
-              options={(mucDoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-              value={form.muc_do} onChange={(v) => setField("muc_do", v)}
-            />
-          </Field>
-        </div>
-      </fieldset>
     </form>
   );
-}
+});
 
 function LookupResult({ res }: { res: TraCuuResponse }) {
   if (!res.found) {

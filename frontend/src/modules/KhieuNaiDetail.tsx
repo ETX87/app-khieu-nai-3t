@@ -16,6 +16,7 @@ interface DetailResponse {
   khieuNai: KhieuNai;
   tienTrinh: TienTrinh[];
   lichSu: LichSu[];
+  giaiTrinhDeadline: { overdue: boolean; deadline: string } | null;
 }
 
 const DANH_GIA_OPTIONS = [
@@ -281,11 +282,13 @@ export function KhieuNaiDetail({
   const kn = detail.data.khieuNai;
   const tienTrinh = detail.data.tienTrinh;
   const lichSu = detail.data.lichSu ?? [];
+  const overdue = detail.data.giaiTrinhDeadline?.overdue ?? false;
+  const giaiTrinhDeadline = detail.data.giaiTrinhDeadline?.deadline;
 
   const isClosed = kn.trang_thai === "Da ket thuc";
-  const isCskh = (user.vai_tro === "CSKH" || user.vai_tro === "Admin") && !isClosed;
-  const isQl = (user.vai_tro === "QL" || user.vai_tro === "Admin") && !isClosed;
-  const canDanhGia4Loi = isCskh || (user.vai_tro === "TN CSKH" && !isClosed) || isQl;
+  const isCskh = (user.vai_tro === "CSKH" || user.vai_tro === "Admin") && !isClosed && !overdue;
+  const isQl = (user.vai_tro === "QL" || user.vai_tro === "Admin") && !isClosed && !overdue;
+  const canDanhGia4Loi = isCskh || (user.vai_tro === "TN CSKH" && !isClosed && !overdue) || isQl;
   const canXuLyDoiMay = canDanhGia4Loi;
   const canThemTienTrinh = ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed;
   const canPhuTrach = ["CSKH", "KTV", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed;
@@ -384,6 +387,15 @@ export function KhieuNaiDetail({
             {user.vai_tro === "Admin" && <MoLaiButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />}
           </div>
         )}
+
+        {overdue && !isClosed && (
+          <div className="border-t border-red-300 bg-red-50 px-4 py-1.5 text-xs text-red-900">
+            <span className="font-semibold">⚠ Quá hạn giải trình lý do chậm</span>
+            {giaiTrinhDeadline && <span> (mốc {fmtVN.dateTime(giaiTrinhDeadline)})</span>} — mọi mục sửa khác đã bị khoá.
+            Bấm <span className="font-semibold">“+ Ghi chú”</span> ở khu Tiến trình &amp; lịch sử, điền đủ{" "}
+            <span className="font-semibold">Nội dung ghi chép</span> và <span className="font-semibold">Lý do xử lý chậm</span> để mở khoá lại.
+          </div>
+        )}
       </div>
 
       {/* ===== THÂN: DASHBOARD TRA CỨU (chỉ đọc) — nhập liệu qua nút ===== */}
@@ -425,7 +437,7 @@ export function KhieuNaiDetail({
               title="Nhánh đổi máy"
               collapsible
               defaultOpen={hasDoiMay}
-              actions={canXuLyDoiMay && <ZoneBtn onClick={() => setEditing("doimay")}>Cập nhật đổi máy</ZoneBtn>}
+              actions={canXuLyDoiMay && <ZoneBtn onClick={() => setEditing("doimay")}>Thông tin khác</ZoneBtn>}
             >
               <DoiMaySection kn={kn} editable={false} onSaved={invalidate} />
             </Zone>
@@ -464,7 +476,7 @@ export function KhieuNaiDetail({
       )}
       {editing === "log" && (
         <EditDialog title="Thêm ghi chú tiến trình" onClose={() => setEditing(null)}>
-          <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem addOnly onSaved={savedAndClose} />
+          <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem addOnly overdue={overdue} onSaved={savedAndClose} />
         </EditDialog>
       )}
       {editing === "crm" && (
@@ -473,7 +485,7 @@ export function KhieuNaiDetail({
         </EditDialog>
       )}
       {editing === "doimay" && (
-        <EditDialog title="Cập nhật nhánh đổi máy" onClose={() => setEditing(null)}>
+        <EditDialog title="Thông tin khác" onClose={() => setEditing(null)}>
           <DoiMaySection kn={kn} editable onSaved={savedAndClose} />
         </EditDialog>
       )}
@@ -1001,29 +1013,49 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
   return (
     <>
-      <form onSubmit={submit} className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
-        <Field label="Lỗi nhà sản xuất">
-          <Select options={DANH_GIA_OPTIONS} value={form.loi_nha_san_xuat} onChange={(e) => setField("loi_nha_san_xuat", e.target.value as DanhGia3)} />
-        </Field>
-        <Field label="Lỗi lắp đặt">
-          <Select options={DANH_GIA_OPTIONS} value={form.loi_lap_dat} onChange={(e) => setField("loi_lap_dat", e.target.value as DanhGia3)} />
-        </Field>
-        <Field label="Lỗi thái độ KTV">
-          <Select options={DANH_GIA_OPTIONS} value={form.loi_thai_do_ktv} onChange={(e) => setField("loi_thai_do_ktv", e.target.value as DanhGia3)} />
-        </Field>
-        <Field label="Lỗi quy trình NSKX">
-          <Select options={DANH_GIA_OPTIONS} value={form.loi_quy_trinh_nskx} onChange={(e) => setField("loi_quy_trinh_nskx", e.target.value as DanhGia3)} />
-        </Field>
-        <Field label="Kết luận phản ánh">
-          <Select options={DANH_GIA_OPTIONS} value={form.ket_luan_khieu_nai} onChange={(e) => setField("ket_luan_khieu_nai", e.target.value as DanhGia3)} />
-        </Field>
-        <div className="col-span-2 flex items-end justify-end sm:col-span-3">
+      <form onSubmit={submit} className="flex flex-col gap-1.5">
+        <DanhGiaRow label="Lỗi nhà sản xuất" value={form.loi_nha_san_xuat} onChange={(v) => setField("loi_nha_san_xuat", v)} />
+        <DanhGiaRow label="Lỗi lắp đặt" value={form.loi_lap_dat} onChange={(v) => setField("loi_lap_dat", v)} />
+        <DanhGiaRow label="Lỗi thái độ KTV" value={form.loi_thai_do_ktv} onChange={(v) => setField("loi_thai_do_ktv", v)} />
+        <DanhGiaRow label="Lỗi quy trình NSKX" value={form.loi_quy_trinh_nskx} onChange={(v) => setField("loi_quy_trinh_nskx", v)} />
+        <DanhGiaRow label="Kết luận phản ánh" value={form.ket_luan_khieu_nai} onChange={(v) => setField("ket_luan_khieu_nai", v)} />
+        <div className="flex items-center justify-end pt-1">
           <Btn type="submit" variant="primary" disabled={mutation.isPending}>
             {mutation.isPending ? "Đang lưu..." : "Lưu đánh giá lỗi"}
           </Btn>
         </div>
       </form>
     </>
+  );
+}
+
+// Chi 3 lua chon co dinh -> nut bam thay vi dropdown, xep tung dong tu tren xuong de bam nhanh.
+function DanhGiaRow({ label, value, onChange }: { label: string; value: DanhGia3; onChange: (v: DanhGia3) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-line px-2.5 py-1.5">
+      <span className="min-w-[150px] flex-1 text-sm font-medium text-ink">{label}</span>
+      <div className="flex gap-1">
+        {DANH_GIA_OPTIONS.map((o) => {
+          const active = value === o.value;
+          const cls =
+            o.value === "Co"
+              ? active ? "bg-red-600 text-white ring-red-600" : "bg-white text-red-700 ring-red-300 hover:bg-red-50"
+              : o.value === "Khong"
+                ? active ? "bg-green-600 text-white ring-green-600" : "bg-white text-green-700 ring-green-300 hover:bg-green-50"
+                : active ? "bg-gray-500 text-white ring-gray-500" : "bg-white text-ink-soft ring-line hover:bg-gray-50";
+          return (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => onChange(o.value as DanhGia3)}
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold ring-1 ring-inset transition-colors ${cls}`}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -1134,7 +1166,6 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
   const [form, setForm] = useState({
     bo_phan_ban_giao: kn.bo_phan_ban_giao ?? "",
     ma_duyet_doi_linh_kien: kn.ma_duyet_doi_linh_kien ?? "",
-    ghi_chu_ly_do_cham: kn.ghi_chu_ly_do_cham ?? "",
     id_lada_phat_sinh: kn.id_lada_phat_sinh ?? "",
     ngay_ghi_nhan_doi_may: kn.ngay_ghi_nhan_doi_may ?? "",
     ngay_dong_doi_may: kn.ngay_dong_doi_may ?? "",
@@ -1147,7 +1178,6 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
   const serverForm = {
     bo_phan_ban_giao: kn.bo_phan_ban_giao ?? "", ma_duyet_doi_linh_kien: kn.ma_duyet_doi_linh_kien ?? "",
-    ghi_chu_ly_do_cham: kn.ghi_chu_ly_do_cham ?? "",
     id_lada_phat_sinh: kn.id_lada_phat_sinh ?? "", ngay_ghi_nhan_doi_may: kn.ngay_ghi_nhan_doi_may ?? "",
     ngay_dong_doi_may: kn.ngay_dong_doi_may ?? "", giai_trinh_cham_doi_may: kn.giai_trinh_cham_doi_may ?? "",
     ket_qua_doi_may: kn.ket_qua_doi_may ?? "", nguoi_xac_nhan_doi_may: kn.nguoi_xac_nhan_doi_may ?? "",
@@ -1175,19 +1205,23 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
   if (!editable) {
     return (
       <>
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Đổi máy</p>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
-          <ReadField label="Bộ phận bàn giao" value={kn.bo_phan_ban_giao} />
-          <ReadField label="Mã duyệt đổi linh kiện" value={kn.ma_duyet_doi_linh_kien} />
-          <ReadField label="Cảm cờ" value={camCoLabel(kn.cam_co)} />
           <ReadField label="ID Lada phát sinh" value={kn.id_lada_phat_sinh} />
+          <ReadField label="Mã duyệt đổi linh kiện" value={kn.ma_duyet_doi_linh_kien} />
           <ReadField label="Ngày ghi nhận đổi máy" value={kn.ngay_ghi_nhan_doi_may} />
           <ReadField label="Ngày đóng đổi máy" value={kn.ngay_dong_doi_may} />
           <ReadField label="Kết quả đổi máy" value={ketQuaDoiMayLabel(kn.ket_qua_doi_may)} />
           <ReadField label="Người xác nhận đổi máy" value={kn.nguoi_xac_nhan_doi_may} />
         </div>
-        <div className="mt-3 grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-2">
-          <ReadField label="Ghi chú lý do chậm" value={kn.ghi_chu_ly_do_cham} />
+        <div className="mt-2">
           <ReadField label="Giải trình chậm đổi máy" value={kn.giai_trinh_cham_doi_may} />
+        </div>
+
+        <p className="mb-1.5 mt-3 border-t border-line pt-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Khác</p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+          <ReadField label="Bộ phận bàn giao" value={kn.bo_phan_ban_giao} />
+          <ReadField label="Cảm cờ" value={camCoLabel(kn.cam_co)} />
         </div>
       </>
     );
@@ -1195,60 +1229,63 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
   return (
     <>
-      <form onSubmit={submit} className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3">
-        <Field label="Bộ phận bàn giao">
-          <Combobox
-            options={(boPhanBanGiaoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.bo_phan_ban_giao}
-            onChange={(v) => setField("bo_phan_ban_giao", v)}
-          />
-        </Field>
-        <Field label="Mã duyệt đổi linh kiện">
-          <Input value={form.ma_duyet_doi_linh_kien} onChange={(e) => setField("ma_duyet_doi_linh_kien", e.target.value)} />
-        </Field>
-        <div className="text-xs text-ink-soft">
-          <span className="mb-1 block font-medium">Cắm cờ</span>
-          <span>Dùng nút cắm cờ ở đầu popup.</span>
-        </div>
-        <Field label="ID Lada phát sinh">
-          <Input value={form.id_lada_phat_sinh} onChange={(e) => setField("id_lada_phat_sinh", e.target.value)} />
-        </Field>
-        <Field label="Ngày ghi nhận đổi máy">
-          <Input type="date" value={form.ngay_ghi_nhan_doi_may} onChange={(e) => setField("ngay_ghi_nhan_doi_may", e.target.value)} />
-        </Field>
-        <Field label="Ngày đóng đổi máy">
-          <Input type="date" value={form.ngay_dong_doi_may} onChange={(e) => setField("ngay_dong_doi_may", e.target.value)} />
-        </Field>
-        <Field label="Kết quả đổi máy">
-          <Select
-            options={KET_QUA_DOI_MAY_OPTIONS}
-            placeholder="— Chọn —"
-            value={form.ket_qua_doi_may}
-            onChange={(e) => setField("ket_qua_doi_may", e.target.value)}
-          />
-        </Field>
-        <Field label="Người xác nhận đổi máy">
-          <Input value={form.nguoi_xac_nhan_doi_may} onChange={(e) => setField("nguoi_xac_nhan_doi_may", e.target.value)} />
-        </Field>
-        <div className="sm:col-span-3">
-          <Field label="Ghi chú lý do chậm" hint="Báo cáo chậm #1 — lý do chậm chung của ca (từ danh mục)">
-            <Combobox
-              options={(lyDoChamOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-              value={form.ghi_chu_ly_do_cham}
-              onChange={(v) => setField("ghi_chu_ly_do_cham", v)}
-            />
-          </Field>
-        </div>
-        <div className="sm:col-span-3">
-          <Field label="Giải trình chậm đổi máy" hint="Báo cáo chậm #2 — lý do chậm riêng của nhánh đổi máy (từ danh mục)">
-            <Combobox
-              options={(lyDoChamOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-              value={form.giai_trinh_cham_doi_may}
-              onChange={(v) => setField("giai_trinh_cham_doi_may", v)}
-            />
-          </Field>
-        </div>
-        <div className="sm:col-span-3 flex justify-end">
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <fieldset className="rounded-lg border border-line p-2.5">
+          <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Đổi máy</legend>
+          <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3">
+            <Field label="ID Lada phát sinh">
+              <Input value={form.id_lada_phat_sinh} onChange={(e) => setField("id_lada_phat_sinh", e.target.value)} />
+            </Field>
+            <Field label="Mã duyệt đổi linh kiện">
+              <Input value={form.ma_duyet_doi_linh_kien} onChange={(e) => setField("ma_duyet_doi_linh_kien", e.target.value)} />
+            </Field>
+            <Field label="Kết quả đổi máy">
+              <Select
+                options={KET_QUA_DOI_MAY_OPTIONS}
+                placeholder="— Chọn —"
+                value={form.ket_qua_doi_may}
+                onChange={(e) => setField("ket_qua_doi_may", e.target.value)}
+              />
+            </Field>
+            <Field label="Ngày ghi nhận đổi máy">
+              <Input type="date" value={form.ngay_ghi_nhan_doi_may} onChange={(e) => setField("ngay_ghi_nhan_doi_may", e.target.value)} />
+            </Field>
+            <Field label="Ngày đóng đổi máy">
+              <Input type="date" value={form.ngay_dong_doi_may} onChange={(e) => setField("ngay_dong_doi_may", e.target.value)} />
+            </Field>
+            <Field label="Người xác nhận đổi máy">
+              <Input value={form.nguoi_xac_nhan_doi_may} onChange={(e) => setField("nguoi_xac_nhan_doi_may", e.target.value)} />
+            </Field>
+            <div className="sm:col-span-3">
+              <Field label="Giải trình chậm đổi máy" hint="Báo cáo chậm #2 — lý do chậm riêng của nhánh đổi máy (từ danh mục)">
+                <Combobox
+                  options={(lyDoChamOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                  value={form.giai_trinh_cham_doi_may}
+                  onChange={(v) => setField("giai_trinh_cham_doi_may", v)}
+                />
+              </Field>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset className="rounded-lg border border-line p-2.5">
+          <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Khác</legend>
+          <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3">
+            <Field label="Bộ phận bàn giao">
+              <Combobox
+                options={(boPhanBanGiaoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.bo_phan_ban_giao}
+                onChange={(v) => setField("bo_phan_ban_giao", v)}
+              />
+            </Field>
+            <div className="text-xs text-ink-soft">
+              <span className="mb-1 block font-medium">Cắm cờ</span>
+              <span>Dùng nút cắm cờ ở đầu popup.</span>
+            </div>
+          </div>
+        </fieldset>
+
+        <div className="flex justify-end">
           <Btn type="submit" variant="primary" disabled={mutation.isPending}>
             {mutation.isPending ? "Đang lưu..." : "Lưu thông tin đổi máy"}
           </Btn>
@@ -1291,6 +1328,7 @@ function TienTrinhSection({
   canThem,
   onSaved,
   addOnly,
+  overdue,
 }: {
   id: string;
   items: TienTrinh[];
@@ -1298,9 +1336,11 @@ function TienTrinhSection({
   canThem: boolean;
   onSaved: () => void;
   addOnly?: boolean;
+  overdue?: boolean;
 }) {
   const { showToast } = useToast();
   const nameOf = useNameMap();
+  const lyDoChamOpts = useSettingsOptions("ly_do_cham");
   const [noiDung, setNoiDung] = useState("");
   const [lyDo, setLyDo] = useState("");
 
@@ -1321,7 +1361,14 @@ function TienTrinhSection({
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!noiDung.trim() && !lyDo.trim()) return;
+    if (overdue) {
+      if (!noiDung.trim() || !lyDo.trim()) {
+        showToast("Quá hạn giải trình — cần điền cả Nội dung ghi chép và Lý do xử lý chậm", "error");
+        return;
+      }
+    } else if (!noiDung.trim() && !lyDo.trim()) {
+      return;
+    }
     mutation.mutate();
   };
 
@@ -1359,7 +1406,11 @@ function TienTrinhSection({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="flex-1">
           <Field label="Lý do xử lý chậm (nếu có)">
-            <Input value={lyDo} onChange={(e) => setLyDo(e.target.value)} placeholder="Lý do chậm..." />
+            <Combobox
+              options={(lyDoChamOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+              value={lyDo}
+              onChange={setLyDo}
+            />
           </Field>
         </div>
         <Btn type="submit" variant="primary" disabled={mutation.isPending}>
@@ -1430,7 +1481,9 @@ function ActionBar({
         err instanceof ApiError
           ? err.code === "CAN_DANH_GIA_QL"
             ? "Cần nhập Đánh giá QL trước khi chốt"
-            : `Chốt thất bại: ${err.code}`
+            : err.code === "QUA_HAN_GIAI_TRINH"
+              ? "Quá hạn giải trình lý do chậm — thêm ghi chú tiến trình trước khi chốt"
+              : `Chốt thất bại: ${err.code}`
           : "Chốt thất bại",
       );
     },
@@ -1542,5 +1595,6 @@ function ConfirmBox({
 function mapDongCaError(code: string): string {
   if (code === "CAN_DANH_GIA_DAY_DU") return "Cần đánh giá đầy đủ 4 lỗi và kết luận trước khi đóng ca";
   if (code === "INVALID_STATE") return "Trạng thái hiện tại không cho phép đóng ca";
+  if (code === "QUA_HAN_GIAI_TRINH") return "Quá hạn giải trình lý do chậm — thêm ghi chú tiến trình trước khi đóng ca";
   return `Đóng ca thất bại: ${code}`;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { AppUser, KhieuNai } from "../api/types";
@@ -11,7 +11,7 @@ import { Input } from "../components/ui/Input";
 import { Table, type TableColumn } from "../components/ui/Table";
 import { Badge, StatusBadge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
-import { KhieuNaiForm } from "./KhieuNaiForm";
+import { KhieuNaiForm, type KhieuNaiFormHandle, type KhieuNaiFormHeaderState } from "./KhieuNaiForm";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
 import { KhieuNaiCard } from "./KhieuNaiCard";
 
@@ -102,6 +102,9 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const closeDetail = () => setDetailId(null);
+
+  const createFormRef = useRef<KhieuNaiFormHandle>(null);
+  const [createHeader, setCreateHeader] = useState<KhieuNaiFormHeaderState>({ missing: [], pendingCount: 0, submitting: false });
 
   const mucDoOpts = useSettingsOptions("muc_do");
   const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
@@ -308,8 +311,37 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
         )}
       </Card>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo phản ánh mới" width="full">
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Tạo phản ánh mới"
+        width="full"
+        actions={
+          <div className="flex items-center gap-3">
+            {createHeader.pendingCount > 0 && (
+              <span className="hidden text-[11px] text-ink-soft sm:inline">
+                {createHeader.pendingCount} lựa chọn mới sẽ được lưu khi bấm Tạo
+              </span>
+            )}
+            {createHeader.missing.length > 0 && createHeader.pendingCount === 0 && (
+              <span className="hidden text-xs text-amber-700 sm:inline">Còn thiếu: {createHeader.missing.join(", ")}</span>
+            )}
+            <Btn type="button" variant="secondary" size="sm" onClick={() => createFormRef.current?.cancel()}>Hủy</Btn>
+            <Btn
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={createHeader.submitting || createHeader.missing.length > 0}
+              onClick={() => createFormRef.current?.submit()}
+            >
+              {createHeader.submitting ? "Đang tạo..." : "Tạo phản ánh"}
+            </Btn>
+          </div>
+        }
+      >
         <KhieuNaiForm
+          ref={createFormRef}
+          onStateChange={setCreateHeader}
           onCreated={(id) => { setCreateOpen(false); query.refetch(); setDetailId(id); }}
           onCancel={() => setCreateOpen(false)}
         />

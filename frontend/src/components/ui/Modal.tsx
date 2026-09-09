@@ -4,6 +4,7 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   title?: ReactNode;
+  actions?: ReactNode;
   children: ReactNode;
   width?: "md" | "lg" | "xl" | "full";
 }
@@ -17,7 +18,7 @@ const WIDTH_CLASSES: Record<"md" | "lg" | "xl", string> = {
 const FOCUSABLE =
   'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
-export function Modal({ open, onClose, title, children, width = "lg" }: ModalProps) {
+export function Modal({ open, onClose, title, actions, children, width = "lg" }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
 
@@ -93,16 +94,19 @@ export function Modal({ open, onClose, title, children, width = "lg" }: ModalPro
             children
           ) : (
             <>
-              <div className="flex shrink-0 items-center justify-between border-b border-line px-5 py-3.5">
+              <div className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-3.5">
                 <h2 className="text-base font-semibold text-ink">{title}</h2>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink"
-                  aria-label="Đóng"
-                >
-                  ✕
-                </button>
+                <div className="ml-auto flex items-center gap-3">
+                  {actions}
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink"
+                    aria-label="Đóng"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
             </>
@@ -126,18 +130,27 @@ export function Modal({ open, onClose, title, children, width = "lg" }: ModalPro
         tabIndex={-1}
         className={`w-full ${WIDTH_CLASSES[width]} rounded-lg bg-surface shadow-xl outline-none`}
       >
-        <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-          <h2 className="text-base font-semibold text-ink">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink"
-            aria-label="Đóng"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="max-h-[80vh] overflow-y-auto px-5 py-4">{children}</div>
+        {title === undefined ? (
+          <div className="max-h-[85vh] overflow-y-auto">{children}</div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
+              <h2 className="text-base font-semibold text-ink">{title}</h2>
+              <div className="ml-auto flex items-center gap-3">
+                {actions}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink"
+                  aria-label="Đóng"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="max-h-[80vh] overflow-y-auto px-5 py-4">{children}</div>
+          </>
+        )}
       </div>
     </div>
   );
