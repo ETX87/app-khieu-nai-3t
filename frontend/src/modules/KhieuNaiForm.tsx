@@ -356,7 +356,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   // vao khung POPUP NGOAI CUNG (qua onStateChange -> Modal panelClassName ở component cha) thay vi
   // to len vung nhap lieu ben trong - vung nhap giu nguyen nen trang/xam mac dinh de de doc.
   const formTone = mucDoTone(form.muc_do);
-  const formSeverityBg = formTone === "gray" ? "" : MUC_DO_BG[formTone];
+  // Luon tra ve dung 1 class bg-* (khong bao gio ""), item: Modal khong con tu dat san bg-surface
+  // rieng nua nen panelClassName phai la nguon duy nhat cung cap mau nen cho popup.
+  const formSeverityBg = formTone === "gray" ? "bg-surface" : MUC_DO_BG[formTone];
   const formVipGlow = vipGlowClass(form.phan_loai_kh);
   const panelClassName = `${formSeverityBg} ${formVipGlow}`.trim();
 

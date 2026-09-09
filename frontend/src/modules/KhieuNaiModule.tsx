@@ -114,7 +114,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
 
   const createFormRef = useRef<KhieuNaiFormHandle>(null);
   const [createHeader, setCreateHeader] = useState<KhieuNaiFormHeaderState>({
-    missing: [], pendingCount: 0, submitting: false, panelClassName: "",
+    missing: [], pendingCount: 0, submitting: false, panelClassName: "bg-surface",
   });
 
   const mucDoOpts = useSettingsOptions("muc_do");

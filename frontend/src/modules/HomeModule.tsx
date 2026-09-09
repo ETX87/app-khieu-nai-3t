@@ -58,7 +58,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createHeader, setCreateHeader] = useState<KhieuNaiFormHeaderState>({
-    missing: [], pendingCount: 0, submitting: false, panelClassName: "",
+    missing: [], pendingCount: 0, submitting: false, panelClassName: "bg-surface",
   });
   const { showToast } = useToast();
   const closeDetail = () => setDetailId(null);

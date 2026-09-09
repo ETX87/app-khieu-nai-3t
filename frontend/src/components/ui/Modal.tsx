@@ -19,7 +19,12 @@ const WIDTH_CLASSES: Record<"md" | "lg" | "xl", string> = {
 const FOCUSABLE =
   'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
-export function Modal({ open, onClose, title, actions, children, width = "lg", panelClassName = "" }: ModalProps) {
+// Mac dinh "bg-surface" (item: KHONG duoc dat bg-surface CO DINH cung voi panelClassName tren
+// cung 1 element - 2 class bg-* cung specificity se "an nhau" theo thu tu CSS duoc Tailwind sinh ra
+// (alphabet theo ten mau), khong theo thu tu trong className string -> co mau (vd bg-red-50) bi
+// bg-surface de len tren mot cach ngau nhien tuy ten mau. Vi vay chi duy nhat 1 class bg-* duoc
+// dat tren panel, luon di qua panelClassName (mac dinh "bg-surface" khi khong co gi khac).
+export function Modal({ open, onClose, title, actions, children, width = "lg", panelClassName = "bg-surface" }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
 
@@ -89,7 +94,7 @@ export function Modal({ open, onClose, title, actions, children, width = "lg", p
           role="dialog"
           aria-modal="true"
           tabIndex={-1}
-          className={`flex h-[95vh] w-[97vw] max-w-[1700px] flex-col overflow-hidden rounded-lg bg-surface shadow-2xl outline-none transition-colors duration-300 ${panelClassName}`}
+          className={`flex h-[95vh] w-[97vw] max-w-[1700px] flex-col overflow-hidden rounded-lg shadow-2xl outline-none transition-colors duration-300 ${panelClassName}`}
         >
           {title === undefined ? (
             children
@@ -129,7 +134,7 @@ export function Modal({ open, onClose, title, actions, children, width = "lg", p
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
-        className={`w-full ${WIDTH_CLASSES[width]} rounded-lg bg-surface shadow-xl outline-none transition-colors duration-300 ${panelClassName}`}
+        className={`w-full ${WIDTH_CLASSES[width]} rounded-lg shadow-xl outline-none transition-colors duration-300 ${panelClassName}`}
       >
         {title === undefined ? (
           <div className="max-h-[85vh] overflow-y-auto">{children}</div>
