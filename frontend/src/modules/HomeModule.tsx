@@ -9,7 +9,7 @@ import { Modal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
 import { fmtVN } from "../lib/formatVN";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
-import { KhieuNaiForm } from "./KhieuNaiForm";
+import { KhieuNaiForm, type KhieuNaiFormHeaderState } from "./KhieuNaiForm";
 import { KhieuNaiCard } from "./KhieuNaiCard";
 import { useState } from "react";
 import type { AppUser } from "../api/types";
@@ -57,6 +57,9 @@ interface HomeProps {
 export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createHeader, setCreateHeader] = useState<KhieuNaiFormHeaderState>({
+    missing: [], pendingCount: 0, submitting: false, panelClassName: "",
+  });
   const { showToast } = useToast();
   const closeDetail = () => setDetailId(null);
   const canCreate = ["CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "");
@@ -249,8 +252,15 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
         </Card>
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo phản ánh mới" width="full">
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Tạo phản ánh mới"
+        width="full"
+        panelClassName={createHeader.panelClassName}
+      >
         <KhieuNaiForm
+          onStateChange={setCreateHeader}
           onCreated={(id) => {
             setCreateOpen(false);
             statsQuery.refetch();

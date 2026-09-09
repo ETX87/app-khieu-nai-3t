@@ -3,6 +3,19 @@
 // nhin giong het nhau, item: tach rieng "Nghiem trong" sang tim nhat).
 export type SeverityTone = "red" | "violet" | "amber" | "blue" | "gray";
 
+// Thu tu hien thi mong muon cho dropdown "Muc do" (khong phai thu tu chen trong DB) - item: sap
+// lai Trung binh -> Gap -> Nghiem trong -> Can xoa diu. Gia tri la (con) thieu trong danh sach nay
+// (vd nguoi dung tu them qua Settings sau nay) se xep o CUOI, theo dung thu tu tra ve tu server.
+const MUC_DO_DISPLAY_ORDER = ["Trung bình", "Gấp", "Nghiêm trọng", "Cần quà tặng xoa dịu"];
+
+export function sortMucDoOptions<T extends { gia_tri: string }>(opts: T[]): T[] {
+  return [...opts].sort((a, b) => {
+    const ia = MUC_DO_DISPLAY_ORDER.indexOf(a.gia_tri);
+    const ib = MUC_DO_DISPLAY_ORDER.indexOf(b.gia_tri);
+    return (ia === -1 ? MUC_DO_DISPLAY_ORDER.length : ia) - (ib === -1 ? MUC_DO_DISPLAY_ORDER.length : ib);
+  });
+}
+
 export function mucDoTone(v: string | null | undefined): SeverityTone {
   if (!v) return "gray";
   if (/nghiêm trọng|nghiem trong/i.test(v)) return "violet";

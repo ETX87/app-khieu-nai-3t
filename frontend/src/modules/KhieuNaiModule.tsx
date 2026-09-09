@@ -4,7 +4,7 @@ import { api } from "../api/client";
 import type { AppUser, KhieuNai } from "../api/types";
 import { useSettingsOptions } from "../api/useSettingsOptions";
 import { fmtVN } from "../lib/formatVN";
-import { mucDoTone, MUC_DO_CARD_BG, vipGlowClass } from "../lib/severity";
+import { mucDoTone, MUC_DO_CARD_BG, vipGlowClass, sortMucDoOptions } from "../lib/severity";
 import { Card } from "../components/ui/Card";
 import { Btn } from "../components/ui/Btn";
 import { Select } from "../components/ui/Select";
@@ -113,7 +113,9 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   const closeDetail = () => setDetailId(null);
 
   const createFormRef = useRef<KhieuNaiFormHandle>(null);
-  const [createHeader, setCreateHeader] = useState<KhieuNaiFormHeaderState>({ missing: [], pendingCount: 0, submitting: false });
+  const [createHeader, setCreateHeader] = useState<KhieuNaiFormHeaderState>({
+    missing: [], pendingCount: 0, submitting: false, panelClassName: "",
+  });
 
   const mucDoOpts = useSettingsOptions("muc_do");
   const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
@@ -279,7 +281,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
           </select>
           <select className={selCls} value={f.mucDo} onChange={(e) => set("mucDo", e.target.value)}>
             <option value="">Mọi mức độ</option>
-            {(mucDoOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
+            {sortMucDoOptions(mucDoOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
           </select>
           <select className={selCls} value={f.nhomVanDe} onChange={(e) => set("nhomVanDe", e.target.value)}>
             <option value="">Mọi nhóm vấn đề</option>
@@ -371,6 +373,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
         onClose={() => setCreateOpen(false)}
         title="Tạo phản ánh mới"
         width="full"
+        panelClassName={createHeader.panelClassName}
         actions={
           <div className="flex items-center gap-3">
             {createHeader.pendingCount > 0 && (

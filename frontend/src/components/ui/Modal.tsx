@@ -7,6 +7,7 @@ interface ModalProps {
   actions?: ReactNode;
   children: ReactNode;
   width?: "md" | "lg" | "xl" | "full";
+  panelClassName?: string; // vd vien/nen theo muc do + KH VIP tren khung popup ngoai cung
 }
 
 const WIDTH_CLASSES: Record<"md" | "lg" | "xl", string> = {
@@ -18,7 +19,7 @@ const WIDTH_CLASSES: Record<"md" | "lg" | "xl", string> = {
 const FOCUSABLE =
   'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
-export function Modal({ open, onClose, title, actions, children, width = "lg" }: ModalProps) {
+export function Modal({ open, onClose, title, actions, children, width = "lg", panelClassName = "" }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
 
@@ -88,7 +89,7 @@ export function Modal({ open, onClose, title, actions, children, width = "lg" }:
           role="dialog"
           aria-modal="true"
           tabIndex={-1}
-          className="flex h-[95vh] w-[97vw] max-w-[1700px] flex-col overflow-hidden rounded-lg bg-surface shadow-2xl outline-none"
+          className={`flex h-[95vh] w-[97vw] max-w-[1700px] flex-col overflow-hidden rounded-lg bg-surface shadow-2xl outline-none transition-colors duration-300 ${panelClassName}`}
         >
           {title === undefined ? (
             children
@@ -128,7 +129,7 @@ export function Modal({ open, onClose, title, actions, children, width = "lg" }:
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
-        className={`w-full ${WIDTH_CLASSES[width]} rounded-lg bg-surface shadow-xl outline-none`}
+        className={`w-full ${WIDTH_CLASSES[width]} rounded-lg bg-surface shadow-xl outline-none transition-colors duration-300 ${panelClassName}`}
       >
         {title === undefined ? (
           <div className="max-h-[85vh] overflow-y-auto">{children}</div>

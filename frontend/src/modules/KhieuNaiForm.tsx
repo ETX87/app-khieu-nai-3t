@@ -12,7 +12,7 @@ import { useToast } from "../components/ui/Toast";
 import { fmtVN } from "../lib/formatVN";
 import { STATUS_LABEL } from "../components/ui/Badge";
 import { Timeline, type TimelineEvent } from "../components/ui/Timeline";
-import { mucDoTone, MUC_DO_BG, vipGlowClass } from "../lib/severity";
+import { mucDoTone, MUC_DO_BG, vipGlowClass, sortMucDoOptions } from "../lib/severity";
 
 export interface KhieuNaiFormHandle {
   submit: () => void;
@@ -22,6 +22,7 @@ export interface KhieuNaiFormHeaderState {
   missing: string[];
   pendingCount: number;
   submitting: boolean;
+  panelClassName: string; // nen/vien theo Muc do + KH VIP - ap vao khung popup ngoai cung (Modal)
 }
 
 interface FormState {
@@ -351,11 +352,24 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
     cancel,
   }), [cancel]);
 
+  // Phan hoi tuc thi khi chon Muc do / Phan loai KH (VIP): to mau + vien ngay trong luc nhap, ap
+  // vao khung POPUP NGOAI CUNG (qua onStateChange -> Modal panelClassName ở component cha) thay vi
+  // to len vung nhap lieu ben trong - vung nhap giu nguyen nen trang/xam mac dinh de de doc.
+  const formTone = mucDoTone(form.muc_do);
+  const formSeverityBg = formTone === "gray" ? "" : MUC_DO_BG[formTone];
+  const formVipGlow = vipGlowClass(form.phan_loai_kh);
+  const panelClassName = `${formSeverityBg} ${formVipGlow}`.trim();
+
   const missingKey = missing.map((m) => m.key).join(",");
   useEffect(() => {
-    onStateChange?.({ missing: missing.map((m) => m.label), pendingCount: pendingOpts.length, submitting: mutation.isPending });
+    onStateChange?.({
+      missing: missing.map((m) => m.label),
+      pendingCount: pendingOpts.length,
+      submitting: mutation.isPending,
+      panelClassName,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [missingKey, pendingOpts.length, mutation.isPending]);
+  }, [missingKey, pendingOpts.length, mutation.isPending, panelClassName]);
 
   const clearDraft = () => {
     try {
@@ -379,19 +393,8 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   const W_SM = "block w-36"; // SĐT, Tỉnh/Huyện/Xã, Mức độ, Nhóm yêu cầu, Người báo
   const W_MD = "block w-56"; // Tên khách hàng, Nhóm vấn đề, Vấn đề đầu vào, Hãng, Model, Sale khu vực
 
-  // Phan hoi tuc thi khi chon Muc do / Phan loai KH (VIP): to mau + vien ngay trong luc nhap,
-  // giong het mau/vien se hien trong danh sach sau khi tao (item: cho nguoi tao biet truoc).
-  const formTone = mucDoTone(form.muc_do);
-  const formSeverityBg = formTone === "gray" ? "" : MUC_DO_BG[formTone];
-  const formVipGlow = vipGlowClass(form.phan_loai_kh);
-
   return (
-    <form
-      ref={formElRef}
-      onSubmit={submit}
-      onKeyDown={onFormKeyDown}
-      className={`flex h-full min-h-0 flex-col rounded-lg p-2 transition-colors duration-300 ${formSeverityBg} ${formVipGlow}`}
-    >
+    <form ref={formElRef} onSubmit={submit} onKeyDown={onFormKeyDown} className="flex h-full min-h-0 flex-col">
       {restored && (
         <div className="mb-2 flex shrink-0 items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-300">
           <span>Đã khôi phục nội dung nhập dở lần trước.</span>
@@ -645,7 +648,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
               </Field>
               <Field label="Mức độ" className={W_SM}>
                 <Combobox
-                  options={(mucDoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                  options={sortMucDoOptions(mucDoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                   value={form.muc_do} onChange={(v) => setField("muc_do", v)}
                 />
               </Field>

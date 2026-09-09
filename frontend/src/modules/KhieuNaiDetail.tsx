@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
 import type { AppUser, DanhGia3, KhieuNai, LichSu, TienTrinh } from "../api/types";
 import { fmtVN } from "../lib/formatVN";
-import { mucDoTone, MUC_DO_BG, camCoBorderClass } from "../lib/severity";
+import { mucDoTone, MUC_DO_BG, camCoBorderClass, sortMucDoOptions } from "../lib/severity";
 import { useCreateSettingsOption, useSettingsOptions } from "../api/useSettingsOptions";
 import { Btn } from "../components/ui/Btn";
 import { Field, Input, Textarea } from "../components/ui/Input";
@@ -944,7 +944,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
         </Field>
         <Field label="Mức độ">
           <Combobox
-            options={(mucDoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+            options={sortMucDoOptions(mucDoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
             value={form.muc_do}
             onChange={(v) => setField("muc_do", v)}
           />
