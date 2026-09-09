@@ -7,6 +7,7 @@ import { BottomNav } from "./layout/BottomNav";
 import { ROLE_MODULES, DEFAULT_MODULES, type ModuleKey } from "./layout/navConfig";
 import { HomeModule } from "./modules/HomeModule";
 import { KhieuNaiModule } from "./modules/KhieuNaiModule";
+import { BaoCaoModule } from "./modules/BaoCaoModule";
 import { SettingsModule } from "./modules/SettingsModule";
 import { UsersModule } from "./modules/UsersModule";
 import type { AppUser } from "./api/types";
@@ -62,6 +63,7 @@ function MainApp({ user }: { user: AppUser }) {
             <HomeModule user={user} onOpenList={openList} onOpenModule={selectModule} />
           )}
           {active === "khieu-nai" && <KhieuNaiModule user={user} initialFilter={listFilter} />}
+          {active === "bao-cao" && <BaoCaoModule user={user} />}
           {active === "settings" && user.vai_tro === "Admin" && <SettingsModule />}
           {active === "users" && user.vai_tro === "Admin" && <UsersModule user={user} />}
         </main>

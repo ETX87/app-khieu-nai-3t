@@ -16,6 +16,11 @@ export const NAV_ICONS: Record<ModuleKey, ReactNode> = {
       <path d="M8 9h8M8 12.5h5" />
     </svg>
   ),
+  "bao-cao": (
+    <svg {...ICON_PROPS}>
+      <path d="M4 20V10M10 20V4M16 20v-7M4 20h16" />
+    </svg>
+  ),
   settings: (
     <svg {...ICON_PROPS}>
       <circle cx="12" cy="12" r="3" />

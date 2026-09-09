@@ -268,6 +268,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
             id={detailId}
             user={user}
             onClose={closeDetail}
+            onNavigate={setDetailId}
             onChanged={() => {
               statsQuery.refetch();
               activeQuery.refetch();

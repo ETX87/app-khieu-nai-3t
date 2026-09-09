@@ -360,7 +360,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
 
       <Modal open={!!detailId} onClose={closeDetail} width="full">
         {detailId && (
-          <KhieuNaiDetail id={detailId} user={user} onClose={closeDetail} onChanged={() => query.refetch()} />
+          <KhieuNaiDetail id={detailId} user={user} onClose={closeDetail} onNavigate={setDetailId} onChanged={() => query.refetch()} />
         )}
       </Modal>
     </div>

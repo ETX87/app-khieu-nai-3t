@@ -14,11 +14,24 @@ import { useToast } from "../components/ui/Toast";
 import { Timeline, type TimelineEvent } from "../components/ui/Timeline";
 import { Tabs, type TabItem } from "../components/ui/Tabs";
 
+interface RelatedItem {
+  id: string;
+  ngay_tiep_nhan: string;
+  trang_thai: string;
+  ten_khach: string | null;
+  van_de_dau_vao: string | null;
+  nhom_van_de: string | null;
+  id_crm_karofi: string | null;
+  id_lada: string | null;
+  id_lada_phat_sinh: string | null;
+}
+
 interface DetailResponse {
   khieuNai: KhieuNai;
   tienTrinh: TienTrinh[];
   lichSu: LichSu[];
   giaiTrinhDeadline: { overdue: boolean; deadline: string } | null;
+  related: RelatedItem[];
 }
 
 const DANH_GIA_OPTIONS = [
@@ -285,11 +298,13 @@ export function KhieuNaiDetail({
   user,
   onClose,
   onChanged,
+  onNavigate,
 }: {
   id: string;
   user: AppUser;
   onClose: () => void;
   onChanged: () => void;
+  onNavigate?: (id: string) => void;
 }) {
   const qc = useQueryClient();
   const { showToast } = useToast();
@@ -317,6 +332,7 @@ export function KhieuNaiDetail({
   const kn = detail.data.khieuNai;
   const tienTrinh = detail.data.tienTrinh;
   const lichSu = detail.data.lichSu ?? [];
+  const related = detail.data.related ?? [];
   const overdue = detail.data.giaiTrinhDeadline?.overdue ?? false;
   const giaiTrinhDeadline = detail.data.giaiTrinhDeadline?.deadline;
 
@@ -470,14 +486,17 @@ export function KhieuNaiDetail({
       {/* ===== THÂN: trái = thông tin tiếp nhận cố định, phải = tab chuyển đổi (item 4, học theo dvbh) ===== */}
       <div className={`min-h-0 flex-1 overflow-y-auto ${severityBg} p-2.5`}>
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(280px,38%)_1fr]">
-          <Zone
-            accent="slate"
-            icon={ICON.doc}
-            title="Thông tin đầu vào"
-            actions={isCskh && <ZoneBtn onClick={() => setEditing("khach")}>Sửa</ZoneBtn>}
-          >
-            <CustomerInfoSection kn={kn} editable={false} onSaved={invalidate} />
-          </Zone>
+          <div className="flex min-w-0 flex-col gap-2">
+            <Zone
+              accent="slate"
+              icon={ICON.doc}
+              title="Thông tin đầu vào"
+              actions={isCskh && <ZoneBtn onClick={() => setEditing("khach")}>Sửa</ZoneBtn>}
+            >
+              <CustomerInfoSection kn={kn} editable={false} onSaved={invalidate} />
+            </Zone>
+            {related.length > 0 && <RelatedList items={related} onNavigate={onNavigate} />}
+          </div>
 
           <div className="flex min-w-0 flex-col gap-2">
             <Tabs tabs={rightTabs} active={rightTab} onChange={(k) => setRightTab(k as RightTabKey)} />
@@ -587,6 +606,39 @@ function ZoneBtn({ onClick, children }: { onClick: () => void; children: ReactNo
     >
       ✎ {children}
     </button>
+  );
+}
+
+// Cac don khac cung ID CRM Karofi hoac cung "hanh trinh" ID Lada (id_lada/id_lada_phat_sinh
+// giao nhau) - giup nguoi xu ly phat hien nhanh cac ca lien quan (vd may da doi van bi khieu nai
+// lai, hoac cung 1 case CRM tach nhieu phan anh).
+function RelatedList({ items, onNavigate }: { items: RelatedItem[]; onNavigate?: (id: string) => void }) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-l-4 border-line border-l-gray-400 bg-surface shadow-sm">
+      <header className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-1.5">
+        <h3 className="text-[13px] font-bold uppercase tracking-wide text-ink-soft">Đơn liên quan ({items.length})</h3>
+      </header>
+      <div className="flex flex-col divide-y divide-line px-1 py-1">
+        {items.map((it) => (
+          <button
+            key={it.id}
+            type="button"
+            disabled={!onNavigate}
+            onClick={() => onNavigate?.(it.id)}
+            className={`flex items-center justify-between gap-2 px-2 py-1.5 text-left text-xs ${onNavigate ? "hover:bg-gray-50" : ""}`}
+          >
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block truncate font-mono text-ink-soft">{it.id}</span>
+              <span className="block truncate text-ink">{it.ten_khach ?? "—"} · {it.van_de_dau_vao ?? it.nhom_van_de ?? "—"}</span>
+            </span>
+            <span className="shrink-0 text-right leading-tight">
+              <span className="block text-ink-faint">{fmtVN.date(it.ngay_tiep_nhan)}</span>
+              <StatusBadge trangThai={it.trang_thai} />
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 

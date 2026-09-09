@@ -350,11 +350,206 @@ app.get("/tra-cuu", async (c) => {
   return c.json({ error: "MISSING_QUERY" }, 400);
 });
 
+// ── Bao cao (item: SLA + trung lap/tai phat) ──────────────────────────────────────────────
+// Dat TRUOC "/:id" (Hono khop route theo thu tu) - xem giai thich o /stats phia tren.
+
+const SLA_BUCKETS = [
+  { label: "0-1 ngày", max: 1 },
+  { label: "1-3 ngày", max: 3 },
+  { label: "3-7 ngày", max: 7 },
+  { label: ">7 ngày", max: Infinity },
+];
+function slaBucketLabel(days: number): string {
+  for (const b of SLA_BUCKETS) if (days <= b.max) return b.label;
+  return SLA_BUCKETS[SLA_BUCKETS.length - 1].label;
+}
+
+// SLA theo so ngay xu ly: khong dat nguong dung/tre han cung, chi phan phoi theo khoang ngay
+// (0-1 / 1-3 / 3-7 / >7), tach rieng ca "Da ket thuc" (tinh den ngay_ket_thuc) va ca con "Dang
+// xu ly" (tinh den hien tai, de thay ca nao dang keo dai).
+app.get("/bao-cao/sla", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
+  const tuNgay = c.req.query("tu_ngay");
+  const denNgay = c.req.query("den_ngay");
+  const conditions: string[] = ["trang_thai != 'Huy'"];
+  const binds: unknown[] = [];
+  if (tuNgay) { conditions.push("ngay_tiep_nhan >= ?"); binds.push(`${tuNgay} 00:00:00`); }
+  if (denNgay) { conditions.push("ngay_tiep_nhan <= ?"); binds.push(`${denNgay} 23:59:59`); }
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT trang_thai, nhom_van_de,
+            (julianday(COALESCE(ngay_ket_thuc, datetime('now','+7 hours'))) - julianday(ngay_tiep_nhan)) as so_ngay
+     FROM khieu_nai WHERE ${conditions.join(" AND ")}`,
+  ).bind(...binds).all<{ trang_thai: string; nhom_van_de: string | null; so_ngay: number }>();
+
+  const buckets = SLA_BUCKETS.map((b) => ({ label: b.label, da_ket_thuc: 0, dang_xu_ly: 0 }));
+  const nhomStats = new Map<string, { soCa: number; tongNgay: number }>();
+  let tongDaKetThuc = 0, tongDangXuLy = 0, tongNgayDaKetThuc = 0;
+
+  for (const r of results) {
+    const days = Math.max(0, r.so_ngay ?? 0);
+    const bucket = buckets.find((b) => b.label === slaBucketLabel(days))!;
+    const isDone = r.trang_thai === "Da ket thuc";
+    if (isDone) {
+      bucket.da_ket_thuc++;
+      tongDaKetThuc++;
+      tongNgayDaKetThuc += days;
+      if (r.nhom_van_de) {
+        const s = nhomStats.get(r.nhom_van_de) ?? { soCa: 0, tongNgay: 0 };
+        s.soCa++;
+        s.tongNgay += days;
+        nhomStats.set(r.nhom_van_de, s);
+      }
+    } else {
+      bucket.dang_xu_ly++;
+      tongDangXuLy++;
+    }
+  }
+
+  const theoNhomVanDe = [...nhomStats.entries()]
+    .map(([nhom_van_de, s]) => ({ nhom_van_de, so_ca: s.soCa, so_ngay_trung_binh: Math.round((s.tongNgay / s.soCa) * 10) / 10 }))
+    .sort((a, b) => b.so_ca - a.so_ca)
+    .slice(0, 8);
+
+  return c.json({
+    buckets,
+    tong_da_ket_thuc: tongDaKetThuc,
+    tong_dang_xu_ly: tongDangXuLy,
+    so_ngay_trung_binh: tongDaKetThuc > 0 ? Math.round((tongNgayDaKetThuc / tongDaKetThuc) * 10) / 10 : 0,
+    theo_nhom_van_de: theoNhomVanDe,
+  });
+});
+
+interface TrungLapRow {
+  id: string;
+  id_lada: string | null;
+  id_lada_phat_sinh: string | null;
+  ngay_tiep_nhan: string;
+  ten_khach: string | null;
+  van_de_dau_vao: string | null;
+  trang_thai: string;
+}
+
+// Ca trung lap/tai phat sinh: gop nhom theo "hanh trinh" 1 may - coi id_lada (goc) va
+// id_lada_phat_sinh (sinh o nhanh doi may) la CUNG 1 danh tinh may khi xuat hien chung trong 1
+// dong (Union-Find tren gia tri ID Lada), roi liet ke nhom co >=2 phan anh, danh dau nhom co
+// khoang cach giua 2 lan gan nhau <=7 ngay la "tai phat nhanh".
+app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
+  const tuNgay = c.req.query("tu_ngay");
+  const denNgay = c.req.query("den_ngay");
+  const conditions: string[] = ["(id_lada IS NOT NULL OR id_lada_phat_sinh IS NOT NULL)"];
+  const binds: unknown[] = [];
+  if (tuNgay) { conditions.push("ngay_tiep_nhan >= ?"); binds.push(`${tuNgay} 00:00:00`); }
+  if (denNgay) { conditions.push("ngay_tiep_nhan <= ?"); binds.push(`${denNgay} 23:59:59`); }
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, id_lada, id_lada_phat_sinh, ngay_tiep_nhan, ten_khach, van_de_dau_vao, trang_thai
+     FROM khieu_nai WHERE ${conditions.join(" AND ")} ORDER BY ngay_tiep_nhan ASC`,
+  ).bind(...binds).all<TrungLapRow>();
+
+  const parent = new Map<string, string>();
+  const find = (x: string): string => {
+    let root = x;
+    while (parent.get(root) && parent.get(root) !== root) root = parent.get(root)!;
+    parent.set(x, root);
+    return root;
+  };
+  const union = (a: string, b: string) => {
+    const ra = find(a), rb = find(b);
+    if (ra !== rb) parent.set(ra, rb);
+  };
+  const ladaValsOf = (r: TrungLapRow) => [r.id_lada, r.id_lada_phat_sinh].filter((v): v is string => !!v && v.trim() !== "");
+  for (const r of results) {
+    const ids = ladaValsOf(r);
+    for (const v of ids) if (!parent.has(v)) parent.set(v, v);
+    if (ids.length === 2) union(ids[0], ids[1]);
+  }
+
+  const groups = new Map<string, TrungLapRow[]>();
+  for (const r of results) {
+    const ids = ladaValsOf(r);
+    if (ids.length === 0) continue;
+    const root = find(ids[0]);
+    const arr = groups.get(root) ?? [];
+    arr.push(r);
+    groups.set(root, arr);
+  }
+
+  const report = [...groups.values()]
+    .filter((arr) => arr.length >= 2)
+    .map((arr) => {
+      const sorted = [...arr].sort((a, b) => a.ngay_tiep_nhan.localeCompare(b.ngay_tiep_nhan));
+      let minGapDays = Infinity;
+      for (let i = 1; i < sorted.length; i++) {
+        const d1 = new Date(sorted[i - 1].ngay_tiep_nhan.replace(" ", "T") + "Z").getTime();
+        const d2 = new Date(sorted[i].ngay_tiep_nhan.replace(" ", "T") + "Z").getTime();
+        minGapDays = Math.min(minGapDays, (d2 - d1) / 86_400_000);
+      }
+      const ladaIds = [...new Set(sorted.flatMap(ladaValsOf))];
+      return {
+        lada_ids: ladaIds,
+        so_lan: sorted.length,
+        khoang_cach_ngan_nhat: Math.round(minGapDays * 10) / 10,
+        tai_phat_trong_7_ngay: minGapDays <= 7,
+        items: sorted.map((r) => ({
+          id: r.id, ngay_tiep_nhan: r.ngay_tiep_nhan, ten_khach: r.ten_khach,
+          van_de_dau_vao: r.van_de_dau_vao, trang_thai: r.trang_thai,
+          id_lada: r.id_lada, id_lada_phat_sinh: r.id_lada_phat_sinh,
+        })),
+      };
+    })
+    .sort((a, b) =>
+      a.tai_phat_trong_7_ngay === b.tai_phat_trong_7_ngay
+        ? b.so_lan - a.so_lan
+        : a.tai_phat_trong_7_ngay ? -1 : 1,
+    );
+
+  return c.json({
+    groups: report,
+    tong_nhom: report.length,
+    tong_tai_phat_7_ngay: report.filter((g) => g.tai_phat_trong_7_ngay).length,
+  });
+});
+
+interface RelatedSeed {
+  id_crm_karofi: string | null;
+  id_lada: string | null;
+  id_lada_phat_sinh: string | null;
+}
+
+// Danh sach don lien quan (item 3): cung ID CRM Karofi, hoac cung "hanh trinh" ID Lada (id_lada /
+// id_lada_phat_sinh giao nhau). Ap dung lai gioi han pham vi cho NV Sale/Tong dai vien (isKtvLike)
+// giong nhu detail chinh, tranh lo du lieu phan anh cua nguoi khac qua duong nay.
+async function getRelatedComplaints(db: D1Database, selfId: string, kn: RelatedSeed, restrictToEmail: string | null) {
+  const orParts: string[] = [];
+  const orBinds: unknown[] = [];
+  if (kn.id_crm_karofi) { orParts.push("id_crm_karofi = ?"); orBinds.push(kn.id_crm_karofi); }
+  const ladaVals = [kn.id_lada, kn.id_lada_phat_sinh].filter((v): v is string => !!v && v.trim() !== "");
+  if (ladaVals.length > 0) {
+    const ph = ladaVals.map(() => "?").join(",");
+    orParts.push(`(id_lada IN (${ph}) OR id_lada_phat_sinh IN (${ph}))`);
+    orBinds.push(...ladaVals, ...ladaVals);
+  }
+  if (orParts.length === 0) return [];
+
+  const conditions = ["id != ?", `(${orParts.join(" OR ")})`];
+  const binds: unknown[] = [selfId, ...orBinds];
+  if (restrictToEmail) { conditions.push("nguoi_tao = ?"); binds.push(restrictToEmail); }
+
+  const { results } = await db.prepare(
+    `SELECT id, ngay_tiep_nhan, trang_thai, ten_khach, van_de_dau_vao, nhom_van_de,
+            id_crm_karofi, id_lada, id_lada_phat_sinh
+     FROM khieu_nai WHERE ${conditions.join(" AND ")} ORDER BY ngay_tiep_nhan DESC LIMIT 20`,
+  ).bind(...binds).all();
+  return results;
+}
+
 app.get("/:id", async (c) => {
   const user = c.get("user");
   const id = c.req.param("id");
   const [khieuNai, tienTrinh, lichSu] = await Promise.all([
-    c.env.DB.prepare("SELECT * FROM khieu_nai WHERE id = ?").bind(id).first<{ nguoi_tao: string | null }>(),
+    c.env.DB.prepare("SELECT * FROM khieu_nai WHERE id = ?").bind(id).first<
+      { nguoi_tao: string | null } & RelatedSeed
+    >(),
     c.env.DB.prepare("SELECT * FROM khieu_nai_tien_trinh WHERE khieu_nai_id = ? ORDER BY ngay_tao DESC").bind(id).all(),
     c.env.DB.prepare("SELECT * FROM khieu_nai_lich_su WHERE khieu_nai_id = ? ORDER BY thoi_diem DESC").bind(id).all(),
   ]);
@@ -362,7 +557,8 @@ app.get("/:id", async (c) => {
   // NV Sale/Tong dai vien (KTV cu) chi xem duoc phan anh do chinh minh tao (item 12), kem chan truy cap thang qua ID.
   if (isKtvLike(user.vai_tro) && khieuNai.nguoi_tao !== user.email) return c.json({ error: "FORBIDDEN" }, 403);
   const giaiTrinhDeadline = await getGiaiTrinhStatus(c.env.DB, id);
-  return c.json({ khieuNai, tienTrinh: tienTrinh.results, lichSu: lichSu.results, giaiTrinhDeadline });
+  const related = await getRelatedComplaints(c.env.DB, id, khieuNai, isKtvLike(user.vai_tro) ? user.email : null);
+  return c.json({ khieuNai, tienTrinh: tienTrinh.results, lichSu: lichSu.results, giaiTrinhDeadline, related });
 });
 
 // H1: gan / go nguoi phu trach ca.
