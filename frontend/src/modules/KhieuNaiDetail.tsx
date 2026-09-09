@@ -1363,7 +1363,7 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
   return (
     <>
       <form onSubmit={submit} className="flex flex-col gap-3">
-        <fieldset className="rounded-lg border border-line bg-surface-2 p-2.5">
+        <fieldset className="rounded-lg border border-line bg-white p-2.5">
           <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Đổi máy</legend>
           <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3">
             <Field label="ID Lada phát sinh">
@@ -1401,7 +1401,7 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
           </div>
         </fieldset>
 
-        <fieldset className="rounded-lg border border-line bg-surface-2 p-2.5">
+        <fieldset className="rounded-lg border border-line bg-white p-2.5">
           <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Khác</legend>
           <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3">
             <Field label="Bộ phận bàn giao">
