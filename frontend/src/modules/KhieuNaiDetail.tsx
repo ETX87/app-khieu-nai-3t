@@ -959,8 +959,8 @@ function CrmSection({
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div className="w-full sm:w-64">
+      <div className="mb-2.5 flex flex-wrap items-end gap-2">
+        <div className="w-36">
           <Field label="ID CRM Karofi">
             {editable ? (
               <Input value={crmId} onChange={(e) => setCrmId(e.target.value)} placeholder="Chưa có" />
@@ -985,26 +985,19 @@ function CrmSection({
             {resync.isPending ? "Đang đồng bộ..." : "Đồng bộ lại"}
           </Btn>
         )}
+        <span
+          className={`ml-auto inline-block rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+            kn.ngay_ktv_hoan_thanh ? "bg-green-50 text-green-700 ring-green-300" : "bg-amber-50 text-amber-700 ring-amber-300"
+          }`}
+        >
+          {kn.ngay_ktv_hoan_thanh ? `Đã hoàn thành: ${kn.ngay_ktv_hoan_thanh}` : "Chưa hoàn thành"}
+        </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-3">
         <ReadField label="Ngày tiếp nhận CRM" value={kn.ngay_tiep_nhan_crm} />
         <ReadField label="Kết quả CRM" value={kn.ket_qua_crm} />
-      </div>
-      <div className="mt-2">
         <ReadField label="Thông tin xử lý CRM" value={kn.thong_tin_xu_ly_crm} />
-      </div>
-      <div className="mt-2">
-        <p className="text-xs font-medium text-ink-soft">Ngày KTV hoàn thành</p>
-        {kn.ngay_ktv_hoan_thanh ? (
-          <span className="mt-1 inline-block rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-300">
-            Đã hoàn thành: {kn.ngay_ktv_hoan_thanh}
-          </span>
-        ) : (
-          <span className="mt-1 inline-block rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-300">
-            Chưa hoàn thành
-          </span>
-        )}
       </div>
       <div className="mt-2">
         <p className="mb-1 text-xs font-medium text-ink-soft">Giải trình ĐVBH</p>
@@ -1379,6 +1372,59 @@ const LS_LABEL: Record<string, string> = {
   phu_trach: "Đổi người phụ trách",
 };
 
+// Nhãn field ngắn gọn cho log "cập nhật 1 trường" (item: badge cụ thể thay vì chung chung).
+const LICH_SU_FIELD_LABEL: Record<string, string> = {
+  id_crm_karofi: "ID CRM", id_lada: "ID Lada", ten_khach: "Tên khách", sdt_khach: "SĐT",
+  muc_do: "Mức độ", nhom_van_de: "Nhóm vấn đề", van_de_dau_vao: "Vấn đề đầu vào",
+  cam_co: "Cắm cờ", trang_thai: "Trạng thái", nguoi_phu_trach: "Người phụ trách",
+  loi_nha_san_xuat: "Lỗi nhà sản xuất", loi_lap_dat: "Lỗi lắp đặt",
+  loi_thai_do_ktv: "Lỗi thái độ KTV", loi_quy_trinh_nskx: "Lỗi quy trình NSKX",
+};
+
+type LsTone = "blue" | "violet" | "teal" | "amber" | "green" | "red" | "gray";
+
+// Học theo phong cách timeline "GT tồn" — mỗi hành động hệ thống có 1 badge riêng, cụ thể
+// (vd "Cập nhật ID CRM" thay vì chung chung "Cập nhật thông tin") thay vì show mỗi
+// LS_LABEL[hanh_dong] như trước.
+function lichSuBadge(l: LichSu): { badge: string; tone: LsTone } {
+  switch (l.hanh_dong) {
+    case "tao_moi":
+      return { badge: "Tạo phản ánh", tone: "green" };
+    case "cap_nhat": {
+      const fields = (l.truong ?? "").split(",").filter(Boolean);
+      if (fields.length === 1) {
+        const label = LICH_SU_FIELD_LABEL[fields[0]] ?? fields[0];
+        return { badge: `Cập nhật ${label}`, tone: fields[0] === "id_crm_karofi" ? "teal" : fields[0] === "id_lada" ? "violet" : "blue" };
+      }
+      return { badge: "Cập nhật thông tin", tone: "blue" };
+    }
+    case "danh_gia_loi":
+      return { badge: "Chốt lỗi", tone: "amber" };
+    case "danh_gia_ql":
+      return { badge: "Đánh giá QL", tone: "amber" };
+    case "chuyen_trang_thai":
+      return l.gia_tri_moi === "Da ket thuc"
+        ? { badge: "Chốt kết thúc", tone: "green" }
+        : { badge: "Đóng ca", tone: "blue" };
+    case "mo_lai":
+      return { badge: "Mở lại ca", tone: "amber" };
+    case "huy":
+      return { badge: "Hủy phản ánh", tone: "red" };
+    case "phu_trach":
+      return { badge: "Đổi người phụ trách", tone: "gray" };
+    default:
+      return { badge: LS_LABEL[l.hanh_dong] ?? l.hanh_dong, tone: "gray" };
+  }
+}
+
+function lichSuSummary(l: LichSu): string {
+  if (l.hanh_dong === "danh_gia_loi") {
+    const label = LICH_SU_FIELD_LABEL[l.truong ?? ""] ?? l.truong ?? "";
+    return `${label}: ${translateDanhGia((l.gia_tri_moi ?? null) as DanhGia3 | null)}`;
+  }
+  return l.gia_tri_moi ?? "";
+}
+
 function TienTrinhSection({
   id,
   items,
@@ -1430,31 +1476,29 @@ function TienTrinhSection({
     mutation.mutate();
   };
 
-  type Row = { key: string; ts: string; who: string; body: ReactNode };
-  const rows: Row[] = [
+  const events: TimelineEvent[] = [
     ...items.map((t) => ({
       key: `t-${t.id}`,
-      ts: t.ngay_tao,
-      who: nameOf(t.nguoi_tao),
-      body: (
-        <>
-          {t.noi_dung_ghi_chep && <p className="text-sm text-ink">{t.noi_dung_ghi_chep}</p>}
-          {t.ly_do_xu_ly_cham && <p className="text-sm text-amber-700">Lý do chậm: {t.ly_do_xu_ly_cham}</p>}
-        </>
-      ),
+      tone: "violet" as LsTone,
+      badge: "Ghi chú tiến trình",
+      time: fmtVN.dateTime(t.ngay_tao),
+      sortMs: parseVnNaive(t.ngay_tao),
+      actor: nameOf(t.nguoi_tao),
+      summary: [t.noi_dung_ghi_chep, t.ly_do_xu_ly_cham ? `Lý do chậm: ${t.ly_do_xu_ly_cham}` : null].filter(Boolean).join("\n"),
     })),
-    ...lichSu.map((l) => ({
-      key: `l-${l.id}`,
-      ts: l.thoi_diem,
-      who: nameOf(l.nguoi),
-      body: (
-        <p className="text-sm text-ink-soft">
-          {LS_LABEL[l.hanh_dong] ?? l.hanh_dong}
-          {l.gia_tri_moi ? `: ${l.gia_tri_moi}` : ""}
-        </p>
-      ),
-    })),
-  ].sort((a, b) => (a.ts < b.ts ? 1 : -1));
+    ...lichSu.map((l) => {
+      const { badge, tone } = lichSuBadge(l);
+      return {
+        key: `l-${l.id}`,
+        tone,
+        badge,
+        time: fmtVN.dateTime(l.thoi_diem),
+        sortMs: parseVnNaive(l.thoi_diem),
+        actor: nameOf(l.nguoi),
+        summary: lichSuSummary(l),
+      };
+    }),
+  ].sort((a, b) => b.sortMs - a.sortMs);
 
   const addForm = (
     <form onSubmit={submit} className="mb-4 flex flex-col gap-2">
@@ -1484,17 +1528,7 @@ function TienTrinhSection({
     <>
       {canThem && addForm}
 
-      <ul className="flex flex-col gap-3">
-        {rows.length === 0 && <li className="text-sm text-ink-soft">Chưa có ghi chép tiến trình.</li>}
-        {rows.map((r) => (
-          <li key={r.key} className="border-l-2 border-line pl-3">
-            <p className="text-xs text-ink-soft">
-              {fmtVN.dateTime(r.ts)} · {r.who}
-            </p>
-            {r.body}
-          </li>
-        ))}
-      </ul>
+      <Timeline events={events} />
     </>
   );
 }
