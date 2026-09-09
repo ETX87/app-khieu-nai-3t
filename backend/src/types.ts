@@ -21,6 +21,11 @@ export interface Env {
   SESSION_SECRET: string;
   DVBH_API_BASE: string;
   DVBH_PARTNER_API_KEY: string;
+  // Service Binding (RPC nội bộ qua Cloudflare, KHÔNG fetch() mạng thật) tới Worker "dvbh" - cùng 1
+  // tài khoản Cloudflare nên fetch() thẳng URL bị chặn lỗi 1042 (chống SSRF Worker-gọi-Worker), xem
+  // linh-kien-app/backend/src/types.ts (CASE_LOOKUP_SERVICE) - đã xác nhận đây là nguyên nhân thật
+  // của "tra cứu ID CRM luôn lỗi" (2026-09-09), không phải do API key.
+  DVBH_SERVICE: Fetcher;
   LOCAL_DEV_BYPASS_AUTH?: string;
 }
 

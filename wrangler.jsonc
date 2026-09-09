@@ -6,6 +6,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": { "directory": "./frontend/dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
   "d1_databases": [{ "binding": "DB", "database_name": "khieu-nai-db", "database_id": "fef4e5cf-fdda-4441-8383-41ec20f00fa0", "migrations_dir": "migrations" }],
+  // Service Binding tới Worker "dvbh" (RPC nội bộ qua Cloudflare) - fetch() thẳng URL bị chặn lỗi
+  // 1042 (chống SSRF, Worker-gọi-Worker cùng tài khoản) - xem lib/dvbhClient.ts + linh-kien-app.
+  "services": [{ "binding": "DVBH_SERVICE", "service": "dvbh", "remote": true }],
   "vars": {
     "BOOTSTRAP_ADMIN_EMAIL": "smarttrade.vp@gmail.com",
     "GOOGLE_REDIRECT_URI": "https://tiepnhan.dichvu3t.workers.dev/api/auth/callback",

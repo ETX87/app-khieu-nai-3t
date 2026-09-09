@@ -295,18 +295,15 @@ app.get("/tra-cuu", async (c) => {
       const fill: Record<string, string> = {};
       const put = (k: string, v: unknown) => { if (typeof v === "string" && v.trim() !== "") fill[k] = v.trim(); };
       put("ten_khach", p.khach_hang);
-      put("sdt_khach", p.so_dien_thoai);
-      put("model", p.model);
-      // Địa chỉ: ưu tiên khớp địa chính MỚI (sau sáp nhập 2025); không khớp thì điền theo địa chính CŨ.
+      put("model", p.san_pham_bao_hanh);
+      // Địa chỉ: DVBH chỉ có tỉnh/quận-huyện (không có phường-xã riêng). Ưu tiên khớp địa chính
+      // MỚI (sau sáp nhập 2025) theo tỉnh; không khớp thì điền theo địa chính CŨ.
       const tinhVal = typeof p.tinh === "string" ? p.tinh.trim() : "";
-      const xaVal = typeof p.phuong_xa === "string" ? p.phuong_xa.trim() : "";
       if (tinhVal && (await optionExists(c.env.DB, "tinh_moi", tinhVal))) {
         fill.tinh_moi = tinhVal;
-        if (xaVal && (await optionExists(c.env.DB, "phuong_xa_moi", xaVal))) fill.phuong_xa_moi = xaVal;
       } else {
         put("tinh", p.tinh);
         put("quan_huyen", p.quan_huyen);
-        put("phuong_xa", p.phuong_xa);
       }
       return c.json({
         found: true, source: "crm", fill,
@@ -320,7 +317,8 @@ app.get("/tra-cuu", async (c) => {
         },
         giaiTrinh: formatGiaiTrinhHistory(result.giaiTrinh),
       });
-    } catch {
+    } catch (e) {
+      console.error("DVBH_LOOKUP_FAILED", e);
       return c.json({ found: false, source: "crm", warning: "DVBH_LOOKUP_FAILED" });
     }
   }
