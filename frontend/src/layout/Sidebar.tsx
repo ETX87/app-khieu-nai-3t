@@ -122,9 +122,14 @@ export function Sidebar({ modules, active, onSelect, user, open, onClose }: Side
         </div>
 
         <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-3">
-          {has("trang-chu") && (
+          {(has("trang-chu") || has("bao-cao")) && (
             <div className="space-y-1">
-              <NavButton moduleKey="trang-chu" active={active === "trang-chu"} onSelect={select} collapsed={collapsed} />
+              {has("trang-chu") && (
+                <NavButton moduleKey="trang-chu" active={active === "trang-chu"} onSelect={select} collapsed={collapsed} />
+              )}
+              {has("bao-cao") && (
+                <NavButton moduleKey="bao-cao" active={active === "bao-cao"} onSelect={select} collapsed={collapsed} />
+              )}
             </div>
           )}
 

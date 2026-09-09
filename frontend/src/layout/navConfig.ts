@@ -5,13 +5,13 @@ export type ModuleKey = "trang-chu" | "khieu-nai" | "bao-cao" | "settings" | "us
 // Bao cao (SLA + trung lap): moi vai tro tru "NV Sale"/"Tong dai vien" (KTV cu - chi tao phan anh
 // ho khach hang, khong tham gia giam sat/thong ke) va vai tro chua duyet (khong co trong map nay).
 export const ROLE_MODULES: Record<VaiTro, ModuleKey[]> = {
-  Admin: ["trang-chu", "khieu-nai", "bao-cao", "settings", "users"],
-  Viewer: ["trang-chu", "khieu-nai", "bao-cao"],
-  CSKH: ["trang-chu", "khieu-nai", "bao-cao"],
+  Admin: ["trang-chu", "bao-cao", "khieu-nai", "settings", "users"],
+  Viewer: ["trang-chu", "bao-cao", "khieu-nai"],
+  CSKH: ["trang-chu", "bao-cao", "khieu-nai"],
   "NV Sale": ["trang-chu", "khieu-nai"],
   "Tổng đài viên": ["trang-chu", "khieu-nai"],
-  "TN CSKH": ["trang-chu", "khieu-nai", "bao-cao"],
-  QL: ["trang-chu", "khieu-nai", "bao-cao"],
+  "TN CSKH": ["trang-chu", "bao-cao", "khieu-nai"],
+  QL: ["trang-chu", "bao-cao", "khieu-nai"],
 };
 
 // Roles without an assigned vai_tro yet see nothing (should not normally happen once approved).
@@ -34,7 +34,9 @@ export interface NavGroup {
   modules: ModuleKey[];
 }
 
+// "bao-cao" khong nam trong nhom nao - render dung canh "trang-chu" o dau sidebar (item: bao cao
+// gan trang chu tren menu), xem Sidebar.tsx.
 export const NAV_GROUPS: NavGroup[] = [
-  { label: "Quản lý phản ánh", modules: ["khieu-nai", "bao-cao"] },
+  { label: "Quản lý phản ánh", modules: ["khieu-nai"] },
   { label: "Hệ thống", modules: ["settings", "users"] },
 ];

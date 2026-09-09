@@ -50,6 +50,13 @@ const NGUOI_TAO_VAI_TRO_OPTIONS = [
   { value: "Tổng đài viên", label: "Tổng đài viên" },
 ];
 
+const TON_TOI_THIEU_OPTIONS = [
+  { value: "3", label: "Tồn ≥ 3 ngày" },
+  { value: "7", label: "Tồn ≥ 7 ngày" },
+  { value: "14", label: "Tồn ≥ 14 ngày" },
+  { value: "30", label: "Tồn ≥ 30 ngày" },
+];
+
 interface Filters {
   trangThai: string;
   mucDo: string;
@@ -59,6 +66,7 @@ interface Filters {
   chuaDongBo: boolean;
   caCuaToi: boolean;
   nguoiTaoVaiTro: string;
+  tonToiThieu: string;
   q: string;
   sort: string; // "field|dir"
   pageSize: string;
@@ -66,7 +74,8 @@ interface Filters {
 
 const EMPTY_FILTERS: Filters = {
   trangThai: "", mucDo: "", nhomVanDe: "", tuNgay: "", denNgay: "",
-  chuaDongBo: false, caCuaToi: false, nguoiTaoVaiTro: "", q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
+  chuaDongBo: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "",
+  q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
 };
 
 function loadFilters(): Filters {
@@ -148,6 +157,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
       if (f.chuaDongBo) p.set("chua_dong_bo", "1");
       if (f.caCuaToi) p.set("nguoi_phu_trach", user.email);
       if (f.nguoiTaoVaiTro) p.set("nguoi_tao_vai_tro", f.nguoiTaoVaiTro);
+      if (f.tonToiThieu) p.set("ton_toi_thieu_ngay", f.tonToiThieu);
       if (f.q) p.set("q", f.q);
       p.set("sort", sortField);
       p.set("dir", sortDir);
@@ -173,6 +183,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
     {
       key: "id",
       header: "Mã · Model · Lada",
+      sortKey: "id",
       render: (r) => (
         <div className="leading-tight">
           <div className="font-mono text-xs text-ink">{r.id}</div>
@@ -183,6 +194,7 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
     {
       key: "khach",
       header: "Khách / Tỉnh",
+      sortKey: "ten_khach",
       render: (r) => (
         <div className="leading-tight">
           <div>{r.ten_khach ?? "—"}</div>
@@ -193,10 +205,11 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
     {
       key: "muc_do",
       header: "Mức độ",
+      sortKey: "muc_do",
       render: (r) => (r.muc_do ? <Badge tone={mucDoTone(r.muc_do)}>{r.muc_do}</Badge> : <span className="text-ink-faint">—</span>),
     },
-    { key: "nhom_van_de", header: "Nhóm vấn đề", render: (r) => r.nhom_van_de ?? "—" },
-    { key: "trang_thai", header: "Trạng thái", render: (r) => <StatusBadge trangThai={r.trang_thai} /> },
+    { key: "nhom_van_de", header: "Nhóm vấn đề", sortKey: "nhom_van_de", render: (r) => r.nhom_van_de ?? "—" },
+    { key: "trang_thai", header: "Trạng thái", sortKey: "trang_thai", render: (r) => <StatusBadge trangThai={r.trang_thai} /> },
     {
       key: "chi_bao",
       header: "Chỉ báo",
@@ -208,11 +221,13 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
     {
       key: "cap_nhat",
       header: "Cập nhật",
+      sortKey: "ngay_thay_doi",
       render: (r) => <span className="text-xs text-ink-soft" title={r.ngay_thay_doi}>{fmtVN.relative(r.ngay_thay_doi)}</span>,
     },
     {
       key: "ktv",
       header: "KTV hoàn thành",
+      sortKey: "ngay_ktv_hoan_thanh",
       render: (r) =>
         !r.id_crm_karofi ? (
           <span className="text-ink-faint">Không áp dụng</span>
@@ -229,8 +244,17 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   const totalPages = Math.max(1, Math.ceil(total / pageSizeN));
 
   const activeFilterCount =
-    [f.trangThai, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.nguoiTaoVaiTro, f.q].filter(Boolean).length +
+    [f.trangThai, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.nguoiTaoVaiTro, f.tonToiThieu, f.q].filter(Boolean).length +
     (f.chuaDongBo ? 1 : 0) + (f.caCuaToi ? 1 : 0);
+
+  const handleSort = (field: string) => {
+    setF((p) => {
+      const [curField, curDir] = p.sort.split("|");
+      const nextDir = curField === field && curDir === "asc" ? "desc" : "asc";
+      return { ...p, sort: `${field}|${nextDir}` };
+    });
+    setPage(1);
+  };
 
   const selCls = "rounded-md border border-line bg-white px-2 py-1 text-xs text-ink focus:border-accent focus:outline-none";
 
@@ -273,6 +297,10 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
             <option value="">Mọi người tạo</option>
             {NGUOI_TAO_VAI_TRO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
+          <select className={selCls} value={f.tonToiThieu} onChange={(e) => set("tonToiThieu", e.target.value)}>
+            <option value="">Mọi thời gian tồn</option>
+            {TON_TOI_THIEU_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
           {activeFilterCount > 0 && (
             <button onClick={resetFilters} className="text-xs font-medium text-accent hover:underline">
               Xoá lọc ({activeFilterCount})
@@ -309,7 +337,14 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
               ))}
             </div>
             <div className="hidden md:block">
-              <Table columns={columns} rows={query.data.items} rowKey={(r) => r.id} onRowClick={(r) => setDetailId(r.id)} />
+              <Table
+                columns={columns}
+                rows={query.data.items}
+                rowKey={(r) => r.id}
+                onRowClick={(r) => setDetailId(r.id)}
+                sort={{ field: sortField, dir: sortDir === "asc" ? "asc" : "desc" }}
+                onSort={handleSort}
+              />
             </div>
             <div className="mt-4 flex items-center justify-between text-sm text-ink-soft">
               <span>Tổng {total} phản ánh — Trang {page}/{totalPages}</span>

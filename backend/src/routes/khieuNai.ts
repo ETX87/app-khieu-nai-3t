@@ -164,9 +164,14 @@ async function tryLookupCrm(env: Env, idCrmKarofi: string): Promise<{ fields: Cr
 }
 
 const SORT_COLUMNS: Record<string, string> = {
+  id: "id",
   ngay_tiep_nhan: "ngay_tiep_nhan",
   ngay_thay_doi: "ngay_thay_doi",
   muc_do: "muc_do",
+  ten_khach: "ten_khach",
+  nhom_van_de: "nhom_van_de",
+  trang_thai: "trang_thai",
+  ngay_ktv_hoan_thanh: "ngay_ktv_hoan_thanh",
 };
 
 app.get("/", async (c) => {
@@ -199,6 +204,15 @@ app.get("/", async (c) => {
   if (denNgay) { conditions.push("ngay_tiep_nhan <= ?"); binds.push(`${denNgay} 23:59:59`); }
   if (chuaDongBo === "1") {
     conditions.push("id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL AND trang_thai != 'Da ket thuc'");
+  }
+  const tonToiThieuNgay = parseInt(c.req.query("ton_toi_thieu_ngay") ?? "", 10);
+  if (Number.isFinite(tonToiThieuNgay) && tonToiThieuNgay > 0) {
+    // "Thoi gian ton" = so ngay tu luc tiep nhan den nay, chi tinh cho ca CHUA dong (khong tinh
+    // "Da ket thuc"/"Huy" - da xong thi khong con "ton" nua).
+    conditions.push(
+      "trang_thai NOT IN ('Da ket thuc','Huy') AND (julianday(datetime('now','+7 hours')) - julianday(ngay_tiep_nhan)) >= ?",
+    );
+    binds.push(tonToiThieuNgay);
   }
   if (q) {
     conditions.push("(ten_khach LIKE ? OR id_lada LIKE ? OR id LIKE ? OR id_crm_karofi LIKE ? OR sdt_khach LIKE ?)");
