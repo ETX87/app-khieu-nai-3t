@@ -10,6 +10,8 @@ import { Field, Input, Textarea } from "../components/ui/Input";
 import { Combobox } from "../components/ui/Combobox";
 import { useToast } from "../components/ui/Toast";
 import { fmtVN } from "../lib/formatVN";
+import { STATUS_LABEL } from "../components/ui/Badge";
+import { Timeline, type TimelineEvent } from "../components/ui/Timeline";
 
 export interface KhieuNaiFormHandle {
   submit: () => void;
@@ -81,6 +83,8 @@ interface TraCuuRecent {
   trang_thai: string | null;
   nhom_van_de: string | null;
   van_de_dau_vao: string | null;
+  thong_tin_ban_dau: string | null;
+  nguoi_tao: string | null;
 }
 interface TraCuuCrmPreview {
   khach_hang: string | null;
@@ -89,6 +93,18 @@ interface TraCuuCrmPreview {
   noi_dung_xu_ly: string | null;
   thoi_gian_cskh_tiep_nhan: string | null;
   thoi_gian_hoan_thanh: string | null;
+  mo_ta_loi: string | null;
+  khu_vuc: string | null;
+  loai_yeu_cau: string | null;
+  thoi_gian_hen_xu_ly: string | null;
+  ly_do_qua_han: string | null;
+  link_crm: string | null;
+}
+interface TraCuuGiaiTrinh {
+  ly_do_cham: string;
+  noi_dung: string | null;
+  ngay_giai_trinh: string;
+  nguoi_giai_trinh?: string;
 }
 interface TraCuuResponse {
   found: boolean;
@@ -96,8 +112,14 @@ interface TraCuuResponse {
   fill?: Record<string, string>;
   recent?: TraCuuRecent[];
   preview?: TraCuuCrmPreview;
-  giaiTrinh?: string;
+  giaiTrinh?: TraCuuGiaiTrinh[];
   warning?: string;
+}
+
+// yyyy-mm-dd hh:mm:ss (naive, gio VN) -> epoch ms de tinh khoang cach giua 2 moc cho Timeline.
+function parseVnNaive(s: string | null | undefined): number {
+  if (!s) return 0;
+  return new Date(s.replace(" ", "T") + "Z").getTime();
 }
 
 // Cac field cho phep tra cuu tu dien de (chi dien vao o dang trong).
@@ -642,55 +664,67 @@ function LookupResult({ res }: { res: TraCuuResponse }) {
 
   if (res.source === "crm") {
     const p = res.preview;
+    const giaiTrinhEvents: TimelineEvent[] = (res.giaiTrinh ?? []).map((g, i) => ({
+      key: `gt-${i}`,
+      tone: "teal",
+      badge: "GT tồn",
+      time: fmtVN.dateTime(g.ngay_giai_trinh),
+      sortMs: parseVnNaive(g.ngay_giai_trinh),
+      actor: g.nguoi_giai_trinh ?? null,
+      summary: g.noi_dung ? `${g.ly_do_cham}: ${g.noi_dung}` : g.ly_do_cham,
+    }));
     return (
       <div className="mt-3 rounded-md border border-teal-300 bg-teal-50 px-3 py-2 text-xs text-teal-900">
         <div className="mb-1 font-semibold">Tìm thấy trên CRM Karofi</div>
         <dl className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
           {p?.khach_hang && <Row k="Khách hàng" v={p.khach_hang} />}
           {p?.ky_thuat_vien && <Row k="Kỹ thuật viên" v={p.ky_thuat_vien} />}
+          {p?.khu_vuc && <Row k="Khu vực" v={p.khu_vuc} />}
           {p?.tien_do_hoan_thanh && <Row k="Tiến độ" v={p.tien_do_hoan_thanh} />}
+          {p?.loai_yeu_cau && <Row k="Loại yêu cầu" v={p.loai_yeu_cau} />}
           {p?.thoi_gian_cskh_tiep_nhan && <Row k="CSKH tiếp nhận" v={fmtVN.dateTime(p.thoi_gian_cskh_tiep_nhan)} />}
+          {p?.thoi_gian_hen_xu_ly && <Row k="Hẹn xử lý" v={fmtVN.dateTime(p.thoi_gian_hen_xu_ly)} />}
           {p?.thoi_gian_hoan_thanh && <Row k="Hoàn thành" v={fmtVN.dateTime(p.thoi_gian_hoan_thanh)} />}
+          {p?.ly_do_qua_han && <Row k="Lý do quá hạn" v={p.ly_do_qua_han} />}
         </dl>
-        {p?.noi_dung_xu_ly && (
-          <p className="mt-1 whitespace-pre-wrap border-t border-teal-200 pt-1">{p.noi_dung_xu_ly}</p>
+        {p?.mo_ta_loi && (
+          <p className="mt-1 whitespace-pre-wrap border-t border-teal-200 pt-1"><b>Mô tả lỗi: </b>{p.mo_ta_loi}</p>
         )}
-        {res.giaiTrinh && (
-          <p className="mt-1 whitespace-pre-wrap border-t border-teal-200 pt-1 text-teal-800">{res.giaiTrinh}</p>
+        {p?.noi_dung_xu_ly && (
+          <p className="mt-1 whitespace-pre-wrap border-t border-teal-200 pt-1"><b>Nội dung xử lý: </b>{p.noi_dung_xu_ly}</p>
+        )}
+        {p?.link_crm && (
+          <p className="mt-1 border-t border-teal-200 pt-1">
+            <a href={p.link_crm} target="_blank" rel="noreferrer" className="underline">Xem trên CRM ↗</a>
+          </p>
+        )}
+        {giaiTrinhEvents.length > 0 && (
+          <div className="mt-2 border-t border-teal-200 pt-2">
+            <p className="mb-1 font-semibold">Log giải trình tồn ({giaiTrinhEvents.length})</p>
+            <Timeline events={giaiTrinhEvents} />
+          </div>
         )}
       </div>
     );
   }
 
-  // lada
+  // lada — hien "lich su cham soc" dang timeline (giong phong cach GT ton ben dvbh)
   const rows = res.recent ?? [];
+  const ladaEvents: TimelineEvent[] = rows.map((r) => ({
+    key: r.id,
+    tone: "violet",
+    badge: STATUS_LABEL[r.trang_thai ?? ""] ?? r.trang_thai ?? "Phản ánh cũ",
+    time: r.ngay_tiep_nhan ? fmtVN.dateTime(r.ngay_tiep_nhan) : "",
+    sortMs: parseVnNaive(r.ngay_tiep_nhan),
+    actor: r.nguoi_tao,
+    summary: `${r.id}${r.van_de_dau_vao || r.nhom_van_de ? ` — ${r.van_de_dau_vao || r.nhom_van_de}` : ""}${r.thong_tin_ban_dau ? `\n${r.thong_tin_ban_dau}` : ""}`,
+  }));
   return (
     <div className="mt-3 rounded-md border border-violet-300 bg-violet-50 px-3 py-2 text-xs text-violet-900">
       <div className="mb-1 font-semibold">
         {rows.length} phản ánh cũ cùng ID Lada — đã điền từ đơn gần nhất
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] border-collapse">
-          <thead>
-            <tr className="text-left text-[11px] text-violet-700">
-              <th className="py-1 pr-3 font-medium">Mã đơn</th>
-              <th className="py-1 pr-3 font-medium">Ngày tiếp nhận</th>
-              <th className="py-1 pr-3 font-medium">Trạng thái</th>
-              <th className="py-1 font-medium">Vấn đề</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-t border-violet-200">
-                <td className="py-1 pr-3 font-mono">{r.id}</td>
-                <td className="py-1 pr-3">{r.ngay_tiep_nhan ? fmtVN.date(r.ngay_tiep_nhan) : "—"}</td>
-                <td className="py-1 pr-3">{r.trang_thai ?? "—"}</td>
-                <td className="py-1">{r.van_de_dau_vao || r.nhom_van_de || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Timeline events={ladaEvents} />
     </div>
   );
 }

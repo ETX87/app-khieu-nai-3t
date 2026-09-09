@@ -66,6 +66,7 @@ export interface KhieuNai {
   bo_phan_ban_giao: string | null;
   ma_duyet_doi_linh_kien: string | null;
   thong_tin_giai_trinh_dvbh: string | null;
+  giai_trinh_dvbh_json: string | null;
   danh_gia_ql: string | null;
   ql_gio_xu_ly: number | null;
   ql_chon_ngay_hen: string | null;

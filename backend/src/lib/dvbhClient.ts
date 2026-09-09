@@ -8,7 +8,10 @@ export interface DvbhCasePreview {
   san_pham_bao_hanh: string | null; tinh: string | null; quan_huyen: string | null;
   [key: string]: unknown;
 }
-export interface DvbhGiaiTrinhRow { case_id: string; ly_do_cham: string; noi_dung: string | null; ngay_giai_trinh: string; }
+export interface DvbhGiaiTrinhRow {
+  case_id: string; ly_do_cham: string; noi_dung: string | null; ngay_giai_trinh: string;
+  nguoi_giai_trinh?: string;
+}
 export interface DvbhLookupResult { found: boolean; preview: DvbhCasePreview | null; giaiTrinh: DvbhGiaiTrinhRow[]; }
 
 export async function lookupDvbhCase(env: Env, id: string): Promise<DvbhLookupResult> {

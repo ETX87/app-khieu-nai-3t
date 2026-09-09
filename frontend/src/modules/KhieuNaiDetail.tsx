@@ -11,6 +11,8 @@ import { Select } from "../components/ui/Select";
 import { Combobox } from "../components/ui/Combobox";
 import { StatusBadge } from "../components/ui/Badge";
 import { useToast } from "../components/ui/Toast";
+import { Timeline, type TimelineEvent } from "../components/ui/Timeline";
+import { Tabs, type TabItem } from "../components/ui/Tabs";
 
 interface DetailResponse {
   khieuNai: KhieuNai;
@@ -63,6 +65,36 @@ const CRM_WARNING_MESSAGES: Record<string, string> = {
   CASE_CLOSED: "Phản ánh đã kết thúc, không thể đồng bộ lại",
   RESYNC_TOO_SOON: "Vui lòng đợi ít nhất 5 giây giữa 2 lần đồng bộ",
 };
+
+// yyyy-mm-dd hh:mm:ss (naive, gio VN) -> epoch ms, dung tinh khoang cach giua 2 moc cho Timeline.
+function parseVnNaive(s: string | null | undefined): number {
+  if (!s) return 0;
+  return new Date(s.replace(" ", "T") + "Z").getTime();
+}
+
+interface DvbhGiaiTrinhRow { ly_do_cham: string; noi_dung: string | null; ngay_giai_trinh: string; nguoi_giai_trinh?: string; }
+
+function parseGiaiTrinhDvbh(json: string | null): DvbhGiaiTrinhRow[] {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function giaiTrinhDvbhEvents(kn: KhieuNai): TimelineEvent[] {
+  return parseGiaiTrinhDvbh(kn.giai_trinh_dvbh_json).map((g, i) => ({
+    key: `gt-${i}`,
+    tone: "teal",
+    badge: "GT tồn",
+    time: fmtVN.dateTime(g.ngay_giai_trinh),
+    sortMs: parseVnNaive(g.ngay_giai_trinh),
+    actor: g.nguoi_giai_trinh ?? null,
+    summary: g.noi_dung ? `${g.ly_do_cham}: ${g.noi_dung}` : g.ly_do_cham,
+  }));
+}
 
 function ReadField({ label, value }: { label: string; value: string | number | null | undefined }) {
   const empty = value === null || value === undefined || value === "";
@@ -245,6 +277,7 @@ function dongCaChecklist(kn: KhieuNai) {
 }
 
 type EditKey = "khach" | "log" | "crm" | "doimay" | "loi" | "ql";
+type RightTabKey = "tien-trinh" | "crm" | "doi-may" | "ket-luan";
 
 export function KhieuNaiDetail({
   id,
@@ -261,6 +294,7 @@ export function KhieuNaiDetail({
   const { showToast } = useToast();
   const nameOf = useNameMap();
   const [editing, setEditing] = useState<EditKey | null>(null);
+  const [rightTab, setRightTab] = useState<RightTabKey>("tien-trinh");
 
   const detail = useQuery({
     queryKey: ["khieu-nai", id],
@@ -305,10 +339,28 @@ export function KhieuNaiDetail({
     (user.vai_tro === "TN CSKH" || user.vai_tro === "Admin") &&
     kn.trang_thai === "Dang xu ly" &&
     !checklist.every((c) => c.ok);
-  const hasDoiMay = !!(
-    kn.bo_phan_ban_giao || kn.ma_duyet_doi_linh_kien || kn.id_lada_phat_sinh ||
-    kn.ngay_ghi_nhan_doi_may || kn.ket_qua_doi_may || (kn.cam_co && kn.cam_co !== "Khong co")
-  );
+  // Số lượng dữ liệu mỗi tab bên phải (item 4) — chỉ hiện badge khi > 0, giống phong cách tab dvbh.
+  const giaiTrinhDvbhCount = giaiTrinhDvbhEvents(kn).length;
+  const tabCounts: Record<RightTabKey, number> = {
+    "tien-trinh": tienTrinh.length + lichSu.length,
+    crm: [kn.ngay_tiep_nhan_crm, kn.ket_qua_crm, kn.thong_tin_xu_ly_crm, kn.ngay_ktv_hoan_thanh].filter(Boolean).length + giaiTrinhDvbhCount,
+    "doi-may": [
+      kn.bo_phan_ban_giao, kn.ma_duyet_doi_linh_kien, kn.id_lada_phat_sinh,
+      kn.ngay_ghi_nhan_doi_may, kn.ket_qua_doi_may,
+      kn.cam_co && kn.cam_co !== "Khong co" ? kn.cam_co : null,
+    ].filter(Boolean).length,
+    "ket-luan": [
+      kn.loi_nha_san_xuat, kn.loi_lap_dat, kn.loi_thai_do_ktv, kn.loi_quy_trinh_nskx,
+    ].filter((v) => v && v !== "Chua danh gia").length
+      + (kn.ket_luan_khieu_nai && kn.ket_luan_khieu_nai !== "Chua danh gia" ? 1 : 0)
+      + (kn.danh_gia_ql ? 1 : 0),
+  };
+  const rightTabs: TabItem[] = [
+    { key: "tien-trinh", label: "Tiến trình & lịch sử", count: tabCounts["tien-trinh"] },
+    { key: "crm", label: "Đồng bộ CRM Karofi", count: tabCounts.crm },
+    { key: "doi-may", label: "Thông tin khác", count: tabCounts["doi-may"] },
+    { key: "ket-luan", label: "Kết luận & đánh giá", count: tabCounts["ket-luan"] },
+  ];
 
   // Kết quả ngắn gọn cho tiêu đề
   const ketLuanDone = kn.ket_luan_khieu_nai && kn.ket_luan_khieu_nai !== "Chua danh gia";
@@ -398,72 +450,78 @@ export function KhieuNaiDetail({
         )}
       </div>
 
-      {/* ===== THÂN: DASHBOARD TRA CỨU (chỉ đọc) — nhập liệu qua nút ===== */}
+      {/* ===== THÂN: trái = thông tin tiếp nhận cố định, phải = tab chuyển đổi (item 4, học theo dvbh) ===== */}
       <div className={`min-h-0 flex-1 overflow-y-auto ${severityBg} p-2.5`}>
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Zone
-              accent="slate"
-              icon={ICON.doc}
-              title="Thông tin đầu vào"
-              actions={isCskh && <ZoneBtn onClick={() => setEditing("khach")}>Sửa</ZoneBtn>}
-            >
-              <CustomerInfoSection kn={kn} editable={false} onSaved={invalidate} />
-            </Zone>
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(280px,38%)_1fr]">
+          <Zone
+            accent="slate"
+            icon={ICON.doc}
+            title="Thông tin đầu vào"
+            actions={isCskh && <ZoneBtn onClick={() => setEditing("khach")}>Sửa</ZoneBtn>}
+          >
+            <CustomerInfoSection kn={kn} editable={false} onSaved={invalidate} />
+          </Zone>
 
-            <Zone
-              accent="violet"
-              icon={ICON.log}
-              title="Tiến trình & lịch sử"
-              actions={canThemTienTrinh && <ZoneBtn onClick={() => setEditing("log")}>+ Ghi chú</ZoneBtn>}
-            >
-              <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem={false} onSaved={invalidate} />
-            </Zone>
-          </div>
+          <div className="flex min-w-0 flex-col gap-2">
+            <Tabs tabs={rightTabs} active={rightTab} onChange={(k) => setRightTab(k as RightTabKey)} />
 
-          <div className="flex flex-col gap-2">
-            <Zone
-              accent="teal"
-              icon={ICON.sync}
-              title="Đồng bộ CRM Karofi"
-              actions={isCskh && <ZoneBtn onClick={() => setEditing("crm")}>Sửa ID CRM</ZoneBtn>}
-            >
-              <CrmSection kn={kn} user={user} onSaved={invalidate} forceEditable={false} />
-            </Zone>
+            {rightTab === "tien-trinh" && (
+              <Zone
+                accent="violet"
+                icon={ICON.log}
+                title="Tiến trình & lịch sử"
+                actions={canThemTienTrinh && <ZoneBtn onClick={() => setEditing("log")}>+ Ghi chú</ZoneBtn>}
+              >
+                <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem={false} onSaved={invalidate} />
+              </Zone>
+            )}
 
-            <Zone
-              accent="amber"
-              icon={ICON.swap}
-              title="Nhánh đổi máy"
-              collapsible
-              defaultOpen={hasDoiMay}
-              actions={canXuLyDoiMay && <ZoneBtn onClick={() => setEditing("doimay")}>Thông tin khác</ZoneBtn>}
-            >
-              <DoiMaySection kn={kn} editable={false} onSaved={invalidate} />
-            </Zone>
+            {rightTab === "crm" && (
+              <Zone
+                accent="teal"
+                icon={ICON.sync}
+                title="Đồng bộ CRM Karofi"
+                actions={isCskh && <ZoneBtn onClick={() => setEditing("crm")}>Sửa ID CRM</ZoneBtn>}
+              >
+                <CrmSection kn={kn} user={user} onSaved={invalidate} forceEditable={false} />
+              </Zone>
+            )}
 
-            <Zone
-              accent="rose"
-              icon={ICON.scale}
-              title="Kết luận & đánh giá"
-              actions={
-                <>
-                  {canDanhGia4Loi && <ZoneBtn onClick={() => setEditing("loi")}>Đánh giá lỗi</ZoneBtn>}
-                  {isQl && <ZoneBtn onClick={() => setEditing("ql")}>Đánh giá QL</ZoneBtn>}
-                </>
-              }
-            >
-              <div className="space-y-2">
-                <div>
-                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Nguyên nhân lỗi · điều kiện đóng ca</p>
-                  <TnCskhSection kn={kn} editable={false} onSaved={invalidate} />
+            {rightTab === "doi-may" && (
+              <Zone
+                accent="amber"
+                icon={ICON.swap}
+                title="Thông tin khác"
+                actions={canXuLyDoiMay && <ZoneBtn onClick={() => setEditing("doimay")}>Sửa</ZoneBtn>}
+              >
+                <DoiMaySection kn={kn} editable={false} onSaved={invalidate} />
+              </Zone>
+            )}
+
+            {rightTab === "ket-luan" && (
+              <Zone
+                accent="rose"
+                icon={ICON.scale}
+                title="Kết luận & đánh giá"
+                actions={
+                  <>
+                    {canDanhGia4Loi && <ZoneBtn onClick={() => setEditing("loi")}>Đánh giá lỗi</ZoneBtn>}
+                    {isQl && <ZoneBtn onClick={() => setEditing("ql")}>Đánh giá QL</ZoneBtn>}
+                  </>
+                }
+              >
+                <div className="space-y-2">
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Nguyên nhân lỗi · điều kiện đóng ca</p>
+                    <TnCskhSection kn={kn} editable={false} onSaved={invalidate} />
+                  </div>
+                  <div className="border-t border-line pt-3">
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Đánh giá QL · điều kiện chốt</p>
+                    <QlSection kn={kn} editable={false} onSaved={invalidate} />
+                  </div>
                 </div>
-                <div className="border-t border-line pt-3">
-                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Đánh giá QL · điều kiện chốt</p>
-                  <QlSection kn={kn} editable={false} onSaved={invalidate} />
-                </div>
-              </div>
-            </Zone>
+              </Zone>
+            )}
           </div>
         </div>
       </div>
@@ -949,8 +1007,8 @@ function CrmSection({
         )}
       </div>
       <div className="mt-2">
-        <p className="text-xs font-medium text-ink-soft">Giải trình ĐVBH</p>
-        <pre className="mt-1 whitespace-pre-wrap rounded-md bg-gray-50 p-2 text-xs text-ink">{kn.thong_tin_giai_trinh_dvbh || "—"}</pre>
+        <p className="mb-1 text-xs font-medium text-ink-soft">Giải trình ĐVBH</p>
+        <Timeline events={giaiTrinhDvbhEvents(kn)} />
       </div>
     </>
   );

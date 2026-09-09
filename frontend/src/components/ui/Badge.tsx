@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type Tone = "gray" | "blue" | "amber" | "green" | "red";
+type Tone = "gray" | "blue" | "amber" | "green" | "red" | "teal" | "violet";
 
 const TONE_CLASSES: Record<Tone, string> = {
   gray: "bg-gray-100 text-gray-600 ring-gray-300",
@@ -8,6 +8,8 @@ const TONE_CLASSES: Record<Tone, string> = {
   amber: "bg-amber-50 text-amber-700 ring-amber-300",
   green: "bg-green-50 text-green-700 ring-green-300",
   red: "bg-red-50 text-red-700 ring-red-300",
+  teal: "bg-teal-50 text-teal-700 ring-teal-300",
+  violet: "bg-violet-50 text-violet-700 ring-violet-300",
 };
 
 export function Badge({ tone = "gray", children }: { tone?: Tone; children: ReactNode }) {
@@ -26,7 +28,7 @@ const STATUS_TONE: Record<string, Tone> = {
   Huy: "gray",
 };
 
-const STATUS_LABEL: Record<string, string> = {
+export const STATUS_LABEL: Record<string, string> = {
   "Cho tiep nhan": "Chờ tiếp nhận",
   "Dang xu ly": "Đang xử lý",
   "Cho chot ket thuc": "Chờ chốt kết thúc",

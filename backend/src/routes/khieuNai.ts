@@ -135,6 +135,7 @@ interface CrmFields {
   thong_tin_xu_ly_crm: string | null;
   ngay_ktv_hoan_thanh: string | null;
   thong_tin_giai_trinh_dvbh: string;
+  giai_trinh_dvbh_json: string;
 }
 
 async function tryLookupCrm(env: Env, idCrmKarofi: string): Promise<{ fields: CrmFields | null; warning?: string }> {
@@ -148,6 +149,7 @@ async function tryLookupCrm(env: Env, idCrmKarofi: string): Promise<{ fields: Cr
         thong_tin_xu_ly_crm: result.preview.noi_dung_xu_ly ?? null,
         ngay_ktv_hoan_thanh: result.preview.thoi_gian_hoan_thanh ?? null,
         thong_tin_giai_trinh_dvbh: formatGiaiTrinhHistory(result.giaiTrinh),
+        giai_trinh_dvbh_json: JSON.stringify(result.giaiTrinh),
       },
       warning: undefined,
     };
@@ -267,7 +269,7 @@ app.get("/tra-cuu", async (c) => {
 
   if (idLada) {
     const { results } = await c.env.DB.prepare(
-      `SELECT id, ngay_tiep_nhan, trang_thai, nhom_van_de, van_de_dau_vao, thong_tin_ban_dau,
+      `SELECT id, ngay_tiep_nhan, trang_thai, nhom_van_de, van_de_dau_vao, thong_tin_ban_dau, nguoi_tao,
               ${LADA_FILL_COLUMNS.join(", ")}
        FROM khieu_nai WHERE id_lada = ? ORDER BY ngay_tiep_nhan DESC LIMIT 20`,
     ).bind(idLada).all<Record<string, string | null>>();
@@ -280,9 +282,12 @@ app.get("/tra-cuu", async (c) => {
       const v = latest[col];
       if (v != null && v !== "") fill[col] = v;
     }
+    // Hien "lich su cham soc" dang timeline (giong phong cach GT ton ben dvbh) thay vi bang phang -
+    // can them nguoi_tao (actor) + thong_tin_ban_dau (noi dung tom tat) cho tung phan anh cu.
     const recent = results.map((r) => ({
       id: r.id, ngay_tiep_nhan: r.ngay_tiep_nhan, trang_thai: r.trang_thai,
       nhom_van_de: r.nhom_van_de, van_de_dau_vao: r.van_de_dau_vao,
+      thong_tin_ban_dau: r.thong_tin_ban_dau, nguoi_tao: r.nguoi_tao,
     }));
     return c.json({ found: true, source: "lada", fill, recent });
   }
@@ -305,6 +310,7 @@ app.get("/tra-cuu", async (c) => {
         put("tinh", p.tinh);
         put("quan_huyen", p.quan_huyen);
       }
+      const str = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v.trim() : null);
       return c.json({
         found: true, source: "crm", fill,
         preview: {
@@ -314,8 +320,15 @@ app.get("/tra-cuu", async (c) => {
           noi_dung_xu_ly: p.noi_dung_xu_ly ?? null,
           thoi_gian_cskh_tiep_nhan: p.thoi_gian_cskh_tiep_nhan ?? null,
           thoi_gian_hoan_thanh: p.thoi_gian_hoan_thanh ?? null,
+          // Thêm để người tạo nắm thông tin ngay khi tra cứu (không phải chờ tạo xong mới thấy).
+          mo_ta_loi: str(p.mo_ta_loi),
+          khu_vuc: str(p.khu_vuc),
+          loai_yeu_cau: str(p.loai_yeu_cau),
+          thoi_gian_hen_xu_ly: str(p.thoi_gian_hen_xu_ly),
+          ly_do_qua_han: str(p.ly_do_qua_han),
+          link_crm: str(p.link_crm),
         },
-        giaiTrinh: formatGiaiTrinhHistory(result.giaiTrinh),
+        giaiTrinh: result.giaiTrinh,
       });
     } catch (e) {
       console.error("DVBH_LOOKUP_FAILED", e);
@@ -633,13 +646,14 @@ app.post("/:id/dong-bo-crm", requireRole("CSKH", "KTV", "TN CSKH", "QL", "Admin"
   if (!lookup.fields) return c.json({ error: lookup.warning ?? "DVBH_LOOKUP_FAILED" }, 502);
 
   await c.env.DB.prepare(
-    `UPDATE khieu_nai SET ngay_tiep_nhan_crm = ?, ket_qua_crm = ?, thong_tin_xu_ly_crm = ?, ngay_ktv_hoan_thanh = ?, thong_tin_giai_trinh_dvbh = ?, ngay_thay_doi = ? WHERE id = ?`,
+    `UPDATE khieu_nai SET ngay_tiep_nhan_crm = ?, ket_qua_crm = ?, thong_tin_xu_ly_crm = ?, ngay_ktv_hoan_thanh = ?, thong_tin_giai_trinh_dvbh = ?, giai_trinh_dvbh_json = ?, ngay_thay_doi = ? WHERE id = ?`,
   ).bind(
     lookup.fields.ngay_tiep_nhan_crm,
     lookup.fields.ket_qua_crm,
     lookup.fields.thong_tin_xu_ly_crm,
     lookup.fields.ngay_ktv_hoan_thanh,
     lookup.fields.thong_tin_giai_trinh_dvbh,
+    lookup.fields.giai_trinh_dvbh_json,
     ts,
     id,
   ).run();
@@ -660,13 +674,14 @@ app.post("/dong-bo-cac-ca-ton", requireRole("QL", "Admin"), async (c) => {
     await c.env.DB.prepare("UPDATE khieu_nai SET crm_last_sync_at = ? WHERE id = ?").bind(ts, row.id).run();
     if (lookup.fields) {
       await c.env.DB.prepare(
-        `UPDATE khieu_nai SET ngay_tiep_nhan_crm = ?, ket_qua_crm = ?, thong_tin_xu_ly_crm = ?, ngay_ktv_hoan_thanh = ?, thong_tin_giai_trinh_dvbh = ?, ngay_thay_doi = ? WHERE id = ?`,
+        `UPDATE khieu_nai SET ngay_tiep_nhan_crm = ?, ket_qua_crm = ?, thong_tin_xu_ly_crm = ?, ngay_ktv_hoan_thanh = ?, thong_tin_giai_trinh_dvbh = ?, giai_trinh_dvbh_json = ?, ngay_thay_doi = ? WHERE id = ?`,
       ).bind(
         lookup.fields.ngay_tiep_nhan_crm,
         lookup.fields.ket_qua_crm,
         lookup.fields.thong_tin_xu_ly_crm,
         lookup.fields.ngay_ktv_hoan_thanh,
         lookup.fields.thong_tin_giai_trinh_dvbh,
+        lookup.fields.giai_trinh_dvbh_json,
         ts,
         row.id,
       ).run();
