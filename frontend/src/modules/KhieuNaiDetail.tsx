@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
 import type { AppUser, DanhGia3, KhieuNai, LichSu, TienTrinh } from "../api/types";
 import { fmtVN } from "../lib/formatVN";
+import { mucDoTone, MUC_DO_BG, camCoBorderClass } from "../lib/severity";
 import { useCreateSettingsOption, useSettingsOptions } from "../api/useSettingsOptions";
 import { Btn } from "../components/ui/Btn";
 import { Field, Input, Textarea } from "../components/ui/Input";
@@ -135,14 +136,6 @@ const TILE_TONE: Record<string, string> = {
   red: "bg-red-50 text-red-800 ring-red-200",
   green: "bg-green-50 text-green-800 ring-green-200",
 };
-function mucDoTone(v: string | null): "red" | "amber" | "blue" | "gray" {
-  if (!v) return "gray";
-  if (/nghiêm trọng|gấp/i.test(v)) return "red";
-  if (/trung bình|trung binh/i.test(v)) return "amber";
-  if (/quà tặng|qua tang/i.test(v)) return "blue";
-  return "gray";
-}
-
 function KeyTile({
   label, value, tone = "gray", strong, mono,
 }: {
@@ -325,9 +318,11 @@ export function KhieuNaiDetail({
           ? `Kết luận: ${translateDanhGia(kn.ket_luan_khieu_nai)}`
           : "Chưa có kết quả";
   const tocDo = fmtVN.gioXuLy(kn.ngay_tiep_nhan, isClosed ? kn.ngay_ket_thuc : null);
+  const severityBg = MUC_DO_BG[mucDoTone(kn.muc_do)];
+  const flagBorder = camCoBorderClass(kn.cam_co);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-bg">
+    <div className={`flex h-full min-h-0 flex-col overflow-hidden rounded-lg ${severityBg} ${flagBorder}`}>
       {/* ===== TIÊU ĐỀ: trạng thái · kết quả · tốc độ · nút xử lý ===== */}
       <div className="shrink-0 border-b border-line-strong bg-surface">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2">
@@ -392,7 +387,7 @@ export function KhieuNaiDetail({
       </div>
 
       {/* ===== THÂN: DASHBOARD TRA CỨU (chỉ đọc) — nhập liệu qua nút ===== */}
-      <div className="min-h-0 flex-1 overflow-y-auto bg-bg p-2.5">
+      <div className={`min-h-0 flex-1 overflow-y-auto ${severityBg} p-2.5`}>
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Zone
@@ -1279,6 +1274,8 @@ function useNameMap() {
 }
 
 const LS_LABEL: Record<string, string> = {
+  tao_moi: "Tạo phản ánh",
+  cap_nhat: "Cập nhật thông tin",
   chuyen_trang_thai: "Chuyển trạng thái",
   danh_gia_loi: "Đánh giá nguyên nhân lỗi",
   danh_gia_ql: "Đánh giá QL",

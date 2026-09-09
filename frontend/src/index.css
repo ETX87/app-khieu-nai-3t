@@ -37,3 +37,19 @@ body {
   background: #c7cdd6;
   border-radius: 6px;
 }
+
+/* Cắm cờ: viền toả sáng nhấp nháy đều đặn theo màu cờ (vàng/đỏ). */
+@keyframes flag-glow-red {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(220, 38, 38, 0.25); }
+  50% { box-shadow: 0 0 18px 5px rgba(220, 38, 38, 0.65); }
+}
+@keyframes flag-glow-amber {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(245, 158, 11, 0.25); }
+  50% { box-shadow: 0 0 18px 5px rgba(245, 158, 11, 0.65); }
+}
+.flag-glow-red {
+  animation: flag-glow-red 2.4s ease-in-out infinite;
+}
+.flag-glow-amber {
+  animation: flag-glow-amber 2.4s ease-in-out infinite;
+}

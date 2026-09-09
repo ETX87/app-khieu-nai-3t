@@ -33,6 +33,36 @@ const TN_CSKH_FIELDS = [
 
 const QL_FIELDS = ["danh_gia_ql", "ql_gio_xu_ly", "ql_chon_ngay_hen", "ql_chon_ly_do"];
 
+// Nhan Tieng Viet cho nhat ky "cap nhat" chung (khong bao gom TN_CSKH_FIELDS/danh_gia_ql - da co nhat ky rieng).
+const FIELD_LABELS: Record<string, string> = {
+  ten_khach: "Tên khách hàng", sdt_khach: "Số điện thoại", id_lada: "ID Lada",
+  sale_khu_vuc: "Sale khu vực", tinh: "Tỉnh (cũ)", quan_huyen: "Quận/Huyện (cũ)",
+  phuong_xa: "Phường/Xã (cũ)", tinh_moi: "Tỉnh (mới)", phuong_xa_moi: "Phường/Xã (mới)",
+  model: "Model", hang: "Hãng", thong_tin_ban_dau: "Thông tin ban đầu", nguoi_bao: "Người báo",
+  muc_do: "Mức độ", nhom_yeu_cau: "Nhóm yêu cầu", nhom_van_de: "Nhóm vấn đề",
+  van_de_dau_vao: "Vấn đề đầu vào", phan_loai_kh: "Phân loại KH", ghi_chu_nguoi_tao: "Ghi chú người tạo",
+  id_crm_karofi: "ID CRM Karofi",
+  bo_phan_ban_giao: "Bộ phận bàn giao", ma_duyet_doi_linh_kien: "Mã duyệt đổi linh kiện",
+  cam_co: "Cắm cờ", ghi_chu_ly_do_cham: "Ghi chú lý do chậm", id_lada_phat_sinh: "ID Lada phát sinh",
+  ngay_ghi_nhan_doi_may: "Ngày ghi nhận đổi máy", ngay_dong_doi_may: "Ngày đóng đổi máy",
+  giai_trinh_cham_doi_may: "Giải trình chậm đổi máy", ket_qua_doi_may: "Kết quả đổi máy",
+  nguoi_xac_nhan_doi_may: "Người xác nhận đổi máy",
+  ql_gio_xu_ly: "Giờ xử lý (QL nhập)", ql_chon_ngay_hen: "Ngày hẹn", ql_chon_ly_do: "Lý do",
+};
+
+// Dich vai gia tri enum sang nhan Tieng Viet de nhat ky de doc (khop nhan hien thi ngoai UI).
+const VALUE_LABELS: Record<string, Record<string, string>> = {
+  cam_co: { "Khong co": "Không cờ", "Co vang": "Cờ vàng", "Co do": "Cờ đỏ" },
+  ket_qua_doi_may: {
+    "Khong co": "Không có", "Dang xu ly": "Đang xử lý", "Doi thanh cong": "Đổi thành công",
+    "Huy bo": "Hủy bỏ", "Doi khong thanh cong": "Đổi không thành công",
+  },
+};
+function displayValue(key: string, v: unknown): string {
+  const s = String(v ?? "—");
+  return VALUE_LABELS[key]?.[s] ?? s;
+}
+
 async function generateId(db: D1Database): Promise<string> {
   const vnNow = new Date(Date.now() + 7 * 60 * 60 * 1000);
   const y = vnNow.getUTCFullYear();
@@ -346,6 +376,7 @@ app.post("/", requireRole("CSKH", "KTV", "TN CSKH", "QL", "Admin"), async (c) =>
   const placeholders = cols.map(() => "?").join(", ");
   const values = cols.map((k) => columns[k]);
   await c.env.DB.prepare(`INSERT INTO khieu_nai (${cols.join(", ")}) VALUES (${placeholders})`).bind(...values).run();
+  await logLichSu(c.env.DB, id, user.email, "tao_moi", null, null, null);
 
   const created = await c.env.DB.prepare("SELECT * FROM khieu_nai WHERE id = ?").bind(id).first();
   return c.json({ khieuNai: created, crm_sync_warning }, 201);
@@ -371,9 +402,8 @@ app.patch("/:id", async (c) => {
   if (bodyKeys.length === 0) return c.json({ error: "NO_FIELDS" }, 400);
 
   // Khoa du lieu theo trang thai: ca "Da ket thuc" chi doc (Admin muon sua phai "Mo lai ca" truoc).
-  const cur = await c.env.DB.prepare(
-    "SELECT trang_thai, loi_nha_san_xuat, loi_lap_dat, loi_thai_do_ktv, loi_quy_trinh_nskx, ket_luan_khieu_nai, danh_gia_ql FROM khieu_nai WHERE id = ?",
-  ).bind(id).first<Record<string, string | null>>();
+  // Lay ca dong de vua kiem tra trang thai vua co gia tri cu cho nhat ky "cap nhat" chung.
+  const cur = await c.env.DB.prepare("SELECT * FROM khieu_nai WHERE id = ?").bind(id).first<Record<string, string | null>>();
   if (!cur) return c.json({ error: "NOT_FOUND" }, 404);
   if (cur.trang_thai === "Da ket thuc") return c.json({ error: "CASE_CLOSED" }, 409);
 
@@ -389,11 +419,9 @@ app.patch("/:id", async (c) => {
 
   for (const key of bodyKeys) {
     if (key === "id_crm_karofi") {
-      const existing = await c.env.DB.prepare("SELECT id_crm_karofi FROM khieu_nai WHERE id = ?").bind(id).first<{ id_crm_karofi: string | null }>();
-      if (!existing) return c.json({ error: "NOT_FOUND" }, 404);
       sets.push("id_crm_karofi = ?");
       binds.push(body.id_crm_karofi ?? null);
-      if (body.id_crm_karofi && body.id_crm_karofi !== existing.id_crm_karofi) {
+      if (body.id_crm_karofi && body.id_crm_karofi !== cur.id_crm_karofi) {
         const lookup = await tryLookupCrm(c.env, body.id_crm_karofi);
         crm_sync_warning = lookup.warning;
         if (lookup.fields) {
@@ -424,6 +452,15 @@ app.patch("/:id", async (c) => {
   }
   if ("danh_gia_ql" in body && body.danh_gia_ql != null && String(body.danh_gia_ql).trim() !== "" && body.danh_gia_ql !== cur.danh_gia_ql) {
     await logLichSu(c.env.DB, id!, user.email, "danh_gia_ql", "danh_gia_ql", cur.danh_gia_ql ?? null, String(body.danh_gia_ql));
+  }
+
+  // Nhat ky "cap nhat" chung: cac truong con lai (thong tin khach hang, doi may...) da co gia tri thuc su thay doi,
+  // gop thanh 1 dong nhat ky moi lan luu (thay vi 1 dong moi truong) de danh sach khong bi loang.
+  const SPECIFIC_LOGGED = new Set<string>([...TN_CSKH_FIELDS, "danh_gia_ql"]);
+  const changedGeneric = bodyKeys.filter((k) => !SPECIFIC_LOGGED.has(k) && String(body[k] ?? "") !== String(cur[k] ?? ""));
+  if (changedGeneric.length > 0) {
+    const summary = changedGeneric.map((k) => `${FIELD_LABELS[k] ?? k}: ${displayValue(k, body[k])}`).join("; ");
+    await logLichSu(c.env.DB, id!, user.email, "cap_nhat", changedGeneric.join(","), null, summary);
   }
 
   const updated = await c.env.DB.prepare("SELECT * FROM khieu_nai WHERE id = ?").bind(id).first();

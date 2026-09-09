@@ -15,9 +15,11 @@ export function Textarea({ className = "", ...rest }: TextareaHTMLAttributes<HTM
   return <textarea className={`${FIELD_CLS} ${className}`} {...rest} />;
 }
 
-export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
+export function Field({
+  label, children, hint, className = "block",
+}: { label: string; children: ReactNode; hint?: string; className?: string }) {
   return (
-    <label className="block">
+    <label className={className}>
       <span className="mb-0.5 block text-xs font-medium text-ink-soft">{label}</span>
       {children}
       {hint && <span className="mt-0.5 block text-[11px] leading-tight text-ink-faint">{hint}</span>}
