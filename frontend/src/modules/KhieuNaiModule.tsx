@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "../api/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, ApiError } from "../api/client";
 import type { AppUser, KhieuNai } from "../api/types";
 import { useSettingsOptions } from "../api/useSettingsOptions";
 import { fmtVN } from "../lib/formatVN";
@@ -12,6 +12,7 @@ import { Input } from "../components/ui/Input";
 import { Table, type TableColumn } from "../components/ui/Table";
 import { Badge, StatusBadge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
+import { useToast } from "../components/ui/Toast";
 import { KhieuNaiForm, type KhieuNaiFormHandle, type KhieuNaiFormHeaderState } from "./KhieuNaiForm";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
 import { KhieuNaiCard } from "./KhieuNaiCard";
@@ -104,7 +105,15 @@ function chiBao(r: KhieuNai): { text: string; tone: "amber" | "green" | "red" | 
   return null;
 }
 
-export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initialFilter?: { trang_thai?: string } | null }) {
+export function KhieuNaiModule({
+  user, initialFilter, openDetailRequest,
+}: {
+  user: AppUser;
+  initialFilter?: { trang_thai?: string } | null;
+  // Mo thang 1 don tu chuong thong bao (App.tsx) - object moi moi lan bam nen luon kich hoat lai
+  // duoc ke ca bam trung 1 thong bao 2 lan lien tiep.
+  openDetailRequest?: { id: string } | null;
+}) {
   const [f, setF] = useState<Filters>(loadFilters);
   const [qInput, setQInput] = useState(f.q);
   const [page, setPage] = useState(1);
@@ -115,6 +124,10 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   const [detailId, setDetailId] = useState<string | null>(null);
   const closeDetail = () => setDetailId(null);
 
+  useEffect(() => {
+    if (openDetailRequest?.id) setDetailId(openDetailRequest.id);
+  }, [openDetailRequest]);
+
   const createFormRef = useRef<KhieuNaiFormHandle>(null);
   const [createHeader, setCreateHeader] = useState<KhieuNaiFormHeaderState>({
     missing: [], pendingCount: 0, submitting: false, panelClassName: "bg-surface",
@@ -124,6 +137,34 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
 
   const canCreate = !!user.vai_tro && user.vai_tro !== "Viewer";
+  // Chot hang loat (item 2026-09): QL/Admin chon nhieu don DA co danh gia QL rieng tung don -> chot
+  // 1 lan (backend van chay lai dung dieu kien nhu chot don le cho tung id).
+  const canBulkChot = user.vai_tro === "QL" || user.vai_tro === "Admin";
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const bulkChot = useMutation({
+    mutationFn: (ids: string[]) =>
+      api.post<{ results: { id: string; ok: boolean; error?: string }[] }>("/khieu-nai/chot-hang-loat", { ids }),
+    onSuccess: (data) => {
+      const okCount = data.results.filter((r) => r.ok).length;
+      const failCount = data.results.length - okCount;
+      showToast(
+        failCount === 0 ? `Đã chốt ${okCount} đơn` : `Đã chốt ${okCount} đơn, ${failCount} đơn lỗi (đã đổi trạng thái?)`,
+        failCount === 0 ? "success" : "error",
+      );
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["khieu-nai"] });
+    },
+    onError: (e) => showToast(e instanceof ApiError ? `Chốt hàng loạt thất bại: ${e.code}` : "Chốt hàng loạt thất bại", "error"),
+  });
 
   const set = <K extends keyof Filters>(k: K, v: Filters[K]) => {
     setF((p) => ({ ...p, [k]: v }));
@@ -141,6 +182,11 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   useEffect(() => {
     try { localStorage.setItem(FILTER_KEY, JSON.stringify(f)); } catch { /* ignore */ }
   }, [f]);
+
+  // Doi bo loc/trang -> danh sach hien thi doi hoan toan, bo chon cu khong con nhin thay duoc nua.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [f, page]);
 
   const [sortField, sortDir] = f.sort.split("|");
 
@@ -180,6 +226,28 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   };
 
   const columns: TableColumn<KhieuNai>[] = [
+    ...(canBulkChot
+      ? [
+          {
+            key: "chon",
+            header: "",
+            className: "w-8",
+            render: (r: KhieuNai) => {
+              const eligible = r.trang_thai === "Cho chot ket thuc" && !!r.danh_gia_ql && r.danh_gia_ql.trim() !== "";
+              if (!eligible) return null;
+              return (
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(r.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={() => toggleSelect(r.id)}
+                  title="Chọn để chốt hàng loạt"
+                />
+              );
+            },
+          } satisfies TableColumn<KhieuNai>,
+        ]
+      : []),
     {
       key: "id",
       header: "Mã · Model · Lada",
@@ -356,6 +424,23 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
             </select>
           </div>
         </form>
+
+        {canBulkChot && selectedIds.size > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-accent/30 bg-accent-soft px-3 py-2 text-sm">
+            <span className="font-medium text-ink">Đã chọn {selectedIds.size} đơn</span>
+            <Btn
+              size="sm"
+              variant="primary"
+              disabled={bulkChot.isPending}
+              onClick={() => bulkChot.mutate([...selectedIds])}
+            >
+              {bulkChot.isPending ? "Đang chốt..." : "Chốt hàng loạt"}
+            </Btn>
+            <button type="button" className="text-xs text-ink-soft hover:underline" onClick={() => setSelectedIds(new Set())}>
+              Bỏ chọn
+            </button>
+          </div>
+        )}
 
         {query.isLoading && <p className="py-8 text-center text-sm text-ink-soft">Đang tải...</p>}
         {query.isError && <p className="py-8 text-center text-sm text-red-600">Không thể tải dữ liệu.</p>}

@@ -391,14 +391,17 @@ export function KhieuNaiDetail({
 
   const isClosed = kn.trang_thai === "Da ket thuc";
   const chuaTiepNhan = kn.trang_thai === "Cho tiep nhan";
-  const isCskh = (user.vai_tro === "CSKH" || user.vai_tro === "Admin") && !isClosed && !overdue && !chuaTiepNhan;
+  // TN CSKH/QL duoc mo rong full quyen nhu CSKH tu 2026-09 (danh gia + dong ca + tiep nhan) - xem
+  // backend/src/routes/khieuNai.ts (PATCH /:id allowed-fields, POST /:id/tiep-nhan requireRole).
+  const isCskh =
+    ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed && !overdue && !chuaTiepNhan;
   const isQl = (user.vai_tro === "QL" || user.vai_tro === "Admin") && !isClosed && !overdue && !chuaTiepNhan;
-  const canDanhGia4Loi = isCskh || (user.vai_tro === "TN CSKH" && !isClosed && !overdue && !chuaTiepNhan) || isQl;
+  const canDanhGia4Loi = isCskh;
   const canXuLyDoiMay = canDanhGia4Loi;
   const canThemTienTrinh = ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed && !chuaTiepNhan;
   const canPhuTrach =
     ["CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed && !chuaTiepNhan;
-  const canTiepNhan = (user.vai_tro === "CSKH" || user.vai_tro === "Admin") && chuaTiepNhan;
+  const canTiepNhan = ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && chuaTiepNhan;
 
   const copyId = () => {
     navigator.clipboard?.writeText(kn.id).then(
@@ -453,19 +456,15 @@ export function KhieuNaiDetail({
   // nhieu dai mau rieng chiem het chieu cao header nhu truoc.
   const warnings: WarnItem[] = [];
   if (chuaTiepNhan) {
+    // Nut "Tiep nhan" thuc su nam luon ngoai tieu de (ml-auto, canh ActionBar - xem ben duoi) de de
+    // thay hon thay vi chi hien sau khi bam mo WarningBell; o day chi giu dong thong tin ly do khoa.
     warnings.push({
       tone: "red",
       content: (
-        <div className="flex flex-col gap-1.5">
-          <span>
-            <span className="font-semibold">⚠ Chờ tiếp nhận</span> — phản ánh chưa được sửa/cập nhật cho đến khi CSKH bấm tiếp nhận.
-          </span>
-          {canTiepNhan ? (
-            <TiepNhanButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />
-          ) : (
-            <span className="italic text-red-800">Đang chờ CSKH tiếp nhận…</span>
-          )}
-        </div>
+        <span>
+          <span className="font-semibold">⚠ Chờ tiếp nhận</span> — phản ánh chưa được sửa/cập nhật cho đến khi được tiếp nhận.
+          {!canTiepNhan && <span className="italic text-red-800"> Đang chờ CSKH/TN CSKH/QL tiếp nhận…</span>}
+        </span>
       ),
     });
   }
@@ -534,6 +533,7 @@ export function KhieuNaiDetail({
           </span>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <WarningBell warnings={warnings} />
+            {canTiepNhan && <TiepNhanButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />}
             <ActionBar kn={kn} user={user} onDone={invalidate} onError={(m) => showToast(m, "error")} />
             <button
               type="button"

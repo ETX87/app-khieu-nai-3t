@@ -13,6 +13,10 @@
     "BOOTSTRAP_ADMIN_EMAIL": "smarttrade.vp@gmail.com",
     "GOOGLE_REDIRECT_URI": "https://tiepnhan.dichvu3t.workers.dev/api/auth/callback",
     "FRONTEND_URL": "https://tiepnhan.dichvu3t.workers.dev",
-    "DVBH_API_BASE": "https://dvbh.dichvu3t.workers.dev"
+    "DVBH_API_BASE": "https://dvbh.dichvu3t.workers.dev",
+    // Chuong thong bao (Web Push) - public var an toan de commit; private key la secret rieng
+    // (wrangler secret put VAPID_SERVER_PRIVATE_KEY), xem backend/src/lib/webPush.ts.
+    "VAPID_SUBJECT": "mailto:smarttrade.vp@gmail.com",
+    "VAPID_SERVER_PUBLIC_KEY": "BNb-Kn7OehFHI9VhDrisdJY6xoJ92EjrYp4-24TMo493zWY1L6lQmDFJXAizfz_dKCQoZGIhEFy2rWJyGzM5yqc"
   }
 }

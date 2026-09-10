@@ -5,6 +5,7 @@ import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
 import { nowVN } from "../lib/vnTime";
 import { lookupDvbhCase, formatGiaiTrinhHistory } from "../lib/dvbhClient";
+import { notifyRoles } from "../lib/notify";
 
 const app = new Hono<{ Bindings: Env }>();
 app.use("*", verifySessionMiddleware, loadUser);
@@ -747,10 +748,11 @@ app.post("/", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "Q
   const user = c.get("user");
   const body = await c.req.json();
   const ts = nowVN();
-  // CSKH/Admin tu tao phan anh thi coi nhu da tiep nhan luon; cac vai tro con lai (NV Sale, Tong dai
-  // vien, TN CSKH, QL) tao ho khach hang -> phai cho CSKH bam "Tiep nhan" (POST /:id/tiep-nhan) truoc
-  // khi phan anh duoc phep sua/cap nhat.
-  const autoReceived = user.vai_tro === "CSKH" || user.vai_tro === "Admin";
+  // CSKH/TN CSKH/QL/Admin tu tao phan anh thi coi nhu da tiep nhan luon (ca 3 vai tro nay deu co
+  // quyen tu tiep nhan tu 2026-09); rieng NV Sale/Tong dai vien tao ho khach hang -> phai cho
+  // CSKH/TN CSKH/QL bam "Tiep nhan" (POST /:id/tiep-nhan) truoc khi phan anh duoc phep sua/cap nhat.
+  const autoReceived =
+    user.vai_tro === "CSKH" || user.vai_tro === "TN CSKH" || user.vai_tro === "QL" || user.vai_tro === "Admin";
 
   let crmFields: CrmFields | null = null;
   let crm_sync_warning: string | undefined;
@@ -816,13 +818,21 @@ app.post("/", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "Q
   }
   await logLichSu(c.env.DB, id, user.email, "tao_moi", null, null, null);
 
+  if (!autoReceived) {
+    const ten = typeof body.ten_khach === "string" && body.ten_khach ? body.ten_khach : "Khách hàng";
+    c.executionCtx.waitUntil(
+      notifyRoles(c.env, "cho_tiep_nhan", `${id} — ${ten} cần tiếp nhận`, id, ["CSKH", "TN CSKH", "QL"]),
+    );
+  }
+
   const created = await c.env.DB.prepare("SELECT * FROM khieu_nai WHERE id = ?").bind(id).first();
   return c.json({ khieuNai: created, crm_sync_warning }, 201);
 });
 
-// CSKH bam "Tiep nhan" cho cac phan anh do NV Sale/Tong dai vien/TN CSKH/QL tao ho khach hang - day
-// la dieu kien bat buoc de mo khoa sua/cap nhat phan anh (yeu cau nghiep vu 2026-09).
-app.post("/:id/tiep-nhan", requireRole("CSKH", "Admin"), async (c) => {
+// CSKH/TN CSKH/QL bam "Tiep nhan" cho cac phan anh do NV Sale/Tong dai vien tao ho khach hang - day
+// la dieu kien bat buoc de mo khoa sua/cap nhat phan anh (yeu cau nghiep vu 2026-09). TN CSKH/QL duoc
+// mo rong tu tiep nhan duoc ca cua chinh minh tu 2026-09 (full quyen nhu CSKH).
+app.post("/:id/tiep-nhan", requireRole("CSKH", "TN CSKH", "QL", "Admin"), async (c) => {
   const id = c.req.param("id");
   const user = c.get("user");
   const row = await c.env.DB.prepare("SELECT trang_thai FROM khieu_nai WHERE id = ?").bind(id).first<{ trang_thai: string }>();
@@ -849,8 +859,10 @@ app.patch("/:id", async (c) => {
     [...CSKH_FIELDS, ...DOI_MAY_FIELDS, ...TN_CSKH_FIELDS, ...QL_FIELDS].forEach((f) => allowed.add(f));
   } else {
     if (user.vai_tro === "CSKH") [...CSKH_FIELDS, ...DOI_MAY_FIELDS, ...TN_CSKH_FIELDS].forEach((f) => allowed.add(f));
-    if (user.vai_tro === "TN CSKH") [...TN_CSKH_FIELDS, ...DOI_MAY_FIELDS].forEach((f) => allowed.add(f));
-    if (user.vai_tro === "QL") [...QL_FIELDS, ...DOI_MAY_FIELDS, ...TN_CSKH_FIELDS].forEach((f) => allowed.add(f));
+    // TN CSKH: full quyen nhu CSKH + danh gia loi/dong ca (yeu cau ra soat vai tro 2026-09).
+    if (user.vai_tro === "TN CSKH") [...CSKH_FIELDS, ...TN_CSKH_FIELDS, ...DOI_MAY_FIELDS].forEach((f) => allowed.add(f));
+    // QL: full quyen nhu TN CSKH + rieng QL_FIELDS (danh gia QL / chot cuoi).
+    if (user.vai_tro === "QL") [...CSKH_FIELDS, ...TN_CSKH_FIELDS, ...DOI_MAY_FIELDS, ...QL_FIELDS].forEach((f) => allowed.add(f));
   }
 
   const bodyKeys = Object.keys(body);
@@ -929,12 +941,12 @@ app.patch("/:id", async (c) => {
   return c.json({ khieuNai: updated, crm_sync_warning });
 });
 
-app.post("/:id/dong-ca", requireRole("TN CSKH", "Admin"), async (c) => {
+app.post("/:id/dong-ca", requireRole("TN CSKH", "QL", "Admin"), async (c) => {
   const id = c.req.param("id");
   const row = await c.env.DB.prepare(
-    "SELECT trang_thai, loi_nha_san_xuat, loi_lap_dat, loi_thai_do_ktv, loi_quy_trinh_nskx, ket_luan_khieu_nai FROM khieu_nai WHERE id = ?",
+    "SELECT trang_thai, ten_khach, loi_nha_san_xuat, loi_lap_dat, loi_thai_do_ktv, loi_quy_trinh_nskx, ket_luan_khieu_nai FROM khieu_nai WHERE id = ?",
   ).bind(id).first<{
-    trang_thai: string; loi_nha_san_xuat: string; loi_lap_dat: string; loi_thai_do_ktv: string;
+    trang_thai: string; ten_khach: string | null; loi_nha_san_xuat: string; loi_lap_dat: string; loi_thai_do_ktv: string;
     loi_quy_trinh_nskx: string; ket_luan_khieu_nai: string;
   }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
@@ -954,6 +966,10 @@ app.post("/:id/dong-ca", requireRole("TN CSKH", "Admin"), async (c) => {
     "UPDATE khieu_nai SET trang_thai = 'Cho chot ket thuc', ngay_ket_thuc = ?, nguoi_ket_thuc = ?, ngay_thay_doi = ? WHERE id = ?",
   ).bind(ts, user.email, ts, id).run();
   await logLichSu(c.env.DB, id!, user.email, "chuyen_trang_thai", "trang_thai", "Dang xu ly", "Cho chot ket thuc");
+
+  c.executionCtx.waitUntil(
+    notifyRoles(c.env, "cho_chot", `${id} — ${row.ten_khach ?? "Khách hàng"} chờ chốt kết thúc`, id!, ["QL"]),
+  );
 
   return c.json({ ok: true });
 });
@@ -981,6 +997,39 @@ app.post("/:id/chot", requireRole("QL", "Admin"), async (c) => {
   await logLichSu(c.env.DB, id!, user.email, "chuyen_trang_thai", "trang_thai", "Cho chot ket thuc", "Da ket thuc");
 
   return c.json({ ok: true });
+});
+
+// Chot hang loat: chi chot cac don DA co danh gia QL rieng tung don (khong nhan danh gia chung ap
+// dung hang loat - yeu cau ra soat 2026-09) - moi id chay lai dung logic nhu "/:id/chot" don le, loi
+// 1 id khong lam hong cac id con lai (tra ve ket qua tung id de frontend hien thi).
+app.post("/chot-hang-loat", requireRole("QL", "Admin"), async (c) => {
+  const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+  const ids = Array.isArray(body.ids) ? body.ids.filter((x: unknown): x is string => typeof x === "string") : [];
+  if (ids.length === 0) return c.json({ error: "CAN_DANH_SACH_ID" }, 400);
+
+  const user = c.get("user");
+  const results: { id: string; ok: boolean; error?: string }[] = [];
+
+  for (const id of ids) {
+    const row = await c.env.DB.prepare(
+      "SELECT trang_thai, danh_gia_ql, ngay_tiep_nhan, ngay_ket_thuc FROM khieu_nai WHERE id = ?",
+    ).bind(id).first<{ trang_thai: string; danh_gia_ql: string | null; ngay_tiep_nhan: string; ngay_ket_thuc: string | null }>();
+    if (!row) { results.push({ id, ok: false, error: "NOT_FOUND" }); continue; }
+    if (row.trang_thai !== "Cho chot ket thuc") { results.push({ id, ok: false, error: "INVALID_STATE" }); continue; }
+    const giaiTrinhStatus = await getGiaiTrinhStatus(c.env.DB, id);
+    if (giaiTrinhStatus?.overdue) { results.push({ id, ok: false, error: "QUA_HAN_GIAI_TRINH" }); continue; }
+    if (!row.danh_gia_ql || row.danh_gia_ql.trim() === "") { results.push({ id, ok: false, error: "CAN_DANH_GIA_QL" }); continue; }
+
+    const ts = nowVN();
+    const gio = gioXuLyHeThong(row.ngay_tiep_nhan, row.ngay_ket_thuc);
+    await c.env.DB.prepare(
+      "UPDATE khieu_nai SET trang_thai = 'Da ket thuc', ql_nguoi_danh_gia = ?, ngay_ql_danh_gia = ?, ql_gio_xu_ly_he_thong = ?, ngay_thay_doi = ? WHERE id = ?",
+    ).bind(user.email, ts, gio, ts, id).run();
+    await logLichSu(c.env.DB, id, user.email, "chuyen_trang_thai", "trang_thai", "Cho chot ket thuc", "Da ket thuc");
+    results.push({ id, ok: true });
+  }
+
+  return c.json({ results });
 });
 
 app.post("/:id/mo-lai", requireRole("Admin"), async (c) => {

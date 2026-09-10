@@ -30,6 +30,11 @@ export interface Env {
   // của "tra cứu ID CRM luôn lỗi" (2026-09-09), không phải do API key.
   DVBH_SERVICE: Fetcher;
   LOCAL_DEV_BYPASS_AUTH?: string;
+  // Web Push (chuong thong bao 2026-09) - VAPID_SUBJECT/PUBLIC la var thuong (khong nhay cam),
+  // VAPID_SERVER_PRIVATE_KEY la secret (wrangler secret put), xem lib/webPush.ts.
+  VAPID_SUBJECT: string;
+  VAPID_SERVER_PUBLIC_KEY: string;
+  VAPID_SERVER_PRIVATE_KEY: string;
 }
 
 // Registers the keys set via c.set()/read via c.get() across middleware so that

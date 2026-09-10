@@ -4,6 +4,7 @@ import { SessionExpiredOverlay } from "./auth/SessionExpiredOverlay";
 import { LoginScreen } from "./login/LoginScreen";
 import { Sidebar } from "./layout/Sidebar";
 import { BottomNav } from "./layout/BottomNav";
+import { NotificationBell } from "./layout/NotificationBell";
 import { ROLE_MODULES, DEFAULT_MODULES, type ModuleKey } from "./layout/navConfig";
 import { HomeModule } from "./modules/HomeModule";
 import { KhieuNaiModule } from "./modules/KhieuNaiModule";
@@ -25,6 +26,9 @@ function MainApp({ user }: { user: AppUser }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Bộ lọc khởi tạo cho màn Phản ánh khi mở từ KPI Trang chủ. Đổi tham chiếu mỗi lần điều hướng.
   const [listFilter, setListFilter] = useState<{ trang_thai?: string } | null>(null);
+  // Mo thang 1 don cu the tu chuong thong bao - object moi moi lan bam de useEffect trong
+  // KhieuNaiModule luon nhan biet duoc kich hoat lai (ke ca bam trung 1 thong bao 2 lan lien tiep).
+  const [openDetailRequest, setOpenDetailRequest] = useState<{ id: string } | null>(null);
 
   useEffect(() => {
     if (!modules.includes(active)) {
@@ -43,6 +47,11 @@ function MainApp({ user }: { user: AppUser }) {
     selectModule("khieu-nai");
   };
 
+  const openDetail = (id: string) => {
+    setOpenDetailRequest({ id });
+    selectModule("khieu-nai");
+  };
+
   return (
     <div className="flex min-h-screen bg-bg">
       <Sidebar
@@ -52,17 +61,23 @@ function MainApp({ user }: { user: AppUser }) {
         user={user}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onOpenDetail={openDetail}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3 md:hidden">
           <img src="/icon-192.png" alt="3T" className="h-7 w-7 shrink-0 rounded-lg" />
           <span className="text-sm font-bold text-ink">3T</span>
+          <div className="ml-auto">
+            <NotificationBell onOpenDetail={openDetail} />
+          </div>
         </header>
         <main className="min-w-0 flex-1 overflow-y-auto p-4 pb-20 sm:p-6 md:pb-6">
           {active === "trang-chu" && (
             <HomeModule user={user} onOpenList={openList} onOpenModule={selectModule} />
           )}
-          {active === "khieu-nai" && <KhieuNaiModule user={user} initialFilter={listFilter} />}
+          {active === "khieu-nai" && (
+            <KhieuNaiModule user={user} initialFilter={listFilter} openDetailRequest={openDetailRequest} />
+          )}
           {active === "bao-cao" && <BaoCaoModule user={user} />}
           {active === "settings" && user.vai_tro === "Admin" && <SettingsModule />}
           {active === "users" && user.vai_tro === "Admin" && <UsersModule user={user} />}

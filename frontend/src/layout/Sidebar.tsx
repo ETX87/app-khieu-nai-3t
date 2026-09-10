@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import type { AppUser } from "../api/types";
 import { MODULE_LABELS, NAV_GROUPS, type ModuleKey } from "./navConfig";
 import { NAV_ICONS } from "./BottomNav";
+import { NotificationBell } from "./NotificationBell";
 import { APP_VERSION } from "../version";
 
 interface SidebarProps {
@@ -12,6 +13,7 @@ interface SidebarProps {
   user: AppUser;
   open: boolean;
   onClose: () => void;
+  onOpenDetail: (id: string) => void;
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -56,7 +58,7 @@ const ChevronIcon = ({ flipped }: { flipped: boolean }) => (
   </svg>
 );
 
-export function Sidebar({ modules, active, onSelect, user, open, onClose }: SidebarProps) {
+export function Sidebar({ modules, active, onSelect, user, open, onClose, onOpenDetail }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(COLLAPSED_KEY) === "1";
@@ -111,6 +113,9 @@ export function Sidebar({ modules, active, onSelect, user, open, onClose }: Side
           <div className={`min-w-0 flex-1 ${collapsed ? "md:hidden" : ""}`}>
             <h1 className="truncate text-sm font-bold text-ink">Tiếp nhận phản ánh 3T</h1>
             <p className="truncate text-xs text-ink-soft">Tiếp nhận · Xử lý · Đồng hành</p>
+          </div>
+          <div className="hidden shrink-0 md:block">
+            <NotificationBell onOpenDetail={onOpenDetail} />
           </div>
           <button
             onClick={onClose}
