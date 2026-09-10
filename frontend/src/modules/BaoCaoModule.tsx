@@ -48,6 +48,26 @@ interface TrungLapReport {
   tong_tai_phat_7_ngay: number;
 }
 
+interface ChotLoiGroup {
+  key: string;
+  so_ca: number;
+  so_loi_nsx: number;
+  so_loi_lap_dat: number;
+  so_loi_thai_do_ktv: number;
+  so_loi_quy_trinh_nskx: number;
+  ca_co_loi: number;
+  ty_le_loi: number;
+}
+interface ChotLoiReport {
+  tong: ChotLoiGroup;
+  theo_thang: ChotLoiGroup[];
+  theo_tinh: ChotLoiGroup[];
+  theo_nhom_yeu_cau: ChotLoiGroup[];
+  theo_nhom_van_de: ChotLoiGroup[];
+  theo_nguon_tao: ChotLoiGroup[];
+  theo_nguoi_tao: ChotLoiGroup[];
+}
+
 function SlaBar({ b, max }: { b: SlaBucket; max: number }) {
   const total = b.da_ket_thuc + b.dang_xu_ly;
   const donePct = max > 0 ? (b.da_ket_thuc / max) * 100 : 0;
@@ -62,6 +82,34 @@ function SlaBar({ b, max }: { b: SlaBucket; max: number }) {
         <div className="h-2.5 bg-green-500" style={{ width: `${donePct}%` }} title={`Đã kết thúc: ${b.da_ket_thuc}`} />
         <div className="h-2.5 bg-amber-400" style={{ width: `${openPct}%` }} title={`Đang xử lý: ${b.dang_xu_ly}`} />
       </div>
+    </div>
+  );
+}
+
+function ChotLoiRowView({ g }: { g: ChotLoiGroup }) {
+  const rateCls = g.ca_co_loi === 0 ? "text-ink-faint" : g.ty_le_loi >= 50 ? "text-red-600" : "text-amber-600";
+  return (
+    <div className="flex items-center justify-between gap-2 py-1 text-xs">
+      <span className="min-w-0 flex-1 truncate text-ink-soft" title={g.key}>{g.key}</span>
+      <span className="shrink-0 text-ink">{g.so_ca} ca</span>
+      <span className={`shrink-0 w-16 text-right font-medium ${rateCls}`}>
+        {g.ca_co_loi > 0 ? `${g.ty_le_loi}% lỗi` : "—"}
+      </span>
+    </div>
+  );
+}
+
+function ChotLoiMiniTable({ title, rows }: { title: string; rows: ChotLoiGroup[] }) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-faint">{title}</p>
+      {rows.length === 0 ? (
+        <p className="text-xs text-ink-faint">—</p>
+      ) : (
+        <div className="divide-y divide-line">
+          {rows.map((g) => <ChotLoiRowView key={g.key} g={g} />)}
+        </div>
+      )}
     </div>
   );
 }
@@ -82,6 +130,10 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
   const trungLapQuery = useQuery({
     queryKey: ["bao-cao-trung-lap", tuNgay, denNgay],
     queryFn: () => api.get<TrungLapReport>(`/khieu-nai/bao-cao/trung-lap?${qs.toString()}`),
+  });
+  const chotLoiQuery = useQuery({
+    queryKey: ["bao-cao-chot-loi", tuNgay, denNgay],
+    queryFn: () => api.get<ChotLoiReport>(`/khieu-nai/bao-cao/chot-loi?${qs.toString()}`),
   });
 
   const sla = slaQuery.data;
@@ -150,6 +202,42 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         )}
       </Card>
 
+      <Card title="Chốt lỗi">
+        {chotLoiQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
+        {chotLoiQuery.data && (
+          <>
+            <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-ink-soft">
+              <span>Đã chốt: <b className="text-ink">{chotLoiQuery.data.tong.so_ca}</b> ca</span>
+              <span>
+                Có lỗi: <b className="text-ink">{chotLoiQuery.data.tong.ca_co_loi}</b> ca (
+                <b className={chotLoiQuery.data.tong.ty_le_loi >= 50 ? "text-red-600" : "text-ink"}>
+                  {chotLoiQuery.data.tong.ty_le_loi}%
+                </b>
+                )
+              </span>
+              <span className="flex flex-wrap items-center gap-1.5">
+                <Badge tone="gray">NSX {chotLoiQuery.data.tong.so_loi_nsx}</Badge>
+                <Badge tone="gray">Lắp đặt {chotLoiQuery.data.tong.so_loi_lap_dat}</Badge>
+                <Badge tone="gray">Thái độ KTV {chotLoiQuery.data.tong.so_loi_thai_do_ktv}</Badge>
+                <Badge tone="gray">Quy trình NSKX {chotLoiQuery.data.tong.so_loi_quy_trinh_nskx}</Badge>
+              </span>
+            </div>
+            {chotLoiQuery.data.tong.so_ca === 0 ? (
+              <p className="py-4 text-center text-sm text-ink-soft">Chưa có ca nào được chốt kết luận trong khoảng lọc này.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 border-t border-line pt-3 md:grid-cols-2">
+                <ChotLoiMiniTable title="Theo tháng (đóng ca)" rows={chotLoiQuery.data.theo_thang.slice(0, 12)} />
+                <ChotLoiMiniTable title="Theo tỉnh" rows={chotLoiQuery.data.theo_tinh} />
+                <ChotLoiMiniTable title="Theo nhóm yêu cầu" rows={chotLoiQuery.data.theo_nhom_yeu_cau} />
+                <ChotLoiMiniTable title="Theo nhóm vấn đề" rows={chotLoiQuery.data.theo_nhom_van_de} />
+                <ChotLoiMiniTable title="Theo nguồn tạo" rows={chotLoiQuery.data.theo_nguon_tao} />
+                <ChotLoiMiniTable title="Theo người tạo" rows={chotLoiQuery.data.theo_nguoi_tao} />
+              </div>
+            )}
+          </>
+        )}
+      </Card>
+
       <Card
         title="Ca trùng lặp / tái phát theo ID Lada"
         actions={
@@ -207,7 +295,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
             user={user}
             onClose={() => setDetailId(null)}
             onNavigate={setDetailId}
-            onChanged={() => { slaQuery.refetch(); trungLapQuery.refetch(); }}
+            onChanged={() => { slaQuery.refetch(); trungLapQuery.refetch(); chotLoiQuery.refetch(); }}
           />
         )}
       </Modal>

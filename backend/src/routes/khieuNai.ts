@@ -569,6 +569,106 @@ app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
   });
 });
 
+interface ChotLoiRow {
+  ngay_ket_thuc: string | null;
+  tinh: string | null;
+  tinh_moi: string | null;
+  nhom_yeu_cau: string | null;
+  nhom_van_de: string | null;
+  nguoi_tao: string | null;
+  loi_nha_san_xuat: string;
+  loi_lap_dat: string;
+  loi_thai_do_ktv: string;
+  loi_quy_trinh_nskx: string;
+}
+interface ChotLoiAgg {
+  key: string;
+  so_ca: number;
+  so_loi_nsx: number;
+  so_loi_lap_dat: number;
+  so_loi_thai_do_ktv: number;
+  so_loi_quy_trinh_nskx: number;
+  ca_co_loi: number;
+}
+function newChotLoiAgg(key: string): ChotLoiAgg {
+  return { key, so_ca: 0, so_loi_nsx: 0, so_loi_lap_dat: 0, so_loi_thai_do_ktv: 0, so_loi_quy_trinh_nskx: 0, ca_co_loi: 0 };
+}
+function applyChotLoiRow(g: ChotLoiAgg, r: ChotLoiRow) {
+  g.so_ca++;
+  const isNsx = r.loi_nha_san_xuat === "Co";
+  const isLapDat = r.loi_lap_dat === "Co";
+  const isThaiDo = r.loi_thai_do_ktv === "Co";
+  const isQuyTrinh = r.loi_quy_trinh_nskx === "Co";
+  if (isNsx) g.so_loi_nsx++;
+  if (isLapDat) g.so_loi_lap_dat++;
+  if (isThaiDo) g.so_loi_thai_do_ktv++;
+  if (isQuyTrinh) g.so_loi_quy_trinh_nskx++;
+  if (isNsx || isLapDat || isThaiDo || isQuyTrinh) g.ca_co_loi++;
+}
+function bumpChotLoi(map: Map<string, ChotLoiAgg>, key: string, r: ChotLoiRow) {
+  const g = map.get(key) ?? newChotLoiAgg(key);
+  applyChotLoiRow(g, r);
+  map.set(key, g);
+}
+function finalizeChotLoi(g: ChotLoiAgg) {
+  return { ...g, ty_le_loi: g.so_ca > 0 ? Math.round((g.ca_co_loi / g.so_ca) * 1000) / 10 : 0 };
+}
+
+// Bao cao "chot loi": tren tap ca DA CO KET LUAN (ket_luan_khieu_nai != 'Chua danh gia') trong
+// khoang tu_ngay/den_ngay (loc theo ngay_ket_thuc - ngay dong ca). "So ca" khac "so loi" vi 1 ca
+// co the dinh dong thoi nhieu trong 4 loai loi. "Ty le loi" = ca co it nhat 1 trong 4 co = "Co" /
+// tong so ca da chot (theo xac nhan cua nguoi dung, khong tinh ca "Chua danh gia").
+app.get("/bao-cao/chot-loi", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
+  const tuNgay = c.req.query("tu_ngay");
+  const denNgay = c.req.query("den_ngay");
+  const conditions: string[] = ["ket_luan_khieu_nai IS NOT NULL", "ket_luan_khieu_nai != 'Chua danh gia'"];
+  const binds: unknown[] = [];
+  if (tuNgay) { conditions.push("ngay_ket_thuc >= ?"); binds.push(`${tuNgay} 00:00:00`); }
+  if (denNgay) { conditions.push("ngay_ket_thuc <= ?"); binds.push(`${denNgay} 23:59:59`); }
+
+  // LIMIT phong ho giong cac bao cao khac (xem giai thich o /bao-cao/sla).
+  const [{ results }, { results: userRows }] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT ngay_ket_thuc, tinh, tinh_moi, nhom_yeu_cau, nhom_van_de, nguoi_tao,
+              loi_nha_san_xuat, loi_lap_dat, loi_thai_do_ktv, loi_quy_trinh_nskx
+       FROM khieu_nai WHERE ${conditions.join(" AND ")} LIMIT 20000`,
+    ).bind(...binds).all<ChotLoiRow>(),
+    c.env.DB.prepare("SELECT email, ten, vai_tro FROM users").all<{ email: string; ten: string | null; vai_tro: string | null }>(),
+  ]);
+  const userMap = new Map(userRows.map((u) => [u.email, u]));
+
+  const tong = newChotLoiAgg("Tổng");
+  const theoThang = new Map<string, ChotLoiAgg>();
+  const theoTinh = new Map<string, ChotLoiAgg>();
+  const theoNhomYeuCau = new Map<string, ChotLoiAgg>();
+  const theoNhomVanDe = new Map<string, ChotLoiAgg>();
+  const theoNguonTao = new Map<string, ChotLoiAgg>();
+  const theoNguoiTao = new Map<string, ChotLoiAgg>();
+
+  for (const r of results) {
+    applyChotLoiRow(tong, r);
+    const thang = r.ngay_ket_thuc ? r.ngay_ket_thuc.slice(0, 7) : "Không rõ";
+    bumpChotLoi(theoThang, thang, r);
+    bumpChotLoi(theoTinh, r.tinh_moi || r.tinh || "Không rõ", r);
+    bumpChotLoi(theoNhomYeuCau, r.nhom_yeu_cau || "Không rõ", r);
+    bumpChotLoi(theoNhomVanDe, r.nhom_van_de || "Không rõ", r);
+    const u = r.nguoi_tao ? userMap.get(r.nguoi_tao) : undefined;
+    bumpChotLoi(theoNguonTao, u?.vai_tro || "Không rõ", r);
+    bumpChotLoi(theoNguoiTao, r.nguoi_tao ? (u?.ten || r.nguoi_tao) : "Không rõ", r);
+  }
+
+  const sortDesc = (a: ChotLoiAgg, b: ChotLoiAgg) => b.so_ca - a.so_ca;
+  return c.json({
+    tong: finalizeChotLoi(tong),
+    theo_thang: [...theoThang.values()].sort((a, b) => b.key.localeCompare(a.key)).map(finalizeChotLoi),
+    theo_tinh: [...theoTinh.values()].sort(sortDesc).map(finalizeChotLoi),
+    theo_nhom_yeu_cau: [...theoNhomYeuCau.values()].sort(sortDesc).map(finalizeChotLoi),
+    theo_nhom_van_de: [...theoNhomVanDe.values()].sort(sortDesc).map(finalizeChotLoi),
+    theo_nguon_tao: [...theoNguonTao.values()].sort(sortDesc).map(finalizeChotLoi),
+    theo_nguoi_tao: [...theoNguoiTao.values()].sort(sortDesc).slice(0, 20).map(finalizeChotLoi),
+  });
+});
+
 interface RelatedSeed {
   id_crm_karofi: string | null;
   id_lada: string | null;
