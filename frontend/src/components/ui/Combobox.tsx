@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import type { SelectOption } from "./Select";
 
 interface ComboboxProps {
@@ -32,7 +33,12 @@ export function Combobox({
   const [creating, setCreating] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const listboxId = useId();
+  // Danh sach dropdown portal ra document.body (item: sua bug bi cac khung overflow-y-auto ben
+  // ngoai - vd EditDialog, Modal - cat mat khi Combobox nam gan day khung cuon). Vi tri tinh lai
+  // theo input moi lan mo + khi cuon/resize de bam sat dung o.
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   // Chặn onBlur xử lý lại khi vừa chọn xong bằng Enter/Tab/click.
   const justCommitted = useRef(false);
 
@@ -77,12 +83,32 @@ export function Combobox({
 
   useEffect(() => {
     function onDocPointer(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) commitAndClose();
+      const t = e.target as Node;
+      const inRoot = !!rootRef.current?.contains(t);
+      const inList = !!listRef.current?.contains(t);
+      if (!inRoot && !inList) commitAndClose();
     }
     document.addEventListener("mousedown", onDocPointer);
     return () => document.removeEventListener("mousedown", onDocPointer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   });
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const updatePos = () => {
+      const el = inputRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    };
+    updatePos();
+    window.addEventListener("scroll", updatePos, true);
+    window.addEventListener("resize", updatePos);
+    return () => {
+      window.removeEventListener("scroll", updatePos, true);
+      window.removeEventListener("resize", updatePos);
+    };
+  }, [open]);
 
   const pick = (v: string) => {
     justCommitted.current = true;
@@ -197,36 +223,40 @@ export function Combobox({
         onKeyDown={onKeyDown}
         className={BASE_CLS}
       />
-      {open && !disabled && (
-        <ul
-          id={listboxId}
-          role="listbox"
-          className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-line bg-white py-0.5 shadow-lg"
-        >
-          {rows.length === 0 && (
-            <li className="px-3 py-2 text-sm text-ink-soft">Không tìm thấy kết quả.</li>
-          )}
-          {rows.map((r, idx) => (
-            <li key={`${r.kind}-${r.value ?? idx}`} role="option" aria-selected={idx === highlight}>
-              <button
-                type="button"
-                tabIndex={-1}
-                onMouseDown={(e) => e.preventDefault()}
-                onMouseEnter={() => setHighlight(idx)}
-                onClick={() => chooseRow(idx)}
-                disabled={r.kind === "create" && creating}
-                className={`block w-full px-3 py-1.5 text-left text-sm ${
-                  idx === highlight ? "bg-accent-soft text-accent" : "text-ink"
-                } ${r.kind === "clear" ? "text-ink-soft" : ""} ${
-                  r.kind === "create" ? "border-t border-line font-medium text-accent" : ""
-                } ${r.kind === "option" && r.value === value ? "font-medium" : ""}`}
-              >
-                {r.kind === "create" && creating ? "Đang thêm..." : r.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {open && !disabled && pos &&
+        createPortal(
+          <ul
+            ref={listRef}
+            id={listboxId}
+            role="listbox"
+            style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width }}
+            className="z-[200] max-h-56 overflow-y-auto rounded-md border border-line bg-white py-0.5 shadow-lg"
+          >
+            {rows.length === 0 && (
+              <li className="px-3 py-2 text-sm text-ink-soft">Không tìm thấy kết quả.</li>
+            )}
+            {rows.map((r, idx) => (
+              <li key={`${r.kind}-${r.value ?? idx}`} role="option" aria-selected={idx === highlight}>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => setHighlight(idx)}
+                  onClick={() => chooseRow(idx)}
+                  disabled={r.kind === "create" && creating}
+                  className={`block w-full px-3 py-1.5 text-left text-sm ${
+                    idx === highlight ? "bg-accent-soft text-accent" : "text-ink"
+                  } ${r.kind === "clear" ? "text-ink-soft" : ""} ${
+                    r.kind === "create" ? "border-t border-line font-medium text-accent" : ""
+                  } ${r.kind === "option" && r.value === value ? "font-medium" : ""}`}
+                >
+                  {r.kind === "create" && creating ? "Đang thêm..." : r.label}
+                </button>
+              </li>
+            ))}
+          </ul>,
+          document.body,
+        )}
     </div>
   );
 }
