@@ -9,7 +9,7 @@ import { useSettingsOptions } from "../api/useSettingsOptions";
 import { Field, Input, Textarea } from "../components/ui/Input";
 import { Combobox } from "../components/ui/Combobox";
 import { useToast } from "../components/ui/Toast";
-import { fmtVN } from "../lib/formatVN";
+import { fmtVN, translateDanhGia } from "../lib/formatVN";
 import { STATUS_LABEL } from "../components/ui/Badge";
 import { Timeline, type TimelineEvent } from "../components/ui/Timeline";
 import { mucDoTone, MUC_DO_BG, vipGlowClass, sortMucDoOptions } from "../lib/severity";
@@ -67,6 +67,10 @@ const REQUIRED: { key: keyof FormState; label: string }[] = [
   { key: "thong_tin_ban_dau", label: "Thông tin ban đầu" },
 ];
 
+// Field bat buoc nam o tab "phai" (Phan loai van de / Noi dung phan anh) tren mobile - con lai
+// (ten_khach) thuoc tab "trai" (Khach hang & San pham). Dung de dieu huong tab khi thieu du lieu.
+const RIGHT_TAB_KEYS = new Set<keyof FormState>(["nhom_van_de", "thong_tin_ban_dau"]);
+
 const CRM_WARNING_MESSAGES: Record<string, string> = {
   DVBH_NOT_FOUND: "Không tìm thấy case trên CRM Karofi",
   DVBH_LOOKUP_FAILED: "Không thể kết nối CRM Karofi lúc này",
@@ -79,6 +83,12 @@ interface DraftShape {
   pendingOpts: PendingOpt[];
 }
 
+interface TraCuuTienTrinh {
+  ngay_tao: string;
+  nguoi_tao: string;
+  noi_dung_ghi_chep: string | null;
+  ly_do_xu_ly_cham: string | null;
+}
 interface TraCuuRecent {
   id: string;
   ngay_tiep_nhan: string | null;
@@ -87,6 +97,21 @@ interface TraCuuRecent {
   van_de_dau_vao: string | null;
   thong_tin_ban_dau: string | null;
   nguoi_tao: string | null;
+  // Them de so sanh voi don dang tao (item: hien day du hon thay vi chi tom tat van de).
+  ten_khach: string | null;
+  tinh: string | null;
+  quan_huyen: string | null;
+  phuong_xa: string | null;
+  tinh_moi: string | null;
+  phuong_xa_moi: string | null;
+  hang: string | null;
+  model: string | null;
+  ket_luan_khieu_nai: string | null;
+  loi_nha_san_xuat: string | null;
+  loi_lap_dat: string | null;
+  loi_thai_do_ktv: string | null;
+  loi_quy_trinh_nskx: string | null;
+  tien_trinh: TraCuuTienTrinh[];
 }
 interface TraCuuCrmPreview {
   khach_hang: string | null;
@@ -172,6 +197,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   const [pendingOpts, setPendingOpts] = useState<PendingOpt[]>(() => draftRef.current?.pendingOpts ?? []);
   const [restored, setRestored] = useState(!!draftRef.current);
   const [addrTab, setAddrTab] = useState<AddrTab>("cu");
+  // Man hinh tao PA tren mobile qua dai neu de 1 cot - chia 2 tab (giong 2 cot tren desktop), luu
+  // van phai du field bat buoc o CA 2 tab (validation khong doi, chi UX dieu huong khi thieu).
+  const [mobileTab, setMobileTab] = useState<"left" | "right">("left");
   const { showToast } = useToast();
   const qc = useQueryClient();
 
@@ -221,8 +249,11 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   };
 
   // ── Tra cuu ID (item 8 + 10) ────────────────────────────────────────────────
+  // Khong tu dien ngay khi tim thay (item: neu dang nhap do ma go nham ID, tim ra thong tin sai se
+  // de nhap nham vao form) - chi dien sau khi nguoi dung bam nut "Xac nhan dien thong tin".
   const [lookup, setLookup] = useState<TraCuuResponse | null>(null);
   const [lookupBusy, setLookupBusy] = useState<"lada" | "crm" | null>(null);
+  const [filledFromLookup, setFilledFromLookup] = useState(false);
   const lookupSeq = useRef(0);
 
   const runLookup = async (kind: "lada" | "crm") => {
@@ -235,28 +266,10 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
       const res = await api.get<TraCuuResponse>(`/khieu-nai/tra-cuu?${qs}`);
       if (seq !== lookupSeq.current) return;
       setLookup(res);
-      if (res.found && res.fill) {
-        const next = { ...form };
-        let filledCount = 0;
-        for (const [k, v] of Object.entries(res.fill)) {
-          const key = k as keyof FormState;
-          if (!FILLABLE.has(key) || !v) continue;
-          // Model tra tu CRM la nguon xac thuc (model may thuc te) -> luon ghi de, kha cac field
-          // khac chi tu dien khi dang trong de khong mat du lieu nguoi dung da go tay.
-          const alwaysOverwrite = kind === "crm" && key === "model";
-          if (alwaysOverwrite ? v !== next[key] : next[key].trim() === "") {
-            next[key] = v;
-            filledCount++;
-          }
-        }
-        if (filledCount > 0) setForm(next);
-        showToast(
-          filledCount > 0
-            ? `Đã tự điền ${filledCount} thông tin từ ${kind === "lada" ? "đơn cũ" : "CRM Karofi"}`
-            : `Đã tìm thấy — các ô liên quan đã có dữ liệu, không ghi đè`,
-          "success",
-        );
-      } else if (!res.found) {
+      setFilledFromLookup(false);
+      if (res.found) {
+        showToast("Đã tìm thấy thông tin — xem bên dưới và bấm \"Xác nhận điền thông tin\" nếu đúng", "info");
+      } else {
         showToast(
           kind === "lada"
             ? "Chưa có phản ánh nào cùng ID Lada này"
@@ -274,6 +287,32 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
     }
   };
 
+  // Nguoi dung bam "Xac nhan dien thong tin" sau khi doi chieu ket qua tra cuu voi du lieu dang nhap.
+  const applyLookupFill = () => {
+    if (!lookup?.found || !lookup.fill) return;
+    const next = { ...form };
+    let filledCount = 0;
+    for (const [k, v] of Object.entries(lookup.fill)) {
+      const key = k as keyof FormState;
+      if (!FILLABLE.has(key) || !v) continue;
+      // Model tra tu CRM la nguon xac thuc (model may thuc te) -> luon ghi de, cac field khac chi
+      // dien khi dang trong de khong mat du lieu nguoi dung da go tay.
+      const alwaysOverwrite = lookup.source === "crm" && key === "model";
+      if (alwaysOverwrite ? v !== next[key] : next[key].trim() === "") {
+        next[key] = v;
+        filledCount++;
+      }
+    }
+    if (filledCount > 0) setForm(next);
+    setFilledFromLookup(true);
+    showToast(
+      filledCount > 0
+        ? `Đã điền ${filledCount} thông tin từ ${lookup.source === "lada" ? "đơn cũ" : "CRM Karofi"}`
+        : "Không có ô nào cần điền thêm (đã có dữ liệu)",
+      "success",
+    );
+  };
+
   // Tự lưu nháp.
   const dirty = JSON.stringify(form) !== JSON.stringify(EMPTY) || pendingOpts.length > 0;
   useEffect(() => {
@@ -286,6 +325,8 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   }, [form, pendingOpts, dirty]);
 
   const missing = REQUIRED.filter((r) => form[r.key].trim() === "");
+  const leftMissing = missing.filter((m) => !RIGHT_TAB_KEYS.has(m.key));
+  const rightMissing = missing.filter((m) => RIGHT_TAB_KEYS.has(m.key));
   const diaCuCount = [form.tinh, form.quan_huyen, form.phuong_xa].filter((v) => v.trim() !== "").length;
   const diaMoiCount = [form.tinh_moi, form.phuong_xa_moi].filter((v) => v.trim() !== "").length;
 
@@ -328,6 +369,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (missing.length > 0) {
+      // Tren mobile chi 1 tab hien tai - nhay sang tab chua field con thieu dau tien de nguoi dung
+      // thay ngay, khong phai tu do "Con thieu ..." roi tu tim tab.
+      setMobileTab(RIGHT_TAB_KEYS.has(missing[0].key) ? "right" : "left");
       showToast(`Còn thiếu: ${missing.map((m) => m.label).join(", ")}`, "error");
       return;
     }
@@ -405,10 +449,38 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         </div>
       )}
 
+      {/* Mobile (<lg): 2 tab thay vi cuon 1 cot qua dai; desktop (lg+) van hien ca 2 cot song song
+          nhu cu, khong dung tab. Field bat buoc nam ca 2 ben nen bam Luu se tu chuyen sang tab con
+          thieu (xem submit()). */}
+      <div className="mb-2 flex shrink-0 gap-1.5 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileTab("left")}
+          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold ${
+            mobileTab === "left" ? "bg-accent text-white" : "bg-surface-2 text-ink-soft"
+          }`}
+        >
+          Khách hàng &amp; Sản phẩm{leftMissing.length > 0 ? ` (${leftMissing.length})` : ""}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("right")}
+          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold ${
+            mobileTab === "right" ? "bg-accent text-white" : "bg-surface-2 text-ink-soft"
+          }`}
+        >
+          Vấn đề &amp; Nội dung{rightMissing.length > 0 ? ` (${rightMissing.length})` : ""}
+        </button>
+      </div>
+
       {/* 2 mảng độc lập: trái = KH + SP, phải = vấn đề + nội dung — mỗi bên cuộn riêng */}
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
         {/* ── Trái: Tra cứu · Khách hàng/Địa chỉ · Sản phẩm · Nội bộ ─────────── */}
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 pr-1 lg:pr-3">
+        <div
+          className={`min-h-0 flex-col gap-3 overflow-y-auto pb-1 pr-1 lg:flex lg:pr-3 ${
+            mobileTab === "left" ? "flex" : "hidden"
+          }`}
+        >
           {/* Tra cứu ID — ô gọn, nút kính lúp */}
           <fieldset className="rounded-lg border border-accent/40 bg-white p-2.5">
             <legend className={legendCls}>Tra cứu nhanh theo ID</legend>
@@ -460,7 +532,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
               </p>
             </div>
 
-            {lookup && <LookupResult res={lookup} />}
+            {lookup && <LookupResult res={lookup} onApplyFill={applyLookupFill} applied={filledFromLookup} />}
           </fieldset>
 
           {/* Khách hàng (luôn hiện, trái) + Địa chính (tab, phải) */}
@@ -622,7 +694,11 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         </div>
 
         {/* ── Phải: Phân loại vấn đề · Nội dung phản ánh — cố định, cuộn riêng ── */}
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 pl-1 lg:border-l lg:border-line lg:pl-4">
+        <div
+          className={`min-h-0 flex-col gap-3 overflow-y-auto pb-1 pl-1 lg:flex lg:border-l lg:border-line lg:pl-4 ${
+            mobileTab === "right" ? "flex" : "hidden"
+          }`}
+        >
           <fieldset className={fsCls}>
             <legend className={legendCls}>Phân loại vấn đề</legend>
             <div className={rowCls}>
@@ -673,7 +749,13 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   );
 });
 
-function LookupResult({ res }: { res: TraCuuResponse }) {
+function LookupResult({
+  res, onApplyFill, applied,
+}: {
+  res: TraCuuResponse;
+  onApplyFill: () => void;
+  applied: boolean;
+}) {
   if (!res.found) {
     return (
       <div className="mt-3 rounded-md border border-line bg-surface px-3 py-2 text-xs text-ink-soft">
@@ -683,6 +765,8 @@ function LookupResult({ res }: { res: TraCuuResponse }) {
       </div>
     );
   }
+
+  const hasFill = !!res.fill && Object.values(res.fill).some((v) => !!v);
 
   if (res.source === "crm") {
     const p = res.preview;
@@ -697,7 +781,21 @@ function LookupResult({ res }: { res: TraCuuResponse }) {
     }));
     return (
       <div className="mt-3 rounded-md border border-teal-300 bg-teal-50 px-3 py-2 text-xs text-teal-900">
-        <div className="mb-1 font-semibold">Tìm thấy trên CRM Karofi</div>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <span className="font-semibold">Tìm thấy trên CRM Karofi</span>
+          {hasFill && (
+            <button
+              type="button"
+              onClick={onApplyFill}
+              disabled={applied}
+              className={`shrink-0 rounded px-2 py-1 text-[11px] font-semibold ${
+                applied ? "cursor-default bg-teal-200 text-teal-900" : "bg-teal-600 text-white hover:bg-teal-700"
+              }`}
+            >
+              {applied ? "✓ Đã điền thông tin" : "Xác nhận điền thông tin"}
+            </button>
+          )}
+        </div>
         <dl className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
           {p?.khach_hang && <Row k="Khách hàng" v={p.khach_hang} />}
           {p?.ky_thuat_vien && <Row k="Kỹ thuật viên" v={p.ky_thuat_vien} />}
@@ -730,23 +828,95 @@ function LookupResult({ res }: { res: TraCuuResponse }) {
     );
   }
 
-  // lada — hien "lich su cham soc" dang timeline (giong phong cach GT ton ben dvbh)
+  // lada — liet ke tung don cu, day du thong tin de so sanh + log tien trinh mo rong duoc.
   const rows = res.recent ?? [];
-  const ladaEvents: TimelineEvent[] = rows.map((r) => ({
-    key: r.id,
-    tone: "violet",
-    badge: STATUS_LABEL[r.trang_thai ?? ""] ?? r.trang_thai ?? "Phản ánh cũ",
-    time: r.ngay_tiep_nhan ? fmtVN.dateTime(r.ngay_tiep_nhan) : "",
-    sortMs: parseVnNaive(r.ngay_tiep_nhan),
-    actor: r.nguoi_tao,
-    summary: `${r.id}${r.van_de_dau_vao || r.nhom_van_de ? ` — ${r.van_de_dau_vao || r.nhom_van_de}` : ""}${r.thong_tin_ban_dau ? `\n${r.thong_tin_ban_dau}` : ""}`,
-  }));
   return (
     <div className="mt-3 rounded-md border border-violet-300 bg-violet-50 px-3 py-2 text-xs text-violet-900">
-      <div className="mb-1 font-semibold">
-        {rows.length} phản ánh cũ cùng ID Lada — đã điền từ đơn gần nhất
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="font-semibold">{rows.length} phản ánh cũ cùng ID Lada</span>
+        {hasFill && (
+          <button
+            type="button"
+            onClick={onApplyFill}
+            disabled={applied}
+            className={`shrink-0 rounded px-2 py-1 text-[11px] font-semibold ${
+              applied ? "cursor-default bg-violet-200 text-violet-900" : "bg-violet-600 text-white hover:bg-violet-700"
+            }`}
+          >
+            {applied ? "✓ Đã điền thông tin" : "Xác nhận điền thông tin"}
+          </button>
+        )}
       </div>
-      <Timeline events={ladaEvents} />
+      <div className="divide-y divide-violet-200">
+        {rows.map((r) => <LadaCaseRow key={r.id} r={r} />)}
+      </div>
+    </div>
+  );
+}
+
+function LadaCaseRow({ r }: { r: TraCuuRecent }) {
+  const [open, setOpen] = useState(false);
+  const diaChi = [
+    r.phuong_xa_moi || r.phuong_xa || "",
+    r.tinh_moi || [r.quan_huyen, r.tinh].filter(Boolean).join(", "),
+  ].filter(Boolean).join(" — ");
+  const sanPham = [r.hang, r.model].filter(Boolean).join(" - ");
+  const loiList = [
+    r.loi_nha_san_xuat === "Co" && "NSX",
+    r.loi_lap_dat === "Co" && "Lắp đặt",
+    r.loi_thai_do_ktv === "Co" && "Thái độ KTV",
+    r.loi_quy_trinh_nskx === "Co" && "Quy trình NSKX",
+  ].filter((v): v is string => !!v);
+  const tienTrinhEvents: TimelineEvent[] = r.tien_trinh.map((t, i) => ({
+    key: `${r.id}-tt-${i}`,
+    tone: "gray",
+    badge: t.ly_do_xu_ly_cham ? "Ghi chú (chậm)" : "Ghi chú",
+    time: fmtVN.dateTime(t.ngay_tao),
+    sortMs: parseVnNaive(t.ngay_tao),
+    actor: t.nguoi_tao,
+    summary: [t.ly_do_xu_ly_cham, t.noi_dung_ghi_chep].filter(Boolean).join(": ") || "—",
+  }));
+
+  return (
+    <div className="py-1.5 first:pt-0 last:pb-0">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+        <div className="min-w-0">
+          <span className="font-semibold">{r.id}</span>
+          <span className="mx-1 opacity-60">·</span>
+          {STATUS_LABEL[r.trang_thai ?? ""] ?? r.trang_thai ?? "—"}
+          {r.ngay_tiep_nhan && <span className="ml-1 opacity-70">· {fmtVN.dateTime(r.ngay_tiep_nhan)}</span>}
+        </div>
+        {r.tien_trinh.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-800 hover:bg-violet-200"
+          >
+            Log tiến trình ({r.tien_trinh.length}) {open ? "▲" : "▼"}
+          </button>
+        )}
+      </div>
+      <dl className="mt-0.5 grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
+        {r.ten_khach && <Row k="Khách hàng" v={r.ten_khach} />}
+        {diaChi && <Row k="Địa chỉ" v={diaChi} />}
+        {sanPham && <Row k="Sản phẩm" v={sanPham} />}
+        {(r.van_de_dau_vao || r.nhom_van_de) && <Row k="Vấn đề" v={r.van_de_dau_vao || r.nhom_van_de || ""} />}
+        {r.nguoi_tao && <Row k="Người tạo" v={r.nguoi_tao} />}
+      </dl>
+      {r.thong_tin_ban_dau && <p className="mt-0.5 whitespace-pre-wrap opacity-90">{r.thong_tin_ban_dau}</p>}
+      {(loiList.length > 0 || (r.ket_luan_khieu_nai && r.ket_luan_khieu_nai !== "Chua danh gia")) && (
+        <p className="mt-0.5 font-medium text-red-700">
+          Lỗi ghi nhận: {loiList.length > 0 ? loiList.join(", ") : "Không có"}
+          {r.ket_luan_khieu_nai && r.ket_luan_khieu_nai !== "Chua danh gia"
+            ? ` (Kết luận: ${translateDanhGia(r.ket_luan_khieu_nai)})`
+            : ""}
+        </p>
+      )}
+      {open && tienTrinhEvents.length > 0 && (
+        <div className="mt-1.5 rounded bg-white/70 p-2">
+          <Timeline events={tienTrinhEvents} />
+        </div>
+      )}
     </div>
   );
 }

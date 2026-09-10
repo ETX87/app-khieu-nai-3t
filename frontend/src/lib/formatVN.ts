@@ -10,6 +10,13 @@ function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
+// "Khong"/"Co"/"Chua danh gia" (4 co danh gia loi + ket luan khieu nai) -> nhan Tieng Viet.
+export function translateDanhGia(v: string | null | undefined): string {
+  if (v === "Khong") return "Không";
+  if (v === "Co") return "Có";
+  return "Chưa đánh giá";
+}
+
 export const fmtVN = {
   // "05/09 08:12"
   dateTime(s: string | null | undefined): string {

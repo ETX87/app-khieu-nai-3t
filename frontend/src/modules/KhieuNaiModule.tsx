@@ -108,6 +108,9 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
   const [f, setF] = useState<Filters>(loadFilters);
   const [qInput, setQInput] = useState(f.q);
   const [page, setPage] = useState(1);
+  // Mac dinh thu gon bo loc (item): chi hien so luong dang loc + nut xoa loc, bam "Bo loc" moi mo
+  // rong xem/sua tung dieu kien - danh sach filter da qua nhieu (9 dieu kien) chiem nhieu cho.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const closeDetail = () => setDetailId(null);
@@ -275,48 +278,66 @@ export function KhieuNaiModule({ user, initialFilter }: { user: AppUser; initial
 
       <Card>
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <select className={selCls} value={f.trangThai} onChange={(e) => set("trangThai", e.target.value)}>
-            <option value="">Mọi trạng thái</option>
-            {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <select className={selCls} value={f.mucDo} onChange={(e) => set("mucDo", e.target.value)}>
-            <option value="">Mọi mức độ</option>
-            {sortMucDoOptions(mucDoOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
-          </select>
-          <select className={selCls} value={f.nhomVanDe} onChange={(e) => set("nhomVanDe", e.target.value)}>
-            <option value="">Mọi nhóm vấn đề</option>
-            {(nhomVanDeOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
-          </select>
-          <label className="flex items-center gap-1 text-xs text-ink-soft">
-            Từ <input type="date" className={selCls} value={f.tuNgay} onChange={(e) => set("tuNgay", e.target.value)} />
-          </label>
-          <label className="flex items-center gap-1 text-xs text-ink-soft">
-            đến <input type="date" className={selCls} value={f.denNgay} onChange={(e) => set("denNgay", e.target.value)} />
-          </label>
-          <label className="flex items-center gap-1 text-xs text-ink-soft">
-            <input type="checkbox" checked={f.chuaDongBo} onChange={(e) => set("chuaDongBo", e.target.checked)} /> Chưa đồng bộ CRM
-          </label>
-          <label className="flex items-center gap-1 text-xs text-ink-soft">
-            <input type="checkbox" checked={f.caCuaToi} onChange={(e) => set("caCuaToi", e.target.checked)} /> Ca của tôi
-          </label>
-          <select className={selCls} value={f.nguoiTaoVaiTro} onChange={(e) => set("nguoiTaoVaiTro", e.target.value)}>
-            <option value="">Mọi người tạo</option>
-            {NGUOI_TAO_VAI_TRO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <select className={selCls} value={f.tonToiThieu} onChange={(e) => set("tonToiThieu", e.target.value)}>
-            <option value="">Mọi thời gian tồn</option>
-            {TON_TOI_THIEU_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <label className="flex items-center gap-1 text-xs text-ink-soft">
-            Tháng đóng
-            <input type="month" className={selCls} value={f.thangDong} onChange={(e) => set("thangDong", e.target.value)} />
-          </label>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((o) => !o)}
+            className="flex items-center gap-1.5 rounded-md border border-line bg-white px-2.5 py-1 text-xs font-medium text-ink hover:bg-gray-50"
+          >
+            Bộ lọc
+            {activeFilterCount > 0 && (
+              <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+                {activeFilterCount}
+              </span>
+            )}
+            <span className="text-[10px] text-ink-soft">{filtersOpen ? "▲" : "▼"}</span>
+          </button>
           {activeFilterCount > 0 && (
             <button onClick={resetFilters} className="text-xs font-medium text-accent hover:underline">
               Xoá lọc ({activeFilterCount})
             </button>
           )}
         </div>
+
+        {filtersOpen && (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <select className={selCls} value={f.trangThai} onChange={(e) => set("trangThai", e.target.value)}>
+              <option value="">Mọi trạng thái</option>
+              {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select className={selCls} value={f.mucDo} onChange={(e) => set("mucDo", e.target.value)}>
+              <option value="">Mọi mức độ</option>
+              {sortMucDoOptions(mucDoOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
+            </select>
+            <select className={selCls} value={f.nhomVanDe} onChange={(e) => set("nhomVanDe", e.target.value)}>
+              <option value="">Mọi nhóm vấn đề</option>
+              {(nhomVanDeOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
+            </select>
+            <label className="flex items-center gap-1 text-xs text-ink-soft">
+              Từ <input type="date" className={selCls} value={f.tuNgay} onChange={(e) => set("tuNgay", e.target.value)} />
+            </label>
+            <label className="flex items-center gap-1 text-xs text-ink-soft">
+              đến <input type="date" className={selCls} value={f.denNgay} onChange={(e) => set("denNgay", e.target.value)} />
+            </label>
+            <label className="flex items-center gap-1 text-xs text-ink-soft">
+              <input type="checkbox" checked={f.chuaDongBo} onChange={(e) => set("chuaDongBo", e.target.checked)} /> Chưa đồng bộ CRM
+            </label>
+            <label className="flex items-center gap-1 text-xs text-ink-soft">
+              <input type="checkbox" checked={f.caCuaToi} onChange={(e) => set("caCuaToi", e.target.checked)} /> Ca của tôi
+            </label>
+            <select className={selCls} value={f.nguoiTaoVaiTro} onChange={(e) => set("nguoiTaoVaiTro", e.target.value)}>
+              <option value="">Mọi người tạo</option>
+              {NGUOI_TAO_VAI_TRO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select className={selCls} value={f.tonToiThieu} onChange={(e) => set("tonToiThieu", e.target.value)}>
+              <option value="">Mọi thời gian tồn</option>
+              {TON_TOI_THIEU_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <label className="flex items-center gap-1 text-xs text-ink-soft">
+              Tháng đóng
+              <input type="month" className={selCls} value={f.thangDong} onChange={(e) => set("thangDong", e.target.value)} />
+            </label>
+          </div>
+        )}
 
         <form onSubmit={submitSearch} className="mb-4 flex flex-wrap items-center gap-2">
           <Input

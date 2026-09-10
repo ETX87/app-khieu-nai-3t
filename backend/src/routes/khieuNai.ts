@@ -286,6 +286,12 @@ const LADA_FILL_COLUMNS = [
   "hang", "model", "sale_khu_vuc", "phan_loai_kh",
 ];
 
+// Chi hien thi de so sanh (khong dung de tu dien) trong danh sach "phan anh cu cung ID Lada" -
+// giup nguoi tao thay ngay lich su loi/ket luan cua may nay ma khong can mo tung don.
+const LADA_COMPARE_COLUMNS = [
+  "loi_nha_san_xuat", "loi_lap_dat", "loi_thai_do_ktv", "loi_quy_trinh_nskx", "ket_luan_khieu_nai",
+];
+
 async function optionExists(db: D1Database, nhom: string, giaTri: string): Promise<boolean> {
   const r = await db.prepare(
     "SELECT 1 FROM settings_option WHERE nhom = ? AND gia_tri = ? AND active = 1 LIMIT 1",
@@ -300,7 +306,7 @@ app.get("/tra-cuu", async (c) => {
   if (idLada) {
     const { results } = await c.env.DB.prepare(
       `SELECT id, ngay_tiep_nhan, trang_thai, nhom_van_de, van_de_dau_vao, thong_tin_ban_dau, nguoi_tao,
-              ${LADA_FILL_COLUMNS.join(", ")}
+              ${LADA_FILL_COLUMNS.join(", ")}, ${LADA_COMPARE_COLUMNS.join(", ")}
        FROM khieu_nai WHERE id_lada = ? ORDER BY ngay_tiep_nhan DESC LIMIT 20`,
     ).bind(idLada).all<Record<string, string | null>>();
 
@@ -312,12 +318,40 @@ app.get("/tra-cuu", async (c) => {
       const v = latest[col];
       if (v != null && v !== "") fill[col] = v;
     }
+
+    // Log tien trinh cua tat ca cac don cu nay (gop 1 query, khong query rieng tung don) -
+    // hien so luong + cho phep mo rong xem chi tiet ngay tai giao dien tra cuu.
+    const ids = results.map((r) => r.id as string);
+    const ph = ids.map(() => "?").join(",");
+    const { results: ttRows } = ids.length > 0
+      ? await c.env.DB.prepare(
+          `SELECT khieu_nai_id, nguoi_tao, ngay_tao, noi_dung_ghi_chep, ly_do_xu_ly_cham
+           FROM khieu_nai_tien_trinh WHERE khieu_nai_id IN (${ph}) ORDER BY ngay_tao DESC`,
+        ).bind(...ids).all<{
+          khieu_nai_id: string; nguoi_tao: string; ngay_tao: string;
+          noi_dung_ghi_chep: string | null; ly_do_xu_ly_cham: string | null;
+        }>()
+      : { results: [] };
+    const tienTrinhByKn = new Map<string, typeof ttRows>();
+    for (const row of ttRows) {
+      const arr = tienTrinhByKn.get(row.khieu_nai_id) ?? [];
+      arr.push(row);
+      tienTrinhByKn.set(row.khieu_nai_id, arr);
+    }
+
     // Hien "lich su cham soc" dang timeline (giong phong cach GT ton ben dvbh) thay vi bang phang -
-    // can them nguoi_tao (actor) + thong_tin_ban_dau (noi dung tom tat) cho tung phan anh cu.
+    // them day du thong tin de so sanh (ten/dia chi/san pham/loi ghi nhan) + log tien trinh cua
+    // tung don cu de nguoi tao doi chieu ngay, khong can mo tung don rieng.
     const recent = results.map((r) => ({
       id: r.id, ngay_tiep_nhan: r.ngay_tiep_nhan, trang_thai: r.trang_thai,
       nhom_van_de: r.nhom_van_de, van_de_dau_vao: r.van_de_dau_vao,
       thong_tin_ban_dau: r.thong_tin_ban_dau, nguoi_tao: r.nguoi_tao,
+      ten_khach: r.ten_khach, tinh: r.tinh, quan_huyen: r.quan_huyen, phuong_xa: r.phuong_xa,
+      tinh_moi: r.tinh_moi, phuong_xa_moi: r.phuong_xa_moi, hang: r.hang, model: r.model,
+      ket_luan_khieu_nai: r.ket_luan_khieu_nai,
+      loi_nha_san_xuat: r.loi_nha_san_xuat, loi_lap_dat: r.loi_lap_dat,
+      loi_thai_do_ktv: r.loi_thai_do_ktv, loi_quy_trinh_nskx: r.loi_quy_trinh_nskx,
+      tien_trinh: tienTrinhByKn.get(r.id as string) ?? [],
     }));
     return c.json({ found: true, source: "lada", fill, recent });
   }
@@ -513,7 +547,9 @@ app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
         so_lan: sorted.length,
         khoang_cach_ngan_nhat: Math.round(minGapDays * 10) / 10,
         tai_phat_trong_7_ngay: minGapDays <= 7,
-        items: sorted.map((r) => ({
+        // "sorted" (tang dan) chi dung de tinh khoang cach giua cac lan - hien thi cho nguoi dung
+        // thi dao lai, ca moi nhat len tren cung (item: mac dinh moi nhat tren cung).
+        items: [...sorted].reverse().map((r) => ({
           id: r.id, ngay_tiep_nhan: r.ngay_tiep_nhan, ten_khach: r.ten_khach,
           van_de_dau_vao: r.van_de_dau_vao, trang_thai: r.trang_thai,
           id_lada: r.id_lada, id_lada_phat_sinh: r.id_lada_phat_sinh,

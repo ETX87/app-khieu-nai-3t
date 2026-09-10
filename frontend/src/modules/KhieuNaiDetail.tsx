@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "re
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
 import type { AppUser, DanhGia3, KhieuNai, LichSu, TienTrinh } from "../api/types";
-import { fmtVN } from "../lib/formatVN";
+import { fmtVN, translateDanhGia } from "../lib/formatVN";
 import { mucDoTone, MUC_DO_BG, camCoBorderClass, sortMucDoOptions } from "../lib/severity";
 import { useCreateSettingsOption, useSettingsOptions } from "../api/useSettingsOptions";
 import { Btn } from "../components/ui/Btn";
@@ -1192,11 +1192,6 @@ function DanhGiaRow({ label, value, onChange }: { label: string; value: DanhGia3
   );
 }
 
-function translateDanhGia(v: DanhGia3 | null): string {
-  if (v === "Khong") return "Không";
-  if (v === "Co") return "Có";
-  return "Chưa đánh giá";
-}
 
 // ---------- Đánh giá QL ----------
 
