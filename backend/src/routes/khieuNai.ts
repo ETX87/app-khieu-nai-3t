@@ -746,7 +746,6 @@ app.post("/:id/phu-trach", requireRole("CSKH", "NV Sale", "Tổng đài viên", 
 app.post("/", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"), async (c) => {
   const user = c.get("user");
   const body = await c.req.json();
-  const id = await generateId(c.env.DB);
   const ts = nowVN();
   // CSKH/Admin tu tao phan anh thi coi nhu da tiep nhan luon; cac vai tro con lai (NV Sale, Tong dai
   // vien, TN CSKH, QL) tao ho khach hang -> phai cho CSKH bam "Tiep nhan" (POST /:id/tiep-nhan) truoc
@@ -767,8 +766,7 @@ app.post("/", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "Q
       ? `${body.ngay_tiep_nhan}${ts.slice(10)}`
       : ts;
 
-  const columns: Record<string, unknown> = {
-    id,
+  const columnsBase: Record<string, unknown> = {
     ten_khach: body.ten_khach ?? null,
     sdt_khach: body.sdt_khach ?? null,
     id_lada: body.id_lada ?? null,
@@ -798,10 +796,24 @@ app.post("/", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "Q
     ...(crmFields ?? {}),
   };
 
-  const cols = Object.keys(columns);
-  const placeholders = cols.map(() => "?").join(", ");
-  const values = cols.map((k) => columns[k]);
-  await c.env.DB.prepare(`INSERT INTO khieu_nai (${cols.join(", ")}) VALUES (${placeholders})`).bind(...values).run();
+  // Sinh id kem retry: id dua tren dem-theo-ngay (khong atomic voi INSERT) nen 2 request tao
+  // don gan nhu dong thoi co the sinh trung id - thu lai vai lan khi INSERT bao loi UNIQUE.
+  let id = "";
+  const MAX_ID_ATTEMPTS = 5;
+  for (let attempt = 1; attempt <= MAX_ID_ATTEMPTS; attempt++) {
+    id = await generateId(c.env.DB);
+    const columns: Record<string, unknown> = { id, ...columnsBase };
+    const cols = Object.keys(columns);
+    const placeholders = cols.map(() => "?").join(", ");
+    const values = cols.map((k) => columns[k]);
+    try {
+      await c.env.DB.prepare(`INSERT INTO khieu_nai (${cols.join(", ")}) VALUES (${placeholders})`).bind(...values).run();
+      break;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt === MAX_ID_ATTEMPTS || !/UNIQUE/i.test(msg)) throw err;
+    }
+  }
   await logLichSu(c.env.DB, id, user.email, "tao_moi", null, null, null);
 
   const created = await c.env.DB.prepare("SELECT * FROM khieu_nai WHERE id = ?").bind(id).first();
