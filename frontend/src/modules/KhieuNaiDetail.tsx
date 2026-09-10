@@ -280,6 +280,59 @@ function CamCoButtons({ kn, canEdit, onSaved }: { kn: KhieuNai; canEdit: boolean
   );
 }
 
+type WarnTone = "red" | "amber" | "gray";
+interface WarnItem {
+  tone: WarnTone;
+  content: ReactNode;
+}
+const WARN_BG: Record<WarnTone, string> = {
+  red: "bg-red-50 text-red-900",
+  amber: "bg-amber-50 text-amber-900",
+  gray: "bg-gray-100 text-ink-soft",
+};
+const WARN_BELL_CLS: Record<WarnTone, string> = {
+  red: "bg-red-100 text-red-700 ring-red-300",
+  amber: "bg-amber-100 text-amber-800 ring-amber-300",
+  gray: "bg-gray-100 text-ink-soft ring-line",
+};
+
+// Gop tat ca banner canh bao (cho tiep nhan / chua du dieu kien dong ca / qua han giai trinh /
+// da dong ca) vao 1 icon (!) thu gon tren thanh tieu de - bam moi mo popover xem chi tiet, thay
+// vi de nhieu dai mau chiem het chieu cao header nhu truoc.
+function WarningBell({ warnings }: { warnings: WarnItem[] }) {
+  const [open, setOpen] = useState(false);
+  if (warnings.length === 0) return null;
+  const worst: WarnTone = warnings.some((w) => w.tone === "red")
+    ? "red"
+    : warnings.some((w) => w.tone === "amber")
+      ? "amber"
+      : "gray";
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        title="Xem cảnh báo"
+        className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ring-1 ring-inset ${WARN_BELL_CLS[worst]}`}
+      >
+        ⚠ {warnings.length}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-40 mt-1 w-[22rem] max-w-[90vw] overflow-hidden rounded-md border border-line bg-white shadow-lg">
+            {warnings.map((w, i) => (
+              <div key={i} className={`px-3 py-2 text-xs ${i > 0 ? "border-t border-line" : ""} ${WARN_BG[w.tone]}`}>
+                {w.content}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function dongCaChecklist(kn: KhieuNai) {
   return [
     { label: "Lỗi NSX", ok: kn.loi_nha_san_xuat !== "Chua danh gia" },
@@ -396,6 +449,66 @@ export function KhieuNaiDetail({
   const severityBg = MUC_DO_BG[mucDoTone(kn.muc_do)];
   const flagBorder = camCoBorderClass(kn.cam_co);
 
+  // Item: gop toan bo banner canh bao vao WarningBell (icon !) thu gon tren tieu de, thay vi de
+  // nhieu dai mau rieng chiem het chieu cao header nhu truoc.
+  const warnings: WarnItem[] = [];
+  if (chuaTiepNhan) {
+    warnings.push({
+      tone: "red",
+      content: (
+        <div className="flex flex-col gap-1.5">
+          <span>
+            <span className="font-semibold">⚠ Chờ tiếp nhận</span> — phản ánh chưa được sửa/cập nhật cho đến khi CSKH bấm tiếp nhận.
+          </span>
+          {canTiepNhan ? (
+            <TiepNhanButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />
+          ) : (
+            <span className="italic text-red-800">Đang chờ CSKH tiếp nhận…</span>
+          )}
+        </div>
+      ),
+    });
+  }
+  if (dongCaBlocked) {
+    warnings.push({
+      tone: "amber",
+      content: (
+        <>
+          <span className="font-semibold">Chưa đủ điều kiện đóng ca:</span>{" "}
+          {checklist.map((c) => (
+            <span key={c.label} className={`mr-2 inline-block ${c.ok ? "text-green-700" : "font-medium"}`}>
+              {c.ok ? "✓" : "✗"} {c.label}
+            </span>
+          ))}
+        </>
+      ),
+    });
+  }
+  if (overdue && !isClosed) {
+    warnings.push({
+      tone: "red",
+      content: (
+        <>
+          <span className="font-semibold">⚠ Quá hạn giải trình lý do chậm</span>
+          {giaiTrinhDeadline && <span> (mốc {fmtVN.dateTime(giaiTrinhDeadline)})</span>} — mọi mục sửa khác đã bị khoá.
+          Bấm <span className="font-semibold">“+ Ghi chú”</span> ở khu Tiến trình &amp; lịch sử, điền đủ{" "}
+          <span className="font-semibold">Nội dung ghi chép</span> và <span className="font-semibold">Lý do xử lý chậm</span> để mở khoá lại.
+        </>
+      ),
+    });
+  }
+  if (isClosed) {
+    warnings.push({
+      tone: "gray",
+      content: (
+        <div className="flex items-center justify-between gap-2">
+          <span>Ca đã kết thúc — chỉ xem. Mọi thay đổi đã bị khoá.</span>
+          {user.vai_tro === "Admin" && <MoLaiButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />}
+        </div>
+      ),
+    });
+  }
+
   return (
     <div className={`flex h-full min-h-0 flex-col overflow-hidden rounded-lg ${severityBg} ${flagBorder}`}>
       {/* ===== TIÊU ĐỀ: trạng thái · kết quả · tốc độ · nút xử lý ===== */}
@@ -420,6 +533,7 @@ export function KhieuNaiDetail({
             <span className="font-semibold text-ink">{tocDo}</span>
           </span>
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            <WarningBell warnings={warnings} />
             <ActionBar kn={kn} user={user} onDone={invalidate} onError={(m) => showToast(m, "error")} />
             <button
               type="button"
@@ -441,46 +555,6 @@ export function KhieuNaiDetail({
             <CamCoButtons kn={kn} canEdit={canXuLyDoiMay} onSaved={invalidate} />
           </div>
         </div>
-
-        {chuaTiepNhan && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-red-300 bg-red-50 px-4 py-2 text-xs text-red-900">
-            <span>
-              <span className="font-semibold">⚠ Chờ tiếp nhận</span> — phản ánh chưa được sửa/cập nhật cho đến khi CSKH bấm tiếp nhận.
-            </span>
-            {canTiepNhan ? (
-              <TiepNhanButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />
-            ) : (
-              <span className="italic text-red-800">Đang chờ CSKH tiếp nhận…</span>
-            )}
-          </div>
-        )}
-
-        {dongCaBlocked && (
-          <div className="border-t border-amber-300 bg-amber-50 px-4 py-1.5 text-xs text-amber-900">
-            <span className="font-semibold">Chưa đủ điều kiện đóng ca:</span>{" "}
-            {checklist.map((c) => (
-              <span key={c.label} className={`mr-2 inline-block ${c.ok ? "text-green-700" : "font-medium"}`}>
-                {c.ok ? "✓" : "✗"} {c.label}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {isClosed && (
-          <div className="flex items-center justify-between border-t border-line bg-gray-100 px-4 py-1.5 text-xs font-medium text-ink-soft">
-            <span>Ca đã kết thúc — chỉ xem. Mọi thay đổi đã bị khoá.</span>
-            {user.vai_tro === "Admin" && <MoLaiButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />}
-          </div>
-        )}
-
-        {overdue && !isClosed && (
-          <div className="border-t border-red-300 bg-red-50 px-4 py-1.5 text-xs text-red-900">
-            <span className="font-semibold">⚠ Quá hạn giải trình lý do chậm</span>
-            {giaiTrinhDeadline && <span> (mốc {fmtVN.dateTime(giaiTrinhDeadline)})</span>} — mọi mục sửa khác đã bị khoá.
-            Bấm <span className="font-semibold">“+ Ghi chú”</span> ở khu Tiến trình &amp; lịch sử, điền đủ{" "}
-            <span className="font-semibold">Nội dung ghi chép</span> và <span className="font-semibold">Lý do xử lý chậm</span> để mở khoá lại.
-          </div>
-        )}
       </div>
 
       {/* ===== THÂN: trái = thông tin tiếp nhận cố định, phải = tab chuyển đổi (item 4, học theo dvbh) ===== */}
@@ -689,11 +763,18 @@ function NguoiPhuTrachInline({
     onError: (e) => showToast(e instanceof ApiError ? `Lỗi: ${e.code}` : "Lỗi", "error"),
   });
   const mine = kn.nguoi_phu_trach === user.email;
+  // Item: lam noi bat nguoi phu trach (PT) - ai cung de dang thay ngay ai dang xu ly ca nay, thay
+  // vi chu nho mau xam nhu truoc.
   return (
-    <span className="flex items-center gap-1.5 text-xs text-ink-soft">
-      <span>PT: <b className="text-ink">{kn.nguoi_phu_trach ? nameOf(kn.nguoi_phu_trach) : "chưa có"}</b></span>
+    <span
+      className={`flex items-center gap-1.5 rounded-full py-0.5 pl-1 pr-2 text-xs font-semibold ring-1 ring-inset ${
+        kn.nguoi_phu_trach ? "bg-accent-soft text-accent ring-accent/30" : "bg-gray-100 text-ink-soft ring-line"
+      }`}
+    >
+      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/70 text-[10px]">👤</span>
+      {kn.nguoi_phu_trach ? nameOf(kn.nguoi_phu_trach) : "Chưa có người phụ trách"}
       {canEdit && !mine && (
-        <button type="button" disabled={m.isPending} onClick={() => m.mutate(user.email)} className="rounded border border-line px-1.5 py-0.5 font-medium text-accent hover:bg-accent-soft">
+        <button type="button" disabled={m.isPending} onClick={() => m.mutate(user.email)} className="rounded border border-accent/40 bg-white px-1.5 py-0.5 font-medium text-accent hover:bg-accent-soft">
           Nhận
         </button>
       )}
