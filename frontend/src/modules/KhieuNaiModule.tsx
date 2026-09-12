@@ -171,9 +171,10 @@ export function KhieuNaiModule({
     setPage(1);
   };
 
-  // KPI ở Trang chủ bấm sang -> áp trạng thái.
+  // KPI ở Trang chủ bấm sang -> áp trạng thái (hoặc bỏ hết lọc cũ nếu bấm "Tổng phản ánh"/"Tồn đọng
+  // CRM" - initialFilter khi đó là {} chứ không phải undefined, vẫn phải reset bộ lọc cũ).
   useEffect(() => {
-    if (initialFilter?.trang_thai !== undefined) {
+    if (initialFilter) {
       setF((p) => ({ ...EMPTY_FILTERS, sort: p.sort, pageSize: p.pageSize, trangThai: initialFilter.trang_thai ?? "" }));
       setPage(1);
     }
