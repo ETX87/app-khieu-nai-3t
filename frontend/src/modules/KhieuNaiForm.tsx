@@ -760,7 +760,7 @@ function LookupResult({
     return (
       <div className="mt-3 rounded-md border border-line bg-surface px-3 py-2 text-xs text-ink-soft">
         {res.source === "lada"
-          ? "Chưa có phản ánh nào cùng ID Lada này — nhập thủ công."
+          ? "Không tìm thấy ID Lada này (đã kiểm tra cả lịch sử phản ánh cũ lẫn hệ thống đơn hàng) — nhập thủ công."
           : CRM_WARNING_MESSAGES[res.warning ?? ""] ?? "Không tìm thấy trên CRM Karofi."}
       </div>
     );
@@ -828,12 +828,16 @@ function LookupResult({
     );
   }
 
-  // lada — liet ke tung don cu, day du thong tin de so sanh + log tien trinh mo rong duoc.
+  // lada — thong tin don hang tra tu he thong ngoai (center.dichvu3t.com, neu co) + liet ke tung
+  // phan anh cu cung ID Lada (noi bo), day du thong tin de so sanh + log tien trinh mo rong duoc.
   const rows = res.recent ?? [];
+  const p = res.preview;
   return (
     <div className="mt-3 rounded-md border border-violet-300 bg-violet-50 px-3 py-2 text-xs text-violet-900">
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="font-semibold">{rows.length} phản ánh cũ cùng ID Lada</span>
+        <span className="font-semibold">
+          {p ? "Tìm thấy thông tin đơn hàng" : `${rows.length} phản ánh cũ cùng ID Lada`}
+        </span>
         {hasFill && (
           <button
             type="button"
@@ -847,9 +851,28 @@ function LookupResult({
           </button>
         )}
       </div>
-      <div className="divide-y divide-violet-200">
-        {rows.map((r) => <LadaCaseRow key={r.id} r={r} />)}
-      </div>
+      {p && (
+        <dl className="mb-2 grid grid-cols-1 gap-x-4 gap-y-0.5 border-b border-violet-200 pb-2 sm:grid-cols-2">
+          {p.khach_hang && <Row k="Khách hàng" v={p.khach_hang} />}
+          {p.ky_thuat_vien && <Row k="Kỹ thuật viên" v={p.ky_thuat_vien} />}
+          {p.khu_vuc && <Row k="Khu vực" v={p.khu_vuc} />}
+          {p.tien_do_hoan_thanh && <Row k="Trạng thái đơn" v={p.tien_do_hoan_thanh} />}
+          {p.thoi_gian_cskh_tiep_nhan && <Row k="Ngày khởi tạo" v={p.thoi_gian_cskh_tiep_nhan} />}
+          {p.thoi_gian_hen_xu_ly && <Row k="Ngày hẹn" v={p.thoi_gian_hen_xu_ly} />}
+          {p.thoi_gian_hoan_thanh && <Row k="Ngày chốt đơn" v={p.thoi_gian_hoan_thanh} />}
+        </dl>
+      )}
+      {p?.noi_dung_xu_ly && (
+        <p className="mb-2 whitespace-pre-wrap border-b border-violet-200 pb-2"><b>Ghi chú: </b>{p.noi_dung_xu_ly}</p>
+      )}
+      {rows.length > 0 && (
+        <>
+          {p && <p className="mb-1 font-semibold">{rows.length} phản ánh cũ cùng ID Lada</p>}
+          <div className="divide-y divide-violet-200">
+            {rows.map((r) => <LadaCaseRow key={r.id} r={r} />)}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -17,6 +17,9 @@
     // Chuong thong bao (Web Push) - public var an toan de commit; private key la secret rieng
     // (wrangler secret put VAPID_SERVER_PRIVATE_KEY), xem backend/src/lib/webPush.ts.
     "VAPID_SUBJECT": "mailto:smarttrade.vp@gmail.com",
-    "VAPID_SERVER_PUBLIC_KEY": "BNb-Kn7OehFHI9VhDrisdJY6xoJ92EjrYp4-24TMo493zWY1L6lQmDFJXAizfz_dKCQoZGIhEFy2rWJyGzM5yqc"
+    "VAPID_SERVER_PUBLIC_KEY": "BNb-Kn7OehFHI9VhDrisdJY6xoJ92EjrYp4-24TMo493zWY1L6lQmDFJXAizfz_dKCQoZGIhEFy2rWJyGzM5yqc",
+    // Tra cuu ID LADA qua he thong noi bo cho nhan vien - token la secret rieng
+    // (wrangler secret put CENTER3T_API_TOKEN), xem backend/src/lib/center3tClient.ts.
+    "CENTER3T_API_BASE": "https://center.dichvu3t.com"
   }
 }

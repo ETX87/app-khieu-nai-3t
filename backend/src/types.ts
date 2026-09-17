@@ -35,6 +35,10 @@ export interface Env {
   VAPID_SUBJECT: string;
   VAPID_SERVER_PUBLIC_KEY: string;
   VAPID_SERVER_PRIVATE_KEY: string;
+  // Tra cuu ID LADA qua he thong noi bo "center.dichvu3t.com" (nhan vien) - xem lib/center3tClient.ts.
+  // CENTER3T_API_TOKEN la secret (wrangler secret put), CENTER3T_API_BASE la var thuong.
+  CENTER3T_API_BASE: string;
+  CENTER3T_API_TOKEN: string;
 }
 
 // Registers the keys set via c.set()/read via c.get() across middleware so that

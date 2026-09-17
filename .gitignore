@@ -3,3 +3,6 @@ dist/
 .wrangler/
 .dev.vars
 *.log
+
+# Chua token bi mat cua he "center.dichvu3t.com" o dang plaintext - khong duoc commit.
+api_document_staff.md

@@ -5,6 +5,7 @@ import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
 import { nowVN } from "../lib/vnTime";
 import { lookupDvbhCase, formatGiaiTrinhHistory } from "../lib/dvbhClient";
+import { lookupOrderByIdLada } from "../lib/center3tClient";
 import { notifyRoles } from "../lib/notify";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -311,13 +312,13 @@ app.get("/tra-cuu", async (c) => {
        FROM khieu_nai WHERE id_lada = ? ORDER BY ngay_tiep_nhan DESC LIMIT 20`,
     ).bind(idLada).all<Record<string, string | null>>();
 
-    if (results.length === 0) return c.json({ found: false, source: "lada" });
-
-    const latest = results[0];
     const fill: Record<string, string> = {};
-    for (const col of LADA_FILL_COLUMNS) {
-      const v = latest[col];
-      if (v != null && v !== "") fill[col] = v;
+    if (results.length > 0) {
+      const latest = results[0];
+      for (const col of LADA_FILL_COLUMNS) {
+        const v = latest[col];
+        if (v != null && v !== "") fill[col] = v;
+      }
     }
 
     // Log tien trinh cua tat ca cac don cu nay (gop 1 query, khong query rieng tung don) -
@@ -354,7 +355,58 @@ app.get("/tra-cuu", async (c) => {
       loi_thai_do_ktv: r.loi_thai_do_ktv, loi_quy_trinh_nskx: r.loi_quy_trinh_nskx,
       tien_trinh: tienTrinhByKn.get(r.id as string) ?? [],
     }));
-    return c.json({ found: true, source: "lada", fill, recent });
+
+    // Tra cuu them he thong ngoai "center.dichvu3t.com" (API 3 - tai chi dinh Ecolada theo ID LADA,
+    // xem lib/center3tClient.ts) - luon thu bat ke noi bo da co lich su hay chua, giong het tinh than
+    // tra cuu ID CRM (luon goi CRM song, khong chi dua vao du lieu cu). Uu tien du lieu ngoai cho
+    // model/hang (thong tin thiet bi thuc te tu he thong don hang, xem cung logic o nhanh CRM ben
+    // duoi); cac truong con lai chi dien khi noi bo CHUA co (uu tien lich su da duoc CSKH xac nhan).
+    let preview: Record<string, string | null> | undefined;
+    let externalWarning: string | undefined;
+    try {
+      const ext = await lookupOrderByIdLada(c.env, idLada);
+      if (ext.found && ext.row) {
+        const r = ext.row;
+        const put = (key: string, label: string) => {
+          const v = r[label]?.trim();
+          if (v && !fill[key]) fill[key] = v;
+        };
+        if (r["Model máy"]?.trim()) fill.model = r["Model máy"].trim();
+        if (r["Nhãn hiệu máy"]?.trim()) fill.hang = r["Nhãn hiệu máy"].trim();
+        put("ten_khach", "Tên KH");
+        const tinhVal = r["Tỉnh/Thành"]?.trim() ?? "";
+        if (tinhVal && (await optionExists(c.env.DB, "tinh_moi", tinhVal))) {
+          if (!fill.tinh_moi) fill.tinh_moi = tinhVal;
+        } else {
+          put("tinh", "Tỉnh/Thành");
+          put("quan_huyen", "Quận/Huyện");
+          put("phuong_xa", "Phường/Xã");
+        }
+        const str = (v?: string) => (v && v.trim() !== "" ? v.trim() : null);
+        preview = {
+          khach_hang: str(r["Tên KH"]),
+          ky_thuat_vien: str(r["Kỹ Thuật Viên"]),
+          tien_do_hoan_thanh: str(r["Trạng thái"]),
+          noi_dung_xu_ly: str(r["Ghi chú lắp đặt"]) ?? str(r["Ghi chú Bán hàng"]),
+          thoi_gian_cskh_tiep_nhan: str(r["Ngày khởi tạo"]),
+          thoi_gian_hoan_thanh: str(r["Ngày Chốt Đơn"]),
+          mo_ta_loi: null,
+          khu_vuc: str(r["Tỉnh/Thành"]),
+          loai_yeu_cau: null,
+          thoi_gian_hen_xu_ly: str(r["Ngày hẹn"]),
+          ly_do_qua_han: null,
+          link_crm: null,
+        };
+      } else {
+        externalWarning = ext.warning;
+      }
+    } catch (e) {
+      console.error("CENTER3T_LOOKUP_FAILED", e);
+      externalWarning = "CENTER3T_LOOKUP_FAILED";
+    }
+
+    const found = results.length > 0 || !!preview;
+    return c.json({ found, source: "lada", fill, recent, preview, warning: found ? undefined : externalWarning });
   }
 
   if (idCrm) {
