@@ -1727,7 +1727,11 @@ function ActionBar({
   const canDongCa = (user.vai_tro === "TN CSKH" || user.vai_tro === "Admin") && kn.trang_thai === "Dang xu ly";
   const dongCaReady = dongCaChecklist(kn).every((c) => c.ok);
 
-  const canChot = (user.vai_tro === "QL" || user.vai_tro === "Admin") && kn.trang_thai === "Cho chot ket thuc";
+  // QL/Admin duoc chot thang tu "Dang xu ly" - bo qua buoc "Dong ca" cua TN CSKH (yeu cau ra soat
+  // 2026-09) - nhung van phai du 4 loi + ket luan (dieu kien von do "Dong ca" dam nhan).
+  const chotTrucTiep = kn.trang_thai === "Dang xu ly";
+  const canChot = (user.vai_tro === "QL" || user.vai_tro === "Admin") && (kn.trang_thai === "Cho chot ket thuc" || chotTrucTiep);
+  const chotReady = !chotTrucTiep || dongCaChecklist(kn).every((c) => c.ok);
   const canHuy =
     (user.vai_tro === "CSKH" || user.vai_tro === "TN CSKH" || user.vai_tro === "QL" || user.vai_tro === "Admin") &&
     kn.trang_thai !== "Da ket thuc";
@@ -1746,9 +1750,11 @@ function ActionBar({
         err instanceof ApiError
           ? err.code === "CAN_DANH_GIA_QL"
             ? "Cần nhập Đánh giá QL trước khi chốt"
-            : err.code === "QUA_HAN_GIAI_TRINH"
-              ? "Quá hạn giải trình lý do chậm — thêm ghi chú tiến trình trước khi chốt"
-              : `Chốt thất bại: ${err.code}`
+            : err.code === "CAN_DANH_GIA_DAY_DU"
+              ? "Cần đánh giá đủ 4 lỗi + kết luận trước khi chốt"
+              : err.code === "QUA_HAN_GIAI_TRINH"
+                ? "Quá hạn giải trình lý do chậm — thêm ghi chú tiến trình trước khi chốt"
+                : `Chốt thất bại: ${err.code}`
           : "Chốt thất bại",
       );
     },
@@ -1775,7 +1781,13 @@ function ActionBar({
         </Btn>
       )}
       {canChot && (
-        <Btn variant="primary" size="sm" disabled={chot.isPending} onClick={() => setConfirmChot(true)}>
+        <Btn
+          variant="primary"
+          size="sm"
+          disabled={chot.isPending || !chotReady}
+          title={!chotReady ? "Cần đánh giá đủ 4 lỗi + kết luận trước khi chốt" : undefined}
+          onClick={() => setConfirmChot(true)}
+        >
           Chốt
         </Btn>
       )}
@@ -1793,11 +1805,14 @@ function ActionBar({
               <p>Mã đơn: <span className="font-mono">{kn.id}</span></p>
               <p>Kết luận phản ánh: <b>{translateDanhGia(kn.ket_luan_khieu_nai)}</b></p>
               <p>Đánh giá QL: <b>{kn.danh_gia_ql || "(chưa nhập — không chốt được)"}</b></p>
+              {chotTrucTiep && (
+                <p className="mt-1 text-amber-700">Chốt thẳng từ "Đang xử lý" — bỏ qua bước "Đóng ca" của TN CSKH.</p>
+              )}
               <p className="mt-1 text-ink-soft">Sau khi chốt, ca chuyển sang “Đã kết thúc” và bị khoá.</p>
             </>
           }
           confirmLabel={chot.isPending ? "Đang chốt..." : "Chốt"}
-          confirmDisabled={chot.isPending || !kn.danh_gia_ql}
+          confirmDisabled={chot.isPending || !kn.danh_gia_ql || !chotReady}
           onConfirm={() => chot.mutate()}
           onCancel={() => setConfirmChot(false)}
         />

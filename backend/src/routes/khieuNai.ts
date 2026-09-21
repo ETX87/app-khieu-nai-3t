@@ -1027,27 +1027,49 @@ app.post("/:id/dong-ca", requireRole("TN CSKH", "QL", "Admin"), async (c) => {
   return c.json({ ok: true });
 });
 
+// QL/Admin duoc chot thang tu "Dang xu ly" (bo qua buoc "Dong ca" cua TN CSKH - yeu cau ra soat
+// 2026-09): khi do phai tu kiem tra du 4 loi + ket luan (dieu kien von do "Dong ca" dam nhan) va
+// tu dat ngay_ket_thuc/nguoi_ket_thuc luon (vi khong con di qua route "Dong ca" de dat cac truong nay).
 app.post("/:id/chot", requireRole("QL", "Admin"), async (c) => {
   const id = c.req.param("id");
   const row = await c.env.DB.prepare(
-    "SELECT trang_thai, danh_gia_ql, ngay_tiep_nhan, ngay_ket_thuc FROM khieu_nai WHERE id = ?",
-  ).bind(id).first<{ trang_thai: string; danh_gia_ql: string | null; ngay_tiep_nhan: string; ngay_ket_thuc: string | null }>();
+    `SELECT trang_thai, danh_gia_ql, ngay_tiep_nhan, ngay_ket_thuc,
+            loi_nha_san_xuat, loi_lap_dat, loi_thai_do_ktv, loi_quy_trinh_nskx, ket_luan_khieu_nai
+     FROM khieu_nai WHERE id = ?`,
+  ).bind(id).first<{
+    trang_thai: string; danh_gia_ql: string | null; ngay_tiep_nhan: string; ngay_ket_thuc: string | null;
+    loi_nha_san_xuat: string; loi_lap_dat: string; loi_thai_do_ktv: string; loi_quy_trinh_nskx: string;
+    ket_luan_khieu_nai: string | null;
+  }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
-  if (row.trang_thai !== "Cho chot ket thuc") return c.json({ error: "INVALID_STATE" }, 400);
+  const direct = row.trang_thai === "Dang xu ly";
+  if (!direct && row.trang_thai !== "Cho chot ket thuc") return c.json({ error: "INVALID_STATE" }, 400);
 
   const giaiTrinhStatus = await getGiaiTrinhStatus(c.env.DB, id!);
   if (giaiTrinhStatus?.overdue) return c.json({ error: "QUA_HAN_GIAI_TRINH", deadline: giaiTrinhStatus.deadline }, 423);
+
+  if (direct) {
+    const fields = [row.loi_nha_san_xuat, row.loi_lap_dat, row.loi_thai_do_ktv, row.loi_quy_trinh_nskx, row.ket_luan_khieu_nai];
+    if (fields.some((f) => f === "Chua danh gia" || f === null || f === undefined)) {
+      return c.json({ error: "CAN_DANH_GIA_DAY_DU" }, 400);
+    }
+  }
 
   // Tien dieu kien: phai co Danh gia QL truoc khi chot (doi xung voi "Dong ca" doi du 4 loi).
   if (!row.danh_gia_ql || row.danh_gia_ql.trim() === "") return c.json({ error: "CAN_DANH_GIA_QL" }, 400);
 
   const user = c.get("user");
   const ts = nowVN();
-  const gio = gioXuLyHeThong(row.ngay_tiep_nhan, row.ngay_ket_thuc);
+  const ngayKetThuc = direct ? ts : row.ngay_ket_thuc;
+  const gio = gioXuLyHeThong(row.ngay_tiep_nhan, ngayKetThuc);
   await c.env.DB.prepare(
-    "UPDATE khieu_nai SET trang_thai = 'Da ket thuc', ql_nguoi_danh_gia = ?, ngay_ql_danh_gia = ?, ql_gio_xu_ly_he_thong = ?, ngay_thay_doi = ? WHERE id = ?",
-  ).bind(user.email, ts, gio, ts, id).run();
-  await logLichSu(c.env.DB, id!, user.email, "chuyen_trang_thai", "trang_thai", "Cho chot ket thuc", "Da ket thuc");
+    direct
+      ? "UPDATE khieu_nai SET trang_thai = 'Da ket thuc', ngay_ket_thuc = ?, nguoi_ket_thuc = ?, ql_nguoi_danh_gia = ?, ngay_ql_danh_gia = ?, ql_gio_xu_ly_he_thong = ?, ngay_thay_doi = ? WHERE id = ?"
+      : "UPDATE khieu_nai SET trang_thai = 'Da ket thuc', ql_nguoi_danh_gia = ?, ngay_ql_danh_gia = ?, ql_gio_xu_ly_he_thong = ?, ngay_thay_doi = ? WHERE id = ?",
+  ).bind(
+    ...(direct ? [ts, user.email, user.email, ts, gio, ts, id] : [user.email, ts, gio, ts, id]),
+  ).run();
+  await logLichSu(c.env.DB, id!, user.email, "chuyen_trang_thai", "trang_thai", row.trang_thai, "Da ket thuc");
 
   return c.json({ ok: true });
 });
