@@ -506,7 +506,9 @@ export function KhieuNaiModule({
                 onRowClick={(r) => setDetailId(r.id)}
                 sort={{ field: sortField, dir: sortDir === "asc" ? "asc" : "desc" }}
                 onSort={handleSort}
-                rowClassName={(r) => `${MUC_DO_CARD_BG[mucDoTone(r.muc_do)]} ${vipGlowClass(r.phan_loai_kh)}`}
+                rowClassName={(r) =>
+                  `${MUC_DO_CARD_BG[mucDoTone(r.muc_do)]} ${vipGlowClass(r.phan_loai_kh)} ${r.trang_thai === "Huy" ? "line-through opacity-60" : ""}`
+                }
               />
             </div>
             <div className="mt-4 flex items-center justify-between text-sm text-ink-soft">
