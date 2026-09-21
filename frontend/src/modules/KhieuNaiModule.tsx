@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
-import type { AppUser, KhieuNai } from "../api/types";
+import type { AppUser, KhieuNai, KhieuNaiStats } from "../api/types";
 import { useSettingsOptions } from "../api/useSettingsOptions";
 import { fmtVN } from "../lib/formatVN";
 import { mucDoTone, MUC_DO_CARD_BG, MUC_DO_CARD_HOVER_BG, vipGlowClass, sortMucDoOptions } from "../lib/severity";
@@ -154,6 +154,25 @@ export function KhieuNaiModule({
 
   const mucDoOpts = useSettingsOptions("muc_do");
   const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
+
+  // So ca hien tren cac nut loc nhanh trang thai - dung lai dung /khieu-nai/stats (da toi uu, gioi
+  // han theo thang hien tai) ma Trang chu dang dung, khong tao thanh 1 truy van rieng ton kem D1.
+  const statsQuery = useQuery({
+    queryKey: ["khieu-nai-stats"],
+    queryFn: () => api.get<KhieuNaiStats>("/khieu-nai/stats"),
+  });
+  const stats = statsQuery.data;
+  const TRANG_THAI_QUICK_COUNT: Record<string, number | undefined> = stats
+    ? {
+        "": stats.tong,
+        [TRANG_THAI_TON]: stats.tong - stats.da_ket_thuc - stats.huy,
+        "Cho tiep nhan": stats.cho_tiep_nhan,
+        "Dang xu ly": stats.dang_xu_ly,
+        "Cho chot ket thuc": stats.cho_chot_ket_thuc,
+        "Da ket thuc": stats.da_ket_thuc,
+        Huy: stats.huy,
+      }
+    : {};
 
   const canCreate = !!user.vai_tro && user.vai_tro !== "Viewer";
   // Chot hang loat (item 2026-09): QL/Admin chon nhieu don DA co danh gia QL rieng tung don -> chot
@@ -417,11 +436,21 @@ export function KhieuNaiModule({
                 key={o.value}
                 type="button"
                 onClick={() => set("trangThai", o.value)}
-                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors ${
                   f.trangThai === o.value ? "bg-accent text-white" : "text-ink-soft hover:bg-gray-50"
                 }`}
               >
                 {o.label}
+                {TRANG_THAI_QUICK_COUNT[o.value] != null && (
+                  <span
+                    title="Số ca trong phạm vi tháng hiện tại (giống Trang chủ) - có thể khác số ca thực tế hiển thị nếu đang lọc theo khoảng ngày/tháng khác"
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+                      f.trangThai === o.value ? "bg-white/25 text-white" : "bg-gray-100 text-ink-soft"
+                    }`}
+                  >
+                    {TRANG_THAI_QUICK_COUNT[o.value]}
+                  </span>
+                )}
               </button>
             ))}
           </div>

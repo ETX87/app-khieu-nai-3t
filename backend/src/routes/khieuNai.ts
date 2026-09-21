@@ -615,16 +615,25 @@ interface TrungLapRow {
 // dong (Union-Find tren gia tri ID Lada), roi liet ke nhom co >=2 phan anh, danh dau nhom co
 // khoang cach giua 2 lan gan nhau <=7 ngay la "tai phat nhanh".
 app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
-  const tuNgay = c.req.query("tu_ngay");
-  const denNgay = c.req.query("den_ngay");
-  // Ca da Huy khong tinh la "tai phat" (khong phai 1 lan phan anh that su can xem xet).
-  const conditions: string[] = ["(id_lada IS NOT NULL OR id_lada_phat_sinh IS NOT NULL)", "trang_thai != 'Huy'"];
-  const binds: unknown[] = [];
-  if (tuNgay) { conditions.push("ngay_tiep_nhan >= ?"); binds.push(`${tuNgay} 00:00:00`); }
-  if (denNgay) { conditions.push("ngay_tiep_nhan <= ?"); binds.push(`${denNgay} 23:59:59`); }
+  // Truoc day quet "xuyen suot" (chi cham LIMIT 20000 dong gan nhat) de bat tai phat cach nhau
+  // nhieu thang - nhung LIMIT do ngam dinh 1 "cua so thoi gian" seo lai dan khi luong ca/ngay tang
+  // (vd 5k ca/ngay, 50% co ID Lada => 20000 dong chi con ~8 ngay), nen tai phat cu hon se bi bo sot
+  // ma khong bao loi gi (item 2026-09-21). Doi sang loc theo thang (giong SLA/Chot loi, dung chung
+  // ThangFilter tren giao dien) - chi phi bi chan chac chan theo khoi luong 1 thang, khong phu
+  // thuoc tong lich su; danh doi: tai phat cach nhau qua 1 thang se khong con duoc gop nhom.
+  const currentMonth = currentMonthVN();
+  const thangParam = c.req.query("thang");
+  const thang = isValidThang(thangParam) ? thangParam : currentMonth;
+  const start = `${thang}-01 00:00:00`;
 
-  // LIMIT phong ho giong /bao-cao/sla (xem giai thich phia tren) - lay 20k dong gan nhat, du du
-  // cho union-find nhom theo ID Lada ma khong quet toan bo bang khi du lieu lon dan.
+  // Ca da Huy khong tinh la "tai phat" (khong phai 1 lan phan anh that su can xem xet).
+  const conditions: string[] = [
+    "(id_lada IS NOT NULL OR id_lada_phat_sinh IS NOT NULL)",
+    "trang_thai != 'Huy'",
+    "ngay_tiep_nhan >= ? AND ngay_tiep_nhan < datetime(?, '+1 month')",
+  ];
+  const binds: unknown[] = [start, start];
+
   const { results } = await c.env.DB.prepare(
     `SELECT id, id_lada, id_lada_phat_sinh, ngay_tiep_nhan, ten_khach, van_de_dau_vao, trang_thai
      FROM khieu_nai WHERE ${conditions.join(" AND ")} ORDER BY ngay_tiep_nhan DESC LIMIT 20000`,
@@ -693,6 +702,7 @@ app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
     groups: report,
     tong_nhom: report.length,
     tong_tai_phat_7_ngay: report.filter((g) => g.tai_phat_trong_7_ngay).length,
+    thang,
   });
 });
 

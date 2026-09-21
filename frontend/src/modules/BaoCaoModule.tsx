@@ -145,10 +145,11 @@ function ChotLoiMiniTable({ title, rows }: { title: string; rows: ChotLoiGroup[]
 }
 
 export function BaoCaoModule({ user }: { user: AppUser }) {
-  // "thang" chi ap dung cho SLA + Chot loi (can gioi han theo thang de tranh quet toan bo lich su
-  // khi du lieu tang qua 2 nam - xem backend/src/lib/thangFilter.ts). "Ca trung lap/tai phat" CAN
-  // nhin xuyen nhieu thang de phat hien tai phat (vd tai phat sau 3-4 thang) nen KHONG loc theo
-  // thang o day, van giu logic rieng (LIMIT 20000 dong gan nhat lam phong ho).
+  // "thang" dung chung cho SLA + Chot loi + Trung lap/tai phat - gioi han theo thang de tranh quet
+  // toan bo lich su khi du lieu tang qua nhieu nam (xem backend/src/lib/thangFilter.ts). Trung lap/
+  // tai phat truoc day quet xuyen suot (chi cham LIMIT dong) nhung "cua so" do se ngam seo lai khi
+  // luong ca/ngay tang -> doi sang loc theo thang (2026-09-21): tai phat cach nhau qua 1 thang se
+  // khong con duoc gop nhom, doi lay chi phi doc D1 chac chan theo khoi luong 1 thang.
   const [thang, setThang] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
 
@@ -191,8 +192,8 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
     queryFn: () => api.get<SlaReport>(`/khieu-nai/bao-cao/sla${thangQs}`),
   });
   const trungLapQuery = useQuery({
-    queryKey: ["bao-cao-trung-lap"],
-    queryFn: () => api.get<TrungLapReport>("/khieu-nai/bao-cao/trung-lap"),
+    queryKey: ["bao-cao-trung-lap", thang],
+    queryFn: () => api.get<TrungLapReport>(`/khieu-nai/bao-cao/trung-lap${thangQs}`),
   });
   const chotLoiQuery = useQuery({
     queryKey: ["bao-cao-chot-loi", thang],
@@ -211,11 +212,11 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         <div>
           <h2 className="text-lg font-semibold text-ink">Báo cáo</h2>
           <p className="text-xs text-ink-soft">
-            SLA + Chốt lỗi: ca đang tồn (mọi lúc) + ca đóng/hủy trong{" "}
+            SLA + Chốt lỗi + Trùng lặp/tái phát: ca đang tồn (mọi lúc) + ca đóng/hủy/tiếp nhận trong{" "}
             <b className="text-ink">
               {thang ? `tháng ${thang.slice(5)}/${thang.slice(0, 4)}` : `tháng hiện tại${sla ? ` (${sla.thang.slice(5)}/${sla.thang.slice(0, 4)})` : ""}`}
             </b>
-            . Ca trùng lặp/tái phát xem xuyên suốt (không lọc theo tháng).
+            . Tái phát cách nhau quá 1 tháng sẽ không được gộp nhóm.
           </p>
         </div>
         <ThangFilter value={thang} onChange={setThang} />
