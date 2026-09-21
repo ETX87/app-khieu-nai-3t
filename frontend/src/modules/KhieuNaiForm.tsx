@@ -1,6 +1,6 @@
 import {
   forwardRef, useEffect, useImperativeHandle, useRef, useState,
-  type FormEvent, type KeyboardEvent,
+  type ChangeEvent, type FormEvent, type KeyboardEvent,
 } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
@@ -14,6 +14,10 @@ import { fmtVN, translateDanhGia } from "../lib/formatVN";
 import { STATUS_LABEL } from "../components/ui/Badge";
 import { Timeline, type TimelineEvent } from "../components/ui/Timeline";
 import { mucDoTone, MUC_DO_BG, vipGlowClass, sortMucDoOptions } from "../lib/severity";
+import {
+  DINH_KEM_ERROR_MESSAGES, DINH_KEM_MAX_ANH, DINH_KEM_MAX_VIDEO, VIDEO_MAX_BYTES, VIDEO_MAX_DURATION_S,
+  compressImage, readVideoDuration,
+} from "../lib/dinhKem";
 
 export interface KhieuNaiFormHandle {
   submit: () => void;
@@ -302,6 +306,89 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
     }
   };
 
+  // Anh/video dinh kem: chon "cho" ngay tren form tao (chua co ID phan anh nen chua goi API duoc) -
+  // nen/kiem tra ngay luc chon, upload thuc su sau khi tao xong don (xem mutation.onSuccess).
+  const [pendingAnh, setPendingAnh] = useState<{ file: File; previewUrl: string }[]>([]);
+  const [pendingVideo, setPendingVideo] = useState<File[]>([]);
+
+  const handleAnhChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    const remain = DINH_KEM_MAX_ANH - pendingAnh.length;
+    if (remain <= 0) {
+      showToast(`Tối đa ${DINH_KEM_MAX_ANH} ảnh`, "error");
+      return;
+    }
+    for (const file of files.slice(0, remain)) {
+      const compressed = await compressImage(file);
+      setPendingAnh((prev) => [...prev, { file: compressed, previewUrl: URL.createObjectURL(compressed) }]);
+    }
+  };
+  const removeAnh = (idx: number) => {
+    setPendingAnh((prev) => {
+      const target = prev[idx];
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  const handleVideoChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    const remain = DINH_KEM_MAX_VIDEO - pendingVideo.length;
+    if (remain <= 0) {
+      showToast(`Tối đa ${DINH_KEM_MAX_VIDEO} video`, "error");
+      return;
+    }
+    for (const file of files.slice(0, remain)) {
+      if (file.size > VIDEO_MAX_BYTES) {
+        showToast(`Video "${file.name}" vượt quá ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)}MB`, "error");
+        continue;
+      }
+      try {
+        const duration = await readVideoDuration(file);
+        if (duration > VIDEO_MAX_DURATION_S) {
+          showToast(`Video "${file.name}" dài quá ${VIDEO_MAX_DURATION_S}s`, "error");
+          continue;
+        }
+      } catch {
+        // Khong doc duoc thoi luong - van cho, server van chan theo dung luong.
+      }
+      setPendingVideo((prev) => [...prev, file]);
+    }
+  };
+  const removeVideo = (idx: number) => setPendingVideo((prev) => prev.filter((_, i) => i !== idx));
+
+  // Upload tuan tu cac file da "cho" sau khi don da co ID - loi 1 file khong chan cac file con lai,
+  // chi bao toast rieng cho file do (don van duoc tao thanh cong, nguoi dung co the dinh kem lai sau
+  // tu man chi tiet).
+  const uploadPendingDinhKem = async (khieuNaiId: string) => {
+    for (const { file } of pendingAnh) {
+      try {
+        const form = new FormData();
+        form.set("file", file);
+        form.set("loai", "anh");
+        await api.postForm(`/khieu-nai/${khieuNaiId}/dinh-kem`, form);
+      } catch (err) {
+        const code = err instanceof ApiError ? err.code : "UPLOAD_FAILED";
+        showToast(`Ảnh "${file.name}": ${DINH_KEM_ERROR_MESSAGES[code] ?? "tải lên thất bại"}`, "error");
+      }
+    }
+    for (const file of pendingVideo) {
+      try {
+        const form = new FormData();
+        form.set("file", file);
+        form.set("loai", "video");
+        await api.postForm(`/khieu-nai/${khieuNaiId}/dinh-kem`, form);
+      } catch (err) {
+        const code = err instanceof ApiError ? err.code : "UPLOAD_FAILED";
+        showToast(`Video "${file.name}": ${DINH_KEM_ERROR_MESSAGES[code] ?? "tải lên thất bại"}`, "error");
+      }
+    }
+  };
+
   // Nguoi dung bam "Xac nhan dien thong tin" sau khi doi chieu ket qua tra cuu voi du lieu dang nhap.
   const applyLookupFill = () => {
     if (!lookup?.found || !lookup.fill) return;
@@ -361,7 +448,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
       }
       return api.post<{ khieuNai: KhieuNai; crm_sync_warning?: string }>("/khieu-nai", body);
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       try {
         localStorage.removeItem(DRAFT_KEY);
       } catch {
@@ -372,6 +459,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         showToast(CRM_WARNING_MESSAGES[data.crm_sync_warning] ?? data.crm_sync_warning, "error");
       } else {
         showToast("Đã tạo phản ánh thành công", "success");
+      }
+      if (pendingAnh.length > 0 || pendingVideo.length > 0) {
+        await uploadPendingDinhKem(data.khieuNai.id);
       }
       onCreated(data.khieuNai.id);
     },
@@ -799,6 +889,68 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
               <Field label="Ghi chú người tạo">
                 <Textarea rows={3} value={form.ghi_chu_nguoi_tao} onChange={(e) => setField("ghi_chu_nguoi_tao", e.target.value)} />
               </Field>
+            </div>
+          </fieldset>
+
+          <fieldset className={fsCls}>
+            <legend className={legendCls}>Ảnh / video đính kèm</legend>
+            <div className="space-y-3">
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-xs text-ink-soft">Ảnh ({pendingAnh.length}/{DINH_KEM_MAX_ANH})</span>
+                  {pendingAnh.length < DINH_KEM_MAX_ANH && (
+                    <label className="cursor-pointer rounded-md border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-sm hover:bg-gray-50">
+                      + Thêm ảnh
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={handleAnhChange} />
+                    </label>
+                  )}
+                </div>
+                {pendingAnh.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                    {pendingAnh.map((p, idx) => (
+                      <div key={p.previewUrl} className="group relative aspect-square overflow-hidden rounded-md border border-line bg-gray-50">
+                        <img src={p.previewUrl} alt={p.file.name} className="h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removeAnh(idx)}
+                          className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white opacity-0 group-hover:opacity-100"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-xs text-ink-soft">Video ({pendingVideo.length}/{DINH_KEM_MAX_VIDEO})</span>
+                  {pendingVideo.length < DINH_KEM_MAX_VIDEO && (
+                    <label className="cursor-pointer rounded-md border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-sm hover:bg-gray-50">
+                      + Thêm video
+                      <input type="file" accept="video/*" multiple className="hidden" onChange={handleVideoChange} />
+                    </label>
+                  )}
+                </div>
+                {pendingVideo.length > 0 && (
+                  <div className="space-y-1.5">
+                    {pendingVideo.map((file, idx) => (
+                      <div key={`${file.name}-${idx}`} className="flex items-center gap-2 rounded-md border border-line bg-gray-50 px-2 py-1.5">
+                        <span className="flex-1 truncate text-[13px]">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeVideo(idx)}
+                          className="rounded px-1.5 py-0.5 text-xs text-red-600 hover:bg-red-50"
+                        >
+                          Xoá
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className="text-[11px] text-ink-faint">Ảnh được tự động nén trước khi gửi; video chỉ giới hạn dung lượng (≤80MB) và thời lượng (≤60s), không nén.</p>
             </div>
           </fieldset>
         </div>

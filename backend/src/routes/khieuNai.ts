@@ -617,7 +617,8 @@ interface TrungLapRow {
 app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
   const tuNgay = c.req.query("tu_ngay");
   const denNgay = c.req.query("den_ngay");
-  const conditions: string[] = ["(id_lada IS NOT NULL OR id_lada_phat_sinh IS NOT NULL)"];
+  // Ca da Huy khong tinh la "tai phat" (khong phai 1 lan phan anh that su can xem xet).
+  const conditions: string[] = ["(id_lada IS NOT NULL OR id_lada_phat_sinh IS NOT NULL)", "trang_thai != 'Huy'"];
   const binds: unknown[] = [];
   if (tuNgay) { conditions.push("ngay_tiep_nhan >= ?"); binds.push(`${tuNgay} 00:00:00`); }
   if (denNgay) { conditions.push("ngay_tiep_nhan <= ?"); binds.push(`${denNgay} 23:59:59`); }
@@ -870,7 +871,7 @@ app.get("/bao-cao/theo-ngay", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
   const rangeStart = `${tuNgay} 00:00:00`;
   const rangeEndBind = `${denNgay} 00:00:00`; // dung datetime(?, '+1 day') lam moc tren (loai tru)
 
-  const [moiQ, dongQ, tiepNhanQ, snapshotQ] = await Promise.all([
+  const [moiQ, dongQ, tiepNhanQ, tuTiepNhanQ, snapshotQ] = await Promise.all([
     c.env.DB.prepare(
       `SELECT substr(ngay_tiep_nhan,1,10) as ngay, COUNT(*) as sl, NULL as tb_ngay
        FROM khieu_nai WHERE ngay_tiep_nhan >= ? AND ngay_tiep_nhan < datetime(?, '+1 day')${fEmpty.sql}
@@ -890,6 +891,17 @@ app.get("/bao-cao/theo-ngay", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
        WHERE l.hanh_dong = 'tiep_nhan' AND l.thoi_diem >= ? AND l.thoi_diem < datetime(?, '+1 day')${fK.sql}
        GROUP BY ngay`,
     ).bind(rangeStart, rangeEndBind, ...fK.binds).all<TheoNgaySlRow>(),
+    // Ca "tu tiep nhan" (CSKH/TN CSKH/QL/Admin tu tao va nhan luon, xem autoReceived o route POST /)
+    // khong di qua route /tiep-nhan nen KHONG co dong lich su hanh_dong='tiep_nhan' - phai dem rieng
+    // tu bang khieu_nai (da nhan = cskh_tiep_nhan khong rong) va loai tru cac id da dem o tiepNhanQ.
+    c.env.DB.prepare(
+      `SELECT substr(ngay_tiep_nhan,1,10) as ngay, COUNT(*) as sl, 0 as tb_ngay
+       FROM khieu_nai
+       WHERE trang_thai != 'Cho tiep nhan' AND cskh_tiep_nhan IS NOT NULL
+         AND id NOT IN (SELECT khieu_nai_id FROM khieu_nai_lich_su WHERE hanh_dong = 'tiep_nhan')
+         AND ngay_tiep_nhan >= ? AND ngay_tiep_nhan < datetime(?, '+1 day')${fEmpty.sql}
+       GROUP BY ngay`,
+    ).bind(rangeStart, rangeEndBind, ...fEmpty.binds).all<TheoNgaySlRow>(),
     c.env.DB.prepare(
       "SELECT ngay, cho_tiep_nhan, con_ton FROM bao_cao_ngay_snapshot WHERE ngay >= ? AND ngay <= ?",
     ).bind(addDaysISO(tuNgay, -1), denNgay).all<{ ngay: string; cho_tiep_nhan: number; con_ton: number }>(),
@@ -898,7 +910,21 @@ app.get("/bao-cao/theo-ngay", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
   const toMap = (rows: TheoNgaySlRow[]) => new Map(rows.map((r) => [r.ngay, r]));
   const moiMap = toMap(moiQ.results);
   const dongMap = toMap(dongQ.results);
-  const tiepNhanMap = toMap(tiepNhanQ.results);
+  const tuTiepNhanMap = toMap(tuTiepNhanQ.results);
+  // Gop "tiep nhan qua route" + "tu tiep nhan luc tao" thanh 1 map, cong dồn so luong + tinh lai
+  // trung binh gio tiep nhan theo trong so (tu tiep nhan luon co tb_ngay = 0 vi nhan ngay luc tao).
+  const tiepNhanMap = new Map<string, TheoNgaySlRow>();
+  for (const r of tiepNhanQ.results) tiepNhanMap.set(r.ngay, { ...r });
+  for (const r of tuTiepNhanMap.values()) {
+    const cur = tiepNhanMap.get(r.ngay);
+    if (!cur) { tiepNhanMap.set(r.ngay, { ...r }); continue; }
+    const slTong = cur.sl + r.sl;
+    const tbTong =
+      cur.tb_ngay != null && r.tb_ngay != null
+        ? (cur.tb_ngay * cur.sl + r.tb_ngay * r.sl) / slTong
+        : (cur.tb_ngay ?? r.tb_ngay);
+    tiepNhanMap.set(r.ngay, { ngay: r.ngay, sl: slTong, tb_ngay: tbTong });
+  }
   const snapshotMap = new Map(snapshotQ.results.map((r) => [r.ngay, r]));
 
   // "Hom nay" chua chac co snapshot (cron chay 20h) - tinh song lam du phong, van ap bo loc neu co.
