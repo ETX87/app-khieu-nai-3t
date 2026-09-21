@@ -169,7 +169,7 @@ function parseVnNaive(s: string | null | undefined): number {
 // Cac field cho phep tra cuu tu dien de (chi dien vao o dang trong).
 const FILLABLE = new Set<keyof FormState>([
   "ten_khach", "sdt_khach", "phan_loai_kh", "tinh", "quan_huyen", "phuong_xa",
-  "tinh_moi", "phuong_xa_moi", "hang", "model", "sale_khu_vuc",
+  "tinh_moi", "phuong_xa_moi", "hang", "model", "sale_khu_vuc", "id_truy_van",
 ]);
 
 function loadDraft(): DraftShape | null {
@@ -641,7 +641,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 </div>
               </div>
               <div className="w-[92px] shrink-0">
-                <span className="mb-0.5 block text-xs font-medium leading-tight text-ink-soft">ID Truy vấn</span>
+                <span className="mb-0.5 block text-xs font-medium leading-tight text-ink-soft">ID Truy xuất</span>
                 <div className="flex gap-0.5">
                   <Input
                     className="w-[62px] !px-1.5 !py-1 text-xs"
@@ -655,7 +655,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                   />
                   <button
                     type="button"
-                    aria-label="Tra cứu ID truy vấn"
+                    aria-label="Tra cứu ID truy xuất"
                     title="Tra cứu"
                     onClick={() => void runLookup("truy_van")}
                     disabled={!form.id_truy_van.trim() || lookupBusy === "truy_van"}

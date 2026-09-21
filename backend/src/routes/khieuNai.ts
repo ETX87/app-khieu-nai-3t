@@ -44,7 +44,7 @@ const QL_FIELDS = ["danh_gia_ql", "ql_gio_xu_ly", "ql_chon_ngay_hen", "ql_chon_l
 
 // Nhan Tieng Viet cho nhat ky "cap nhat" chung (khong bao gom TN_CSKH_FIELDS/danh_gia_ql - da co nhat ky rieng).
 const FIELD_LABELS: Record<string, string> = {
-  ten_khach: "Tên khách hàng", sdt_khach: "Số điện thoại", id_lada: "ID Lada", id_truy_van: "ID Truy vấn",
+  ten_khach: "Tên khách hàng", sdt_khach: "Số điện thoại", id_lada: "ID Lada", id_truy_van: "ID Truy xuất",
   sale_khu_vuc: "Sale khu vực", tinh: "Tỉnh (cũ)", quan_huyen: "Quận/Huyện (cũ)",
   phuong_xa: "Phường/Xã (cũ)", tinh_moi: "Tỉnh (mới)", phuong_xa_moi: "Phường/Xã (mới)",
   model: "Model", hang: "Hãng", thong_tin_ban_dau: "Thông tin ban đầu", nguoi_bao: "Người báo",
@@ -446,9 +446,13 @@ app.get("/tra-cuu", async (c) => {
         if (r["Model máy"]?.trim()) fill.model = r["Model máy"].trim();
         if (r["Nhãn hiệu máy"]?.trim()) fill.hang = r["Nhãn hiệu máy"].trim();
         put("ten_khach", "Tên KH");
+        put("id_truy_van", "ID Truy xuất");
         const tinhVal = r["Tỉnh/Thành"]?.trim() ?? "";
         if (tinhVal && (await optionExists(c.env.DB, "tinh_moi", tinhVal))) {
           if (!fill.tinh_moi) fill.tinh_moi = tinhVal;
+          // BUG (2026-09-21): truoc day chi dien tinh_moi, quen dien luon phuong_xa_moi - khien
+          // dia chi "moi" luon thieu phuong/xa du du lieu tho tu API co day du.
+          put("phuong_xa_moi", "Phường/Xã");
         } else {
           put("tinh", "Tỉnh/Thành");
           put("quan_huyen", "Quận/Huyện");

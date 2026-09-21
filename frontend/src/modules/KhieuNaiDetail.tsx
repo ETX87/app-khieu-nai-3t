@@ -1120,7 +1120,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
           <ReadField label="Tên khách hàng" value={kn.ten_khach} />
           <ReadField label="Số điện thoại" value={kn.sdt_khach} />
           <ReadField label="ID Lada" value={kn.id_lada} />
-          <ReadField label="ID Truy vấn" value={kn.id_truy_van} />
+          <ReadField label="ID Truy xuất" value={kn.id_truy_van} />
         </div>
 
         <p className={groupLabelClsNotFirst}>Địa chỉ</p>
@@ -1188,7 +1188,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
             <Field label="ID Lada">
               <Input value={form.id_lada} onChange={(e) => setField("id_lada", e.target.value)} />
             </Field>
-            <Field label="ID Truy vấn">
+            <Field label="ID Truy xuất">
               <Input value={form.id_truy_van} onChange={(e) => setField("id_truy_van", e.target.value)} />
             </Field>
           </div>
@@ -1805,7 +1805,7 @@ const LS_LABEL: Record<string, string> = {
 
 // Nhãn field ngắn gọn cho log "cập nhật 1 trường" (item: badge cụ thể thay vì chung chung).
 const LICH_SU_FIELD_LABEL: Record<string, string> = {
-  id_crm_karofi: "ID CRM", id_lada: "ID Lada", id_truy_van: "ID Truy vấn", nguon: "Nguồn", ten_khach: "Tên khách", sdt_khach: "SĐT",
+  id_crm_karofi: "ID CRM", id_lada: "ID Lada", id_truy_van: "ID Truy xuất", nguon: "Nguồn", ten_khach: "Tên khách", sdt_khach: "SĐT",
   muc_do: "Mức độ", nhom_van_de: "Nhóm vấn đề", van_de_dau_vao: "Vấn đề đầu vào",
   cam_co: "Cắm cờ", trang_thai: "Trạng thái", nguoi_phu_trach: "Người phụ trách",
   loi_nha_san_xuat: "Lỗi nhà sản xuất", loi_lap_dat: "Lỗi lắp đặt",
