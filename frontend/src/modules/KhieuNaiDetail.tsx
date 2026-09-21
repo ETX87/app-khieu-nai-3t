@@ -13,7 +13,7 @@ import { StatusBadge } from "../components/ui/Badge";
 import { useToast } from "../components/ui/Toast";
 import { Timeline, type TimelineEvent } from "../components/ui/Timeline";
 import { Tabs, type TabItem } from "../components/ui/Tabs";
-import { NGUON_OPTIONS } from "./KhieuNaiForm";
+import { NGUON_OPTIONS, NGUON_LABEL } from "./KhieuNaiForm";
 
 interface RelatedItem {
   id: string;
@@ -913,7 +913,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
           <ReadField label="Tên khách hàng" value={kn.ten_khach} />
           <ReadField label="Số điện thoại" value={kn.sdt_khach} />
           <ReadField label="ID Lada" value={kn.id_lada} />
-          <ReadField label="Nguồn" value={kn.nguon === "CRM" ? "CRM Karofi" : kn.nguon} />
+          <ReadField label="Nguồn" value={kn.nguon ? (NGUON_LABEL[kn.nguon] ?? kn.nguon) : null} />
           <ReadField label="Sale khu vực" value={kn.sale_khu_vuc} />
           <ReadField label="Người báo" value={kn.nguoi_bao} />
           <ReadField label="Tỉnh (cũ)" value={kn.tinh} />

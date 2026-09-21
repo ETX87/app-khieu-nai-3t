@@ -13,7 +13,7 @@ import { Table, type TableColumn } from "../components/ui/Table";
 import { Badge, StatusBadge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
-import { KhieuNaiForm, type KhieuNaiFormHandle, type KhieuNaiFormHeaderState } from "./KhieuNaiForm";
+import { KhieuNaiForm, type KhieuNaiFormHandle, type KhieuNaiFormHeaderState, NGUON_LABEL } from "./KhieuNaiForm";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
 import { KhieuNaiCard } from "./KhieuNaiCard";
 
@@ -286,7 +286,7 @@ export function KhieuNaiModule({
     {
       key: "nguon",
       header: "Nguồn",
-      render: (r) => (r.nguon === "CRM" ? "CRM Karofi" : r.nguon) || <span className="text-ink-faint">—</span>,
+      render: (r) => (r.nguon ? (NGUON_LABEL[r.nguon] ?? r.nguon) : <span className="text-ink-faint">—</span>),
     },
     {
       key: "muc_do",

@@ -53,10 +53,13 @@ interface FormState {
   nguoi_bao: string;
 }
 
+// Gia tri luu DB giu nguyen "Lada"/"CRM" (khong doi du lieu cu) - chi doi nhan hien thi theo yeu cau
+// 2026-09-21: don co ID CRM -> "3T", con lai -> "NSKX".
 export const NGUON_OPTIONS = [
-  { value: "Lada", label: "Lada" },
-  { value: "CRM", label: "CRM Karofi" },
+  { value: "Lada", label: "NSKX" },
+  { value: "CRM", label: "3T" },
 ];
+export const NGUON_LABEL: Record<string, string> = { Lada: "NSKX", CRM: "3T" };
 
 const EMPTY: FormState = {
   id_crm_karofi: "", id_lada: "", id_truy_van: "", nguon: "",
