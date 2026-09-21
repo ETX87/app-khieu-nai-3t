@@ -6,6 +6,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": { "directory": "./frontend/dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
   "d1_databases": [{ "binding": "DB", "database_name": "khieu-nai-db", "database_id": "fef4e5cf-fdda-4441-8383-41ec20f00fa0", "migrations_dir": "migrations" }],
+  // Them 2026-09-21: keo danh ba "ETX nhan su" ve moi ngay luc 3h sang GIO VN = 20h UTC (xem
+  // backend/src/index.ts scheduled(), lib/etxNhanSuSync.ts). Day la cron DUY NHAT cua he nay.
+  "triggers": { "crons": ["0 20 * * *"] },
   // Service Binding tới Worker "dvbh" (RPC nội bộ qua Cloudflare) - fetch() thẳng URL bị chặn lỗi
   // 1042 (chống SSRF, Worker-gọi-Worker cùng tài khoản) - xem lib/dvbhClient.ts + linh-kien-app.
   "services": [{ "binding": "DVBH_SERVICE", "service": "dvbh", "remote": true }],
@@ -20,6 +23,9 @@
     "VAPID_SERVER_PUBLIC_KEY": "BNb-Kn7OehFHI9VhDrisdJY6xoJ92EjrYp4-24TMo493zWY1L6lQmDFJXAizfz_dKCQoZGIhEFy2rWJyGzM5yqc",
     // Tra cuu ID LADA qua he thong noi bo cho nhan vien - token la secret rieng
     // (wrangler secret put CENTER3T_API_TOKEN), xem backend/src/lib/center3tClient.ts.
-    "CENTER3T_API_BASE": "https://center.dichvu3t.com"
+    "CENTER3T_API_BASE": "https://center.dichvu3t.com",
+    // Danh ba "ETX nhan su" (them 2026-09-21, xem backend/src/lib/etxNhanSuClient.ts). Google Cloud
+    // Function rieng, khoa doi tac la secret (wrangler secret put ETX_HR_API_KEY).
+    "ETX_HR_BASE_URL": "https://asia-southeast1-etx-nhan-su.cloudfunctions.net"
   }
 }

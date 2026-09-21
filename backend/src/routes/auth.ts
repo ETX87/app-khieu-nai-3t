@@ -67,11 +67,27 @@ app.get("/callback", async (c) => {
     .bind(email)
     .first<{ email: string; ten: string | null }>();
 
+  // Ten hien thi uu tien lay tu ho so "ETX nhan su" (chinh xac hon ten Google profile, xem
+  // lib/etxNhanSuSync.ts cascade khi ETX doi ten sau nay) - null neu gmail khong khop nhan su nao.
+  const etxMatch = await c.env.DB.prepare(
+    "SELECT ho_ten, trang_thai_lam_viec FROM etx_nhan_su WHERE LOWER(gmail) = LOWER(?)",
+  )
+    .bind(email)
+    .first<{ ho_ten: string; trang_thai_lam_viec: string }>();
+
   if (!existing) {
     const isBootstrapAdmin = email === c.env.BOOTSTRAP_ADMIN_EMAIL;
+    // Tai khoan moi + gmail co trong ETX + dang "Dang lam viec" -> tu duyet luon vai tro "NV Sale",
+    // bo qua buoc cho Admin duyet tay (yeu cau nghiep vu 2026-09-21). Chi ap dung DUNG 1 lan luc tao
+    // tai khoan (lan dang nhap dau tien); nhung lan dang nhap sau khong doi lai vai tro da duoc gan.
+    const autoApprove = !isBootstrapAdmin && etxMatch?.trang_thai_lam_viec === "on";
+    const vaiTro = isBootstrapAdmin ? "Admin" : autoApprove ? "NV Sale" : null;
+    const trangThaiDuyet = isBootstrapAdmin || autoApprove ? "Da duyet" : "Cho duyet";
     await c.env.DB.prepare("INSERT INTO users (email, ten, vai_tro, trang_thai_duyet) VALUES (?, ?, ?, ?)")
-      .bind(email, profile.name ?? null, isBootstrapAdmin ? "Admin" : null, isBootstrapAdmin ? "Da duyet" : "Cho duyet")
+      .bind(email, etxMatch?.ho_ten ?? profile.name ?? null, vaiTro, trangThaiDuyet)
       .run();
+  } else if (etxMatch && existing.ten !== etxMatch.ho_ten) {
+    await c.env.DB.prepare("UPDATE users SET ten = ? WHERE email = ?").bind(etxMatch.ho_ten, email).run();
   } else if (!existing.ten && profile.name) {
     await c.env.DB.prepare("UPDATE users SET ten = ? WHERE email = ?").bind(profile.name, email).run();
   }

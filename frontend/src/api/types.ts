@@ -14,6 +14,30 @@ export interface AdminUserRow extends AppUser {
   last_login: string | null;
 }
 
+export interface EtxNhanSuRow {
+  ma_nhan_su: string;
+  ho_ten: string;
+  chuc_danh: string | null;
+  ma_chuc_danh: string; // JSON array (string[])
+  gmail: string | null;
+  trang_thai_lam_viec: "on" | "off";
+  tai_khoan_lada_ma: string | null;
+  tai_khoan_lada_ten: string | null;
+  quan_ly_truc_tiep: string; // JSON array
+  created_at: string;
+  updated_at: string;
+  lien_ket_vai_tro: VaiTro | null;
+  lien_ket_trang_thai_duyet: "Cho duyet" | "Da duyet" | "Tu choi" | null;
+  lien_ket_bi_khoa: number | null;
+}
+
+export interface EtxNhanSuSyncStatus {
+  last_run_at: string | null;
+  last_status: "ok" | "error" | null;
+  changed_count: number;
+  last_error: string | null;
+}
+
 export type TrangThaiKhieuNai = "Cho tiep nhan" | "Dang xu ly" | "Cho chot ket thuc" | "Da ket thuc" | "Huy";
 export type DanhGia3 = "Khong" | "Co" | "Chua danh gia";
 

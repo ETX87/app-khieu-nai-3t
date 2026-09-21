@@ -39,6 +39,11 @@ export interface Env {
   // CENTER3T_API_TOKEN la secret (wrangler secret put), CENTER3T_API_BASE la var thuong.
   CENTER3T_API_BASE: string;
   CENTER3T_API_TOKEN: string;
+  // Danh ba "ETX nhan su" (2026-09-21) - Google Cloud Function rieng, KHONG phai Worker cung tai
+  // khoan Cloudflare nen fetch() thang la du (khong dinh loi 1042). ETX_HR_API_KEY la secret
+  // (wrangler secret put), khoa cap rieng cho doi tac "Thai 3T" - xem lib/etxNhanSuClient.ts.
+  ETX_HR_BASE_URL: string;
+  ETX_HR_API_KEY: string;
 }
 
 // Registers the keys set via c.set()/read via c.get() across middleware so that

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
-import type { AdminUserRow, AppUser, VaiTro } from "../api/types";
+import type { AdminUserRow, AppUser, EtxNhanSuRow, EtxNhanSuSyncStatus, VaiTro } from "../api/types";
 import { fmtVN } from "../lib/formatVN";
 import { Card } from "../components/ui/Card";
 import { Btn } from "../components/ui/Btn";
@@ -9,6 +9,7 @@ import { Select } from "../components/ui/Select";
 import { Input } from "../components/ui/Input";
 import { Table, type TableColumn } from "../components/ui/Table";
 import { Badge } from "../components/ui/Badge";
+import { Tabs } from "../components/ui/Tabs";
 import { useToast } from "../components/ui/Toast";
 
 const VAI_TRO_OPTIONS = [
@@ -33,6 +34,28 @@ const ERR_MSG: Record<string, string> = {
 };
 
 export function UsersModule({ user }: { user: AppUser }) {
+  const isAdmin = user.vai_tro === "Admin";
+  const [tab, setTab] = useState<"nguoi-dung" | "etx-nhan-su">("nguoi-dung");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <h2 className="text-lg font-semibold text-ink">Người dùng</h2>
+      <Tabs
+        tabs={[
+          { key: "nguoi-dung", label: "Người dùng" },
+          // Du lieu nhan su nhay cam hon danh sach users thuong nen chi Admin thay tab nay.
+          ...(isAdmin ? [{ key: "etx-nhan-su", label: "ETX nhân sự" }] : []),
+        ]}
+        active={tab}
+        onChange={(k) => setTab(k as "nguoi-dung" | "etx-nhan-su")}
+      />
+      {tab === "nguoi-dung" && <NguoiDungTab user={user} />}
+      {tab === "etx-nhan-su" && isAdmin && <EtxNhanSuTab />}
+    </div>
+  );
+}
+
+function NguoiDungTab({ user }: { user: AppUser }) {
   const { showToast } = useToast();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
@@ -115,7 +138,6 @@ export function UsersModule({ user }: { user: AppUser }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-ink">Người dùng</h2>
       <Card>
         <div className="mb-3">
           <Input className="max-w-xs" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo email hoặc tên..." />
@@ -134,6 +156,118 @@ export function UsersModule({ user }: { user: AppUser }) {
           onSubmit={(body) => patch.mutate({ email: editRow.email, body })}
         />
       )}
+    </div>
+  );
+}
+
+const TRANG_THAI_LAM_VIEC_LABEL: Record<string, string> = { on: "Đang làm việc", off: "Đã nghỉ" };
+
+// Tab "ETX nhân sự" (2026-09-21) - danh bạ nhân sự đồng bộ PULL 1 chiều từ hệ ETX ngoài (xem
+// backend/src/lib/etxNhanSuSync.ts), Admin-only. Đồng bộ tự động 1 lần/ngày lúc 3h sáng qua cron,
+// hoặc bấm "Đồng bộ ngay" khi cần gấp. Khác linh-kien-app: không có cột "Mã KTV" để gán tay vì App
+// Khiếu Nại khớp tài khoản trực tiếp theo gmail (không có bảng trung gian).
+function EtxNhanSuTab() {
+  const { showToast } = useToast();
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [trangThai, setTrangThai] = useState("");
+
+  const query = useQuery({
+    queryKey: ["etx-nhan-su", search, trangThai],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("search", search.trim());
+      if (trangThai) params.set("trang_thai", trangThai);
+      const qs = params.toString();
+      return api.get<{ items: EtxNhanSuRow[] }>(`/etx-nhan-su${qs ? `?${qs}` : ""}`);
+    },
+  });
+
+  const syncStatus = useQuery({
+    queryKey: ["etx-nhan-su-sync-status"],
+    queryFn: () => api.get<EtxNhanSuSyncStatus>("/etx-nhan-su/sync-status"),
+    refetchInterval: 60_000,
+  });
+
+  const runSync = useMutation({
+    mutationFn: () => api.post<EtxNhanSuSyncStatus>("/etx-nhan-su/sync/run", {}),
+    onSuccess: async (res) => {
+      if (res.last_status === "error") showToast(`Đồng bộ lỗi: ${res.last_error}`, "error");
+      else showToast(`Đã đồng bộ xong, ${res.changed_count} dòng thay đổi`, "success");
+      await qc.invalidateQueries({ queryKey: ["etx-nhan-su-sync-status"] });
+      await qc.invalidateQueries({ queryKey: ["etx-nhan-su"] });
+    },
+    onError: (err) => showToast("Không thể đồng bộ: " + (err instanceof Error ? err.message : String(err)), "error"),
+  });
+
+  const columns: TableColumn<EtxNhanSuRow>[] = [
+    { key: "ma_nhan_su", header: "Mã NV", render: (r) => r.ma_nhan_su },
+    { key: "ho_ten", header: "Họ tên", render: (r) => r.ho_ten },
+    { key: "chuc_danh", header: "Chức danh", render: (r) => r.chuc_danh ?? <span className="text-ink-faint">—</span> },
+    { key: "gmail", header: "Gmail", render: (r) => r.gmail ?? <span className="text-ink-faint">—</span> },
+    {
+      key: "trang_thai_lam_viec",
+      header: "Trạng thái làm việc",
+      render: (r) => (
+        <Badge tone={r.trang_thai_lam_viec === "on" ? "green" : "red"}>{TRANG_THAI_LAM_VIEC_LABEL[r.trang_thai_lam_viec]}</Badge>
+      ),
+    },
+    {
+      key: "lien_ket",
+      header: "Tài khoản liên kết",
+      render: (r) =>
+        r.lien_ket_vai_tro || r.lien_ket_trang_thai_duyet ? (
+          <div className="leading-tight">
+            <div>{r.lien_ket_vai_tro ?? <span className="text-ink-faint">Chưa gán vai trò</span>}</div>
+            {!!r.lien_ket_bi_khoa && <Badge tone="red">Đã khoá</Badge>}
+          </div>
+        ) : (
+          <span className="text-ink-faint">Chưa có tài khoản</span>
+        ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card>
+        <div className="mb-3 flex flex-wrap items-end gap-3">
+          <div className="text-xs text-ink-soft">
+            {syncStatus.isLoading ? (
+              "Đang tải trạng thái đồng bộ..."
+            ) : syncStatus.data?.last_run_at ? (
+              <>
+                Đồng bộ gần nhất: {fmtVN.relative(syncStatus.data.last_run_at)}
+                {syncStatus.data.last_status === "error" ? (
+                  <span className="text-red-600"> — lỗi: {syncStatus.data.last_error}</span>
+                ) : (
+                  <> — {syncStatus.data.changed_count} dòng thay đổi</>
+                )}
+              </>
+            ) : (
+              "Chưa đồng bộ lần nào."
+            )}
+          </div>
+          <Btn size="sm" variant="secondary" disabled={runSync.isPending} onClick={() => runSync.mutate()} className="ml-auto">
+            {runSync.isPending ? "Đang đồng bộ..." : "Đồng bộ ngay"}
+          </Btn>
+        </div>
+        <div className="mb-3 flex flex-wrap gap-3">
+          <Input className="max-w-xs" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo mã NV, họ tên, gmail..." />
+          <Select
+            className="max-w-[180px]"
+            options={[
+              { value: "on", label: "Đang làm việc" },
+              { value: "off", label: "Đã nghỉ" },
+            ]}
+            placeholder="Tất cả trạng thái"
+            value={trangThai}
+            onChange={(e) => setTrangThai(e.target.value)}
+          />
+        </div>
+        {query.isLoading && <p className="py-8 text-center text-sm text-ink-soft">Đang tải...</p>}
+        {query.isError && <p className="py-8 text-center text-sm text-red-600">Không thể tải danh bạ ETX nhân sự.</p>}
+        {query.data && <Table columns={columns} rows={query.data.items} rowKey={(r) => r.ma_nhan_su} />}
+      </Card>
     </div>
   );
 }
