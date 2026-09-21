@@ -264,14 +264,29 @@ app.get("/", async (c) => {
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const offset = (page - 1) * pageSize;
 
+  // Dem so dong: KHONG COUNT(*) truc tiep tren "where" rong (khi khong loc gi ca) - se buoc D1 quet
+  // toan bo bang (rows_read = tong so ban ghi, tang mai theo thoi gian). Bao boc trong subquery co
+  // LIMIT de rows_read toi da bang COUNT_CAP du bang co bao nhieu trieu dong - tu "~du du de biet
+  // con nhieu trang" chu khong can dem chinh xac tuyet doi khi khong loc.
+  const COUNT_CAP = 50000;
   const [list, count] = await Promise.all([
     c.env.DB.prepare(`SELECT * FROM khieu_nai ${where} ORDER BY ${sort} ${dir} LIMIT ? OFFSET ?`)
       .bind(...binds, pageSize, offset)
       .all(),
-    c.env.DB.prepare(`SELECT COUNT(*) as cnt FROM khieu_nai ${where}`).bind(...binds).first<{ cnt: number }>(),
+    c.env.DB.prepare(
+      `SELECT COUNT(*) as cnt FROM (SELECT 1 FROM khieu_nai ${where} LIMIT ?)`,
+    ).bind(...binds, COUNT_CAP + 1).first<{ cnt: number }>(),
   ]);
+  const totalRaw = count?.cnt ?? 0;
+  const totalIsApprox = totalRaw > COUNT_CAP;
 
-  return c.json({ items: list.results, total: count?.cnt ?? 0, page, pageSize });
+  return c.json({
+    items: list.results,
+    total: totalIsApprox ? COUNT_CAP : totalRaw,
+    totalIsApprox,
+    page,
+    pageSize,
+  });
 });
 
 // GET /api/khieu-nai/stats - so lieu that cho Trang chu (khong phai du lieu mau/gia lap) - dat

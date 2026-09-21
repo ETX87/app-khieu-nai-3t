@@ -43,6 +43,7 @@ const FILTER_KEY = "khieunai_list_filter";
 interface ListResponse {
   items: KhieuNai[];
   total: number;
+  totalIsApprox?: boolean;
   page: number;
   pageSize: number;
 }
@@ -353,6 +354,7 @@ export function KhieuNaiModule({
   ];
 
   const total = query.data?.total ?? 0;
+  const totalIsApprox = query.data?.totalIsApprox ?? false;
   const pageSizeN = parseInt(f.pageSize, 10) || 20;
   const totalPages = Math.max(1, Math.ceil(total / pageSizeN));
 
@@ -536,7 +538,7 @@ export function KhieuNaiModule({
               />
             </div>
             <div className="mt-4 flex items-center justify-between text-sm text-ink-soft">
-              <span>Tổng {total} phản ánh — Trang {page}/{totalPages}</span>
+              <span>Tổng {total}{totalIsApprox ? "+" : ""} phản ánh — Trang {page}/{totalPages}{totalIsApprox ? "+" : ""}</span>
               <div className="flex gap-2">
                 <Btn size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</Btn>
                 <Btn size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Sau</Btn>
