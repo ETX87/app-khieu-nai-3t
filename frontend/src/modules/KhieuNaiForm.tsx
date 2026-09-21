@@ -499,12 +499,12 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
           {/* Tra cứu ID — ô gọn, nút kính lúp */}
           <fieldset className="rounded-lg border border-accent/40 bg-white p-2.5">
             <legend className={legendCls}>Tra cứu nhanh theo ID</legend>
-            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-              <div className="block">
-                <span className="mb-0.5 block text-xs font-medium text-ink-soft">ID CRM Karofi</span>
-                <div className="flex gap-1">
+            <div className="flex flex-nowrap items-end gap-x-2 overflow-x-auto pb-0.5">
+              <div className="w-[92px] shrink-0">
+                <span className="mb-0.5 block text-xs font-medium leading-tight text-ink-soft">ID CRM Karofi</span>
+                <div className="flex gap-0.5">
                   <Input
-                    className="w-32 !py-1"
+                    className="w-[62px] !px-1.5 !py-1 text-xs"
                     value={form.id_crm_karofi}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -519,17 +519,17 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     title="Tra cứu"
                     onClick={() => void runLookup("crm")}
                     disabled={!form.id_crm_karofi.trim() || lookupBusy === "crm"}
-                    className="flex items-center justify-center rounded-md border border-line bg-white px-2 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex items-center justify-center rounded-md border border-line bg-white px-1 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {lookupBusy === "crm" ? "…" : <SearchIcon />}
                   </button>
                 </div>
               </div>
-              <div className="block">
-                <span className="mb-0.5 block text-xs font-medium text-ink-soft">ID Lada</span>
-                <div className="flex gap-1">
+              <div className="w-[80px] shrink-0">
+                <span className="mb-0.5 block text-xs font-medium leading-tight text-ink-soft">ID Lada</span>
+                <div className="flex gap-0.5">
                   <Input
-                    className="w-32 !py-1"
+                    className="w-[62px] !px-1.5 !py-1 text-xs"
                     value={form.id_lada}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -544,17 +544,17 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     title="Tra cứu"
                     onClick={() => void runLookup("lada")}
                     disabled={!form.id_lada.trim() || lookupBusy === "lada"}
-                    className="flex items-center justify-center rounded-md border border-line bg-white px-2 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex items-center justify-center rounded-md border border-line bg-white px-1 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {lookupBusy === "lada" ? "…" : <SearchIcon />}
                   </button>
                 </div>
               </div>
-              <div className="block">
-                <span className="mb-0.5 block text-xs font-medium text-ink-soft">ID Truy vấn</span>
-                <div className="flex gap-1">
+              <div className="w-[92px] shrink-0">
+                <span className="mb-0.5 block text-xs font-medium leading-tight text-ink-soft">ID Truy vấn</span>
+                <div className="flex gap-0.5">
                   <Input
-                    className="w-32 !py-1"
+                    className="w-[62px] !px-1.5 !py-1 text-xs"
                     value={form.id_truy_van}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -569,26 +569,26 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     title="Tra cứu"
                     onClick={() => void runLookup("truy_van")}
                     disabled={!form.id_truy_van.trim() || lookupBusy === "truy_van"}
-                    className="flex items-center justify-center rounded-md border border-line bg-white px-2 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex items-center justify-center rounded-md border border-line bg-white px-1 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {lookupBusy === "truy_van" ? "…" : <SearchIcon />}
                   </button>
                 </div>
               </div>
-              <div className="block">
-                <span className="mb-0.5 block text-xs font-medium text-ink-soft">Nguồn</span>
+              <div className="w-[76px] shrink-0">
+                <span className="mb-0.5 block text-xs font-medium leading-tight text-ink-soft">Nguồn</span>
                 <Select
-                  className="w-32 !py-1"
+                  className="w-[76px] !px-1.5 !py-1 text-xs"
                   options={NGUON_OPTIONS}
                   placeholder="— Chọn —"
                   value={form.nguon}
                   onChange={(e) => setField("nguon", e.target.value)}
                 />
               </div>
-              <p className="mb-1 max-w-[14rem] text-[11px] leading-tight text-ink-faint">
-                Nhập ID rồi Enter / bấm kính lúp — tự điền vào các ô còn trống.
-              </p>
             </div>
+            <p className="mt-1.5 text-[11px] leading-tight text-ink-faint">
+              Nhập ID rồi Enter / bấm kính lúp — tự điền vào các ô còn trống.
+            </p>
 
             {lookup && <LookupResult res={lookup} onApplyFill={applyLookupFill} applied={filledFromLookup} />}
           </fieldset>

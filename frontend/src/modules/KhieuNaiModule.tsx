@@ -61,6 +61,7 @@ const TON_TOI_THIEU_OPTIONS = [
 
 interface Filters {
   trangThai: string;
+  nguon: string; // "" | "Lada" (NSKX) | "CRM" (3T) - 3 nut loc nhanh tren toolbar
   mucDo: string;
   nhomVanDe: string;
   tuNgay: string;
@@ -77,8 +78,14 @@ interface Filters {
   pageSize: string;
 }
 
+const NGUON_QUICK_OPTIONS = [
+  { value: "", label: "Tất cả" },
+  { value: "Lada", label: "NSKX" },
+  { value: "CRM", label: "3T" },
+];
+
 const EMPTY_FILTERS: Filters = {
-  trangThai: "", mucDo: "", nhomVanDe: "", tuNgay: "", denNgay: "",
+  trangThai: "", nguon: "", mucDo: "", nhomVanDe: "", tuNgay: "", denNgay: "",
   chuaDongBo: false, choTnCskh: false, quaHanGiaiTrinh: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "", thangDong: "",
   q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
 };
@@ -206,6 +213,7 @@ export function KhieuNaiModule({
     queryFn: () => {
       const p = new URLSearchParams();
       if (f.trangThai) p.set("trang_thai", f.trangThai);
+      if (f.nguon) p.set("nguon", f.nguon);
       if (f.mucDo) p.set("muc_do", f.mucDo);
       if (f.nhomVanDe) p.set("nhom_van_de", f.nhomVanDe);
       if (f.tuNgay) p.set("tu_ngay", f.tuNgay);
@@ -339,7 +347,7 @@ export function KhieuNaiModule({
   const totalPages = Math.max(1, Math.ceil(total / pageSizeN));
 
   const activeFilterCount =
-    [f.trangThai, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.q].filter(Boolean).length +
+    [f.trangThai, f.nguon, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.q].filter(Boolean).length +
     (f.chuaDongBo ? 1 : 0) + (f.choTnCskh ? 1 : 0) + (f.quaHanGiaiTrinh ? 1 : 0) + (f.caCuaToi ? 1 : 0);
 
   const handleSort = (field: string) => {
@@ -377,6 +385,20 @@ export function KhieuNaiModule({
             )}
             <span className="text-[10px] text-ink-soft">{filtersOpen ? "▲" : "▼"}</span>
           </button>
+          <div className="flex items-center gap-0.5 rounded-md border border-line bg-white p-0.5">
+            {NGUON_QUICK_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => set("nguon", o.value)}
+                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                  f.nguon === o.value ? "bg-accent text-white" : "text-ink-soft hover:bg-gray-50"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
           {activeFilterCount > 0 && (
             <button onClick={resetFilters} className="text-xs font-medium text-accent hover:underline">
               Xoá lọc ({activeFilterCount})
