@@ -851,6 +851,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
     ten_khach: kn.ten_khach ?? "",
     sdt_khach: kn.sdt_khach ?? "",
     id_lada: kn.id_lada ?? "",
+    id_truy_van: kn.id_truy_van ?? "",
     nguon: kn.nguon ?? "",
     sale_khu_vuc: kn.sale_khu_vuc ?? "",
     tinh: kn.tinh ?? "",
@@ -879,6 +880,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
 
   const serverForm = {
     ten_khach: kn.ten_khach ?? "", sdt_khach: kn.sdt_khach ?? "", id_lada: kn.id_lada ?? "",
+    id_truy_van: kn.id_truy_van ?? "",
     nguon: kn.nguon ?? "",
     sale_khu_vuc: kn.sale_khu_vuc ?? "", tinh: kn.tinh ?? "", quan_huyen: kn.quan_huyen ?? "",
     phuong_xa: kn.phuong_xa ?? "", tinh_moi: kn.tinh_moi ?? "", phuong_xa_moi: kn.phuong_xa_moi ?? "",
@@ -919,6 +921,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
           <ReadField label="Tên khách hàng" value={kn.ten_khach} />
           <ReadField label="Số điện thoại" value={kn.sdt_khach} />
           <ReadField label="ID Lada" value={kn.id_lada} />
+          <ReadField label="ID Truy vấn" value={kn.id_truy_van} />
           <ReadField label="Nguồn" value={kn.nguon ? (NGUON_LABEL[kn.nguon] ?? kn.nguon) : null} />
           <ReadField label="Sale khu vực" value={kn.sale_khu_vuc} />
           <ReadField label="Người báo" value={kn.nguoi_bao} />
@@ -956,6 +959,9 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
         </Field>
         <Field label="ID Lada">
           <Input value={form.id_lada} onChange={(e) => setField("id_lada", e.target.value)} />
+        </Field>
+        <Field label="ID Truy vấn">
+          <Input value={form.id_truy_van} onChange={(e) => setField("id_truy_van", e.target.value)} />
         </Field>
         <Field label="Nguồn">
           <Select
@@ -1551,7 +1557,7 @@ const LS_LABEL: Record<string, string> = {
 
 // Nhãn field ngắn gọn cho log "cập nhật 1 trường" (item: badge cụ thể thay vì chung chung).
 const LICH_SU_FIELD_LABEL: Record<string, string> = {
-  id_crm_karofi: "ID CRM", id_lada: "ID Lada", nguon: "Nguồn", ten_khach: "Tên khách", sdt_khach: "SĐT",
+  id_crm_karofi: "ID CRM", id_lada: "ID Lada", id_truy_van: "ID Truy vấn", nguon: "Nguồn", ten_khach: "Tên khách", sdt_khach: "SĐT",
   muc_do: "Mức độ", nhom_van_de: "Nhóm vấn đề", van_de_dau_vao: "Vấn đề đầu vào",
   cam_co: "Cắm cờ", trang_thai: "Trạng thái", nguoi_phu_trach: "Người phụ trách",
   loi_nha_san_xuat: "Lỗi nhà sản xuất", loi_lap_dat: "Lỗi lắp đặt",

@@ -20,7 +20,7 @@ const isKtvLike = (vaiTro: string | null | undefined) => (KTV_LIKE_ROLES as read
 
 // Thong tin khach hang + CRM - chi CSKH/Admin sua
 const CSKH_FIELDS = [
-  "ten_khach", "sdt_khach", "id_lada", "sale_khu_vuc",
+  "ten_khach", "sdt_khach", "id_lada", "id_truy_van", "sale_khu_vuc",
   "tinh", "quan_huyen", "phuong_xa", "tinh_moi", "phuong_xa_moi", "model", "hang",
   "thong_tin_ban_dau", "nguoi_bao", "muc_do", "nhom_yeu_cau", "nhom_van_de", "van_de_dau_vao",
   "phan_loai_kh", "ghi_chu_nguoi_tao", "id_crm_karofi", "nguon",
@@ -42,7 +42,7 @@ const QL_FIELDS = ["danh_gia_ql", "ql_gio_xu_ly", "ql_chon_ngay_hen", "ql_chon_l
 
 // Nhan Tieng Viet cho nhat ky "cap nhat" chung (khong bao gom TN_CSKH_FIELDS/danh_gia_ql - da co nhat ky rieng).
 const FIELD_LABELS: Record<string, string> = {
-  ten_khach: "Tên khách hàng", sdt_khach: "Số điện thoại", id_lada: "ID Lada",
+  ten_khach: "Tên khách hàng", sdt_khach: "Số điện thoại", id_lada: "ID Lada", id_truy_van: "ID Truy vấn",
   sale_khu_vuc: "Sale khu vực", tinh: "Tỉnh (cũ)", quan_huyen: "Quận/Huyện (cũ)",
   phuong_xa: "Phường/Xã (cũ)", tinh_moi: "Tỉnh (mới)", phuong_xa_moi: "Phường/Xã (mới)",
   model: "Model", hang: "Hãng", thong_tin_ban_dau: "Thông tin ban đầu", nguoi_bao: "Người báo",
@@ -864,6 +864,7 @@ app.post("/", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "Q
     ten_khach: body.ten_khach ?? null,
     sdt_khach: body.sdt_khach ?? null,
     id_lada: body.id_lada ?? null,
+    id_truy_van: body.id_truy_van ?? null,
     sale_khu_vuc: body.sale_khu_vuc ?? null,
     tinh: body.tinh ?? null,
     quan_huyen: body.quan_huyen ?? null,
