@@ -39,8 +39,10 @@ interface TrungLapItem {
   trang_thai: string;
   id_lada: string | null;
   id_lada_phat_sinh: string | null;
+  id_truy_van: string | null;
 }
 interface TrungLapGroup {
+  id_truy_van_ids: string[];
   lada_ids: string[];
   so_lan: number;
   khoang_cach_ngan_nhat: number;
@@ -403,13 +405,22 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
       >
         {trungLapQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
         {trungLapQuery.data && trungLapQuery.data.groups.length === 0 && (
-          <p className="py-4 text-center text-sm text-ink-soft">Không có ca trùng lặp theo ID Lada trong khoảng lọc này.</p>
+          <p className="py-4 text-center text-sm text-ink-soft">Không có ca trùng lặp theo ID Truy xuất/ID Lada trong khoảng lọc này.</p>
         )}
         <div className="flex flex-col gap-3">
           {trungLapQuery.data?.groups.map((g) => (
-            <div key={g.lada_ids.join("+")} className="rounded-md border border-line p-2.5">
+            <div key={[...g.id_truy_van_ids, ...g.lada_ids].join("+")} className="rounded-md border border-line p-2.5">
               <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs text-ink-soft">{g.lada_ids.join(" → ")}</span>
+                {g.id_truy_van_ids.length > 0 && (
+                  <span className="font-mono text-xs text-ink-soft">
+                    ID Truy xuất: {g.id_truy_van_ids.join(" → ")}
+                  </span>
+                )}
+                {g.lada_ids.length > 0 && (
+                  <span className="font-mono text-xs text-ink-soft">
+                    ID Lada: {g.lada_ids.join(" → ")}
+                  </span>
+                )}
                 {g.tai_phat_trong_7_ngay ? (
                   <Badge tone="red">⚠ Tái phát trong {g.khoang_cach_ngan_nhat} ngày</Badge>
                 ) : (

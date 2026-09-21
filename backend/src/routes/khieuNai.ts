@@ -447,22 +447,15 @@ app.get("/tra-cuu", async (c) => {
         if (r["Nhãn hiệu máy"]?.trim()) fill.hang = r["Nhãn hiệu máy"].trim();
         put("ten_khach", "Tên KH");
         put("id_truy_van", "ID Truy xuất");
-        // BUG (2026-09-21): truoc day quyet dinh dia chinh cu/moi bang cach kiem tra ten tinh co
-        // khop danh muc "tinh_moi" khong - nhung da xac nhan bang goi API that (ID Lada B1391729,
-        // tra ve "Huyện Hoài Đức") la SAI: da so tinh KHONG doi ten sau sap nhap 2025 nen ten tinh
-        // luon khop CA HAI danh muc tinh/tinh_moi, khien du lieu cu (co huyen) bi hieu nham la moi
-        // va lam mat han cot Quan/Huyen du API tra ve day du. Tin hieu dang tin cay hon: du lieu tu
-        // nguon Ecolada nay luon la dia chinh CU 3 cap (tinh/huyen/xa) khi con cot Quan/Huyen - chi
-        // coi la dia chinh MOI (2 cap, khong huyen) khi cot Quan/Huyen thuc su rong.
-        const quanHuyenVal = r["Quận/Huyện"]?.trim() ?? "";
-        if (quanHuyenVal) {
-          put("tinh", "Tỉnh/Thành");
-          put("quan_huyen", "Quận/Huyện");
-          put("phuong_xa", "Phường/Xã");
-        } else {
-          put("tinh_moi", "Tỉnh/Thành");
-          put("phuong_xa_moi", "Phường/Xã");
-        }
+        // Nguon Ecolada (center.dichvu3t.com, API export-excel-order-get-data) chi tra ve dia chinh
+        // CU 3 cap (Tinh/Huyen/Xa) - da xac nhan bang 2 lan goi API that (ID Lada B1391729): "Địa chỉ
+        // mới 2 cấp" hien tren giao dien Lada KHONG xuat hien o bat ky cot nao trong 122 cot cua
+        // response nay (kiem tra ca byte-tho tren XML, khong chi qua parser). Truoc day co logic
+        // doan dia chinh moi bang cach kiem tra ten tinh/Quan-Huyen rong hay khong - da bo vi khong
+        // co bang chung, chi gay mat du lieu cu that su ton tai (2026-09-21).
+        put("tinh", "Tỉnh/Thành");
+        put("quan_huyen", "Quận/Huyện");
+        put("phuong_xa", "Phường/Xã");
         const str = (v?: string) => (v && v.trim() !== "" ? v.trim() : null);
         preview = {
           khach_hang: str(r["Tên KH"]),
@@ -613,16 +606,20 @@ interface TrungLapRow {
   id: string;
   id_lada: string | null;
   id_lada_phat_sinh: string | null;
+  id_truy_van: string | null;
   ngay_tiep_nhan: string;
   ten_khach: string | null;
   van_de_dau_vao: string | null;
   trang_thai: string;
 }
 
-// Ca trung lap/tai phat sinh: gop nhom theo "hanh trinh" 1 may - coi id_lada (goc) va
-// id_lada_phat_sinh (sinh o nhanh doi may) la CUNG 1 danh tinh may khi xuat hien chung trong 1
-// dong (Union-Find tren gia tri ID Lada), roi liet ke nhom co >=2 phan anh, danh dau nhom co
-// khoang cach giua 2 lan gan nhau <=7 ngay la "tai phat nhanh".
+// Ca trung lap/tai phat sinh: gop nhom theo "hanh trinh" 1 may - coi id_lada (goc), id_lada_phat_sinh
+// (sinh o nhanh doi may) VA id_truy_van la CUNG 1 danh tinh khi xuat hien chung tren 1 dong
+// (Union-Find). Uu tien so sanh theo id_truy_van (ma tra cuu rieng cho tung lan dich vu, dang tin
+// cay hon vi ID Lada la ma theo MAY VAT LY nen co the bi dung lai qua nhieu lan dich vu khac nhau
+// khong lien quan) - id_lada chi la tin hieu du phong khi id_truy_van khong co/khong khop
+// (2026-09-21). Ca 2 tin hieu deu nam CHUNG 1 union-find graph nen van bat duoc truong hop bac cau
+// (vd doi may: id_truy_van cu noi voi id_lada cu, id_lada moi lai xuat hien o don khac).
 app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
   // Truoc day quet "xuyen suot" (chi cham LIMIT 20000 dong gan nhat) de bat tai phat cach nhau
   // nhieu thang - nhung LIMIT do ngam dinh 1 "cua so thoi gian" seo lai dan khi luong ca/ngay tang
@@ -637,14 +634,14 @@ app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
 
   // Ca da Huy khong tinh la "tai phat" (khong phai 1 lan phan anh that su can xem xet).
   const conditions: string[] = [
-    "(id_lada IS NOT NULL OR id_lada_phat_sinh IS NOT NULL)",
+    "(id_lada IS NOT NULL OR id_lada_phat_sinh IS NOT NULL OR id_truy_van IS NOT NULL)",
     "trang_thai != 'Huy'",
     "ngay_tiep_nhan >= ? AND ngay_tiep_nhan < datetime(?, '+1 month')",
   ];
   const binds: unknown[] = [start, start];
 
   const { results } = await c.env.DB.prepare(
-    `SELECT id, id_lada, id_lada_phat_sinh, ngay_tiep_nhan, ten_khach, van_de_dau_vao, trang_thai
+    `SELECT id, id_lada, id_lada_phat_sinh, id_truy_van, ngay_tiep_nhan, ten_khach, van_de_dau_vao, trang_thai
      FROM khieu_nai WHERE ${conditions.join(" AND ")} ORDER BY ngay_tiep_nhan DESC LIMIT 20000`,
   ).bind(...binds).all<TrungLapRow>();
 
@@ -659,18 +656,26 @@ app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
     const ra = find(a), rb = find(b);
     if (ra !== rb) parent.set(ra, rb);
   };
-  const ladaValsOf = (r: TrungLapRow) => [r.id_lada, r.id_lada_phat_sinh].filter((v): v is string => !!v && v.trim() !== "");
+  // Namespace tien to de tranh 1 chuoi ID truy xuat trung ngau nhien voi 1 chuoi ID Lada (2 he thong
+  // ma khac nhau). ID truy xuat dung lam khoa CHINH (dang tin cay hon), ID Lada la khoa DU PHONG.
+  const identityKeysOf = (r: TrungLapRow) => {
+    const keys: string[] = [];
+    if (r.id_truy_van && r.id_truy_van.trim() !== "") keys.push(`TV:${r.id_truy_van.trim()}`);
+    if (r.id_lada && r.id_lada.trim() !== "") keys.push(`LD:${r.id_lada.trim()}`);
+    if (r.id_lada_phat_sinh && r.id_lada_phat_sinh.trim() !== "") keys.push(`LD:${r.id_lada_phat_sinh.trim()}`);
+    return keys;
+  };
   for (const r of results) {
-    const ids = ladaValsOf(r);
-    for (const v of ids) if (!parent.has(v)) parent.set(v, v);
-    if (ids.length === 2) union(ids[0], ids[1]);
+    const keys = identityKeysOf(r);
+    for (const k of keys) if (!parent.has(k)) parent.set(k, k);
+    for (let i = 1; i < keys.length; i++) union(keys[0], keys[i]);
   }
 
   const groups = new Map<string, TrungLapRow[]>();
   for (const r of results) {
-    const ids = ladaValsOf(r);
-    if (ids.length === 0) continue;
-    const root = find(ids[0]);
+    const keys = identityKeysOf(r);
+    if (keys.length === 0) continue;
+    const root = find(keys[0]);
     const arr = groups.get(root) ?? [];
     arr.push(r);
     groups.set(root, arr);
@@ -686,9 +691,11 @@ app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
         const d2 = new Date(sorted[i].ngay_tiep_nhan.replace(" ", "T") + "Z").getTime();
         minGapDays = Math.min(minGapDays, (d2 - d1) / 86_400_000);
       }
-      const ladaIds = [...new Set(sorted.flatMap(ladaValsOf))];
+      const idTruyVanVals = [...new Set(sorted.map((r) => r.id_truy_van).filter((v): v is string => !!v && v.trim() !== ""))];
+      const idLadaVals = [...new Set(sorted.flatMap((r) => [r.id_lada, r.id_lada_phat_sinh]).filter((v): v is string => !!v && v.trim() !== ""))];
       return {
-        lada_ids: ladaIds,
+        id_truy_van_ids: idTruyVanVals,
+        lada_ids: idLadaVals,
         so_lan: sorted.length,
         khoang_cach_ngan_nhat: Math.round(minGapDays * 10) / 10,
         tai_phat_trong_7_ngay: minGapDays <= 7,
@@ -697,7 +704,7 @@ app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
         items: [...sorted].reverse().map((r) => ({
           id: r.id, ngay_tiep_nhan: r.ngay_tiep_nhan, ten_khach: r.ten_khach,
           van_de_dau_vao: r.van_de_dau_vao, trang_thai: r.trang_thai,
-          id_lada: r.id_lada, id_lada_phat_sinh: r.id_lada_phat_sinh,
+          id_lada: r.id_lada, id_lada_phat_sinh: r.id_lada_phat_sinh, id_truy_van: r.id_truy_van,
         })),
       };
     })
