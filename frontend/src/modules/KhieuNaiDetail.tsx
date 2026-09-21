@@ -397,6 +397,12 @@ export function KhieuNaiDetail({
   const isCskh =
     ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed && !overdue && !chuaTiepNhan;
   const isQl = (user.vai_tro === "QL" || user.vai_tro === "Admin") && !isClosed && !overdue && !chuaTiepNhan;
+  // Sua thong tin don goc (CSKH_FIELDS: ten khach, SDT, dia chi, model...) KHONG bi khoa "qua han
+  // giai trinh" - khoa do chi ap dung cho danh gia loi/QL (xem backend PATCH /:id, touchesEvaluation).
+  // Cho phep CSKH/TN CSKH sua truoc khi don duoc chot ket thuc du dang qua han giai trinh (yeu cau ra
+  // soat 2026-09-21) - dung rieng bien nay cho nut "Sua" o Thong tin dau vao, KHONG dung isCskh.
+  const canEditThongTin =
+    ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed && !chuaTiepNhan;
   const canDanhGia4Loi = isCskh;
   const canXuLyDoiMay = canDanhGia4Loi;
   const canThemTienTrinh = ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed && !chuaTiepNhan;
@@ -566,7 +572,7 @@ export function KhieuNaiDetail({
               accent="slate"
               icon={ICON.doc}
               title="Thông tin đầu vào"
-              actions={isCskh && <ZoneBtn onClick={() => setEditing("khach")}>Sửa</ZoneBtn>}
+              actions={canEditThongTin && <ZoneBtn onClick={() => setEditing("khach")}>Sửa</ZoneBtn>}
             >
               <CustomerInfoSection kn={kn} editable={false} onSaved={invalidate} />
             </Zone>

@@ -971,8 +971,16 @@ app.patch("/:id", async (c) => {
   // Phai "Tiep nhan" truoc (CSKH bam nut, POST /:id/tiep-nhan) roi moi cho sua/cap nhat.
   if (cur.trang_thai === "Cho tiep nhan") return c.json({ error: "CHUA_TIEP_NHAN" }, 423);
 
-  const giaiTrinhStatus = await getGiaiTrinhStatus(c.env.DB, id!);
-  if (giaiTrinhStatus?.overdue) return c.json({ error: "QUA_HAN_GIAI_TRINH", deadline: giaiTrinhStatus.deadline }, 423);
+  // Khoa "qua han giai trinh" CHI ap dung khi sua truong danh gia loi/QL (TN_CSKH_FIELDS/QL_FIELDS) -
+  // day la muc dich that su cua khoa nay (bat giai trinh ly do cham TRUOC KHI danh gia/chot tiep).
+  // Sua thong tin don goc (CSKH_FIELDS, vd sua so dien thoai go nham) khong lien quan toi tien do xu
+  // ly nen KHONG bi chan boi khoa nay - cho phep CSKH/TN CSKH sua truoc khi don duoc chot ket thuc
+  // (yeu cau ra soat 2026-09-21), van ghi log nhu binh thuong o duoi.
+  const touchesEvaluation = bodyKeys.some((k) => (TN_CSKH_FIELDS as readonly string[]).includes(k) || (QL_FIELDS as readonly string[]).includes(k));
+  if (touchesEvaluation) {
+    const giaiTrinhStatus = await getGiaiTrinhStatus(c.env.DB, id!);
+    if (giaiTrinhStatus?.overdue) return c.json({ error: "QUA_HAN_GIAI_TRINH", deadline: giaiTrinhStatus.deadline }, 423);
+  }
 
   for (const f of TN_CSKH_FIELDS) {
     if (f in body && !DANH_GIA_VALUES.has(body[f])) {
