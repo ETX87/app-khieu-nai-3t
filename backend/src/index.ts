@@ -8,6 +8,7 @@ import thongBaoRoutes from "./routes/thongBao";
 import pushRoutes from "./routes/push";
 import etxNhanSuSyncRoutes from "./routes/etxNhanSuSync";
 import { runEtxNhanSuSyncWithState } from "./lib/etxNhanSuSync";
+import { writeDailySnapshot } from "./lib/baoCaoSnapshot";
 
 const app = new Hono<{ Bindings: Env }>();
 app.route("/api/auth", authRoutes);
@@ -26,5 +27,7 @@ export default {
   // khi cac lenh goi HTTP toi ETX hoan tat.
   scheduled: async (_event: ScheduledEvent, env: Env, ctx: ExecutionContext) => {
     ctx.waitUntil(runEtxNhanSuSyncWithState(env, env.DB));
+    // Chup nhanh ton dong hang ngay cho "Bao cao theo ngay" (xem lib/baoCaoSnapshot.ts).
+    ctx.waitUntil(writeDailySnapshot(env.DB));
   },
 };

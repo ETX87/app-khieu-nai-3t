@@ -807,6 +807,150 @@ app.get("/bao-cao/chot-loi", requireRole("CSKH", "TN CSKH", "QL", "Admin", "View
   });
 });
 
+// Danh sach nguoi dung gon (chi email+ten, khong du lieu quan tri) de dung cho bo loc "Nguoi tiep
+// nhan"/"Nguoi tao" o Bao cao - KHONG dung /api/users (chi Admin duoc goi) vi Bao cao mo cho ca
+// CSKH/TN CSKH/QL/Viewer. Bang users nho (~100-120 dong, khong phu thuoc quy mo khieu_nai).
+app.get("/bao-cao/nguoi-dung", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
+  const { results } = await c.env.DB.prepare(
+    "SELECT email, ten FROM users WHERE trang_thai_duyet = 'Da duyet' AND bi_khoa = 0 ORDER BY ten",
+  ).all<{ email: string; ten: string | null }>();
+  return c.json({ items: results });
+});
+
+const BAO_CAO_NGAY_MAX_DAYS = 92; // ~3 thang, tranh yeu cau 1 khoang qua rong.
+
+function addDaysISO(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+interface TheoNgaySlRow { ngay: string; sl: number; tb_ngay: number | null }
+
+// "Bao cao theo ngay": 1 dong/ngay trong khoang [tu_ngay, den_ngay], cac chi so "phat sinh trong
+// ngay" (1,4,5,6,7) tinh tu khieu_nai (+ khieu_nai_lich_su cho rieng "tiep nhan") - re va dung cho
+// BAT KY ngay nao (qua khu/hien tai) vi chi doc phan du lieu cua dung khoang ngay duoc chon, khong
+// phu thuoc tong lich su. Rieng cac chi so "ton dong" (2,3,9,10) la SO LIEU TAI 1 THOI DIEM, chi
+// lay duoc CHINH XAC cho qua khu khi KHONG loc gi (dung bao_cao_ngay_snapshot, chup 1 lan/ngay -
+// snapshot khong tach duoc theo bo loc) - khi co loc, 4 chi so nay tra ve null cho ngay qua khu (rieng
+// "hom nay" luon tinh song, kem theo loc, vi chi la 1 truy van dem theo trang_thai hien tai).
+app.get("/bao-cao/theo-ngay", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
+  const todayVN = nowVN().slice(0, 10);
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  let tuNgay = c.req.query("tu_ngay");
+  let denNgay = c.req.query("den_ngay");
+  if (!tuNgay || !DATE_RE.test(tuNgay)) tuNgay = todayVN;
+  if (!denNgay || !DATE_RE.test(denNgay)) denNgay = tuNgay;
+  if (denNgay < tuNgay) { const t = tuNgay; tuNgay = denNgay; denNgay = t; }
+  if (addDaysISO(tuNgay, BAO_CAO_NGAY_MAX_DAYS - 1) < denNgay) denNgay = addDaysISO(tuNgay, BAO_CAO_NGAY_MAX_DAYS - 1);
+
+  const nguoiTiepNhan = c.req.query("nguoi_tiep_nhan");
+  const nguoiTao = c.req.query("nguoi_tao");
+  const nguon = c.req.query("nguon");
+  const nhomYeuCau = c.req.query("nhom_yeu_cau");
+  const mucDo = c.req.query("muc_do");
+  const phanLoaiKh = c.req.query("phan_loai_kh");
+  const hasFilter = !!(nguoiTiepNhan || nguoiTao || nguon || nhomYeuCau || mucDo || phanLoaiKh);
+
+  const buildFilterConds = (prefix: string) => {
+    const conds: string[] = [];
+    const binds: unknown[] = [];
+    if (nguoiTiepNhan) { conds.push(`${prefix}cskh_tiep_nhan = ?`); binds.push(nguoiTiepNhan); }
+    if (nguoiTao) { conds.push(`${prefix}nguoi_tao = ?`); binds.push(nguoiTao); }
+    if (nguon) { conds.push(`${prefix}nguon = ?`); binds.push(nguon); }
+    if (nhomYeuCau) { conds.push(`${prefix}nhom_yeu_cau = ?`); binds.push(nhomYeuCau); }
+    if (mucDo) { conds.push(`${prefix}muc_do = ?`); binds.push(mucDo); }
+    if (phanLoaiKh) { conds.push(`${prefix}phan_loai_kh = ?`); binds.push(phanLoaiKh); }
+    return { sql: conds.length ? ` AND ${conds.join(" AND ")}` : "", binds };
+  };
+  const fEmpty = buildFilterConds("");
+  const fK = buildFilterConds("k.");
+
+  const rangeStart = `${tuNgay} 00:00:00`;
+  const rangeEndBind = `${denNgay} 00:00:00`; // dung datetime(?, '+1 day') lam moc tren (loai tru)
+
+  const [moiQ, dongQ, tiepNhanQ, snapshotQ] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT substr(ngay_tiep_nhan,1,10) as ngay, COUNT(*) as sl, NULL as tb_ngay
+       FROM khieu_nai WHERE ngay_tiep_nhan >= ? AND ngay_tiep_nhan < datetime(?, '+1 day')${fEmpty.sql}
+       GROUP BY ngay`,
+    ).bind(rangeStart, rangeEndBind, ...fEmpty.binds).all<TheoNgaySlRow>(),
+    c.env.DB.prepare(
+      `SELECT substr(ngay_ket_thuc,1,10) as ngay, COUNT(*) as sl,
+              AVG(julianday(ngay_ket_thuc) - julianday(ngay_tiep_nhan)) as tb_ngay
+       FROM khieu_nai
+       WHERE trang_thai = 'Da ket thuc' AND ngay_ket_thuc >= ? AND ngay_ket_thuc < datetime(?, '+1 day')${fEmpty.sql}
+       GROUP BY ngay`,
+    ).bind(rangeStart, rangeEndBind, ...fEmpty.binds).all<TheoNgaySlRow>(),
+    c.env.DB.prepare(
+      `SELECT substr(l.thoi_diem,1,10) as ngay, COUNT(*) as sl,
+              AVG(julianday(l.thoi_diem) - julianday(k.ngay_tiep_nhan)) as tb_ngay
+       FROM khieu_nai_lich_su l JOIN khieu_nai k ON k.id = l.khieu_nai_id
+       WHERE l.hanh_dong = 'tiep_nhan' AND l.thoi_diem >= ? AND l.thoi_diem < datetime(?, '+1 day')${fK.sql}
+       GROUP BY ngay`,
+    ).bind(rangeStart, rangeEndBind, ...fK.binds).all<TheoNgaySlRow>(),
+    c.env.DB.prepare(
+      "SELECT ngay, cho_tiep_nhan, con_ton FROM bao_cao_ngay_snapshot WHERE ngay >= ? AND ngay <= ?",
+    ).bind(addDaysISO(tuNgay, -1), denNgay).all<{ ngay: string; cho_tiep_nhan: number; con_ton: number }>(),
+  ]);
+
+  const toMap = (rows: TheoNgaySlRow[]) => new Map(rows.map((r) => [r.ngay, r]));
+  const moiMap = toMap(moiQ.results);
+  const dongMap = toMap(dongQ.results);
+  const tiepNhanMap = toMap(tiepNhanQ.results);
+  const snapshotMap = new Map(snapshotQ.results.map((r) => [r.ngay, r]));
+
+  // "Hom nay" chua chac co snapshot (cron chay 20h) - tinh song lam du phong, van ap bo loc neu co.
+  let liveToday: { cho_tiep_nhan: number; con_ton: number } | null = null;
+  if (denNgay >= todayVN && tuNgay <= todayVN) {
+    const conds = fEmpty.sql;
+    const [ct, ct2] = await Promise.all([
+      c.env.DB.prepare(`SELECT COUNT(*) as n FROM khieu_nai WHERE trang_thai = 'Cho tiep nhan'${conds}`)
+        .bind(...fEmpty.binds).first<{ n: number }>(),
+      c.env.DB.prepare(`SELECT COUNT(*) as n FROM khieu_nai WHERE trang_thai NOT IN ('Da ket thuc','Huy')${conds}`)
+        .bind(...fEmpty.binds).first<{ n: number }>(),
+    ]);
+    liveToday = { cho_tiep_nhan: ct?.n ?? 0, con_ton: ct2?.n ?? 0 };
+  }
+
+  const rows: Record<string, unknown>[] = [];
+  for (let d = tuNgay; d <= denNgay; d = addDaysISO(d, 1)) {
+    const moi = moiMap.get(d)?.sl ?? 0;
+    const dong = dongMap.get(d)?.sl ?? 0;
+    const tbXuLyGio = dongMap.get(d)?.tb_ngay != null ? Math.round((dongMap.get(d)!.tb_ngay as number) * 24 * 10) / 10 : null;
+    const tiepNhan = tiepNhanMap.get(d)?.sl ?? 0;
+    const tbTiepNhanGio = tiepNhanMap.get(d)?.tb_ngay != null ? Math.round((tiepNhanMap.get(d)!.tb_ngay as number) * 24 * 10) / 10 : null;
+
+    const hom_qua = snapshotMap.get(addDaysISO(d, -1));
+    const tonCuChuaTiepNhan = !hasFilter && hom_qua ? hom_qua.cho_tiep_nhan : null;
+    const tonCuDaTiepNhan = !hasFilter && hom_qua ? hom_qua.con_ton - hom_qua.cho_tiep_nhan : null;
+
+    const isToday = d === todayVN;
+    const closing = isToday ? liveToday : (!hasFilter ? snapshotMap.get(d) : undefined);
+    const choTiepNhan = closing ? closing.cho_tiep_nhan : null;
+    const conTon = closing ? closing.con_ton : null;
+
+    const mauSo = moi + (tonCuChuaTiepNhan ?? 0);
+    const tyLeTiepNhan = mauSo > 0 ? Math.round((tiepNhan / mauSo) * 1000) / 10 : null;
+
+    rows.push({
+      ngay: d,
+      ca_moi: moi,
+      ton_cu_chua_tiep_nhan: tonCuChuaTiepNhan,
+      ton_cu_da_tiep_nhan: tonCuDaTiepNhan,
+      da_tiep_nhan: tiepNhan,
+      da_dong: dong,
+      tb_gio_tiep_nhan: tbTiepNhanGio,
+      tb_gio_xu_ly: tbXuLyGio,
+      ty_le_tiep_nhan: tyLeTiepNhan,
+      cho_tiep_nhan: choTiepNhan,
+      con_ton: conTon,
+    });
+  }
+
+  return c.json({ tu_ngay: tuNgay, den_ngay: denNgay, co_loc: hasFilter, rows });
+});
+
 interface RelatedSeed {
   id_crm_karofi: string | null;
   id_lada: string | null;

@@ -8,6 +8,9 @@ import { Badge, StatusBadge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
 import { ThangFilter } from "../components/ui/ThangFilter";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
+import { useSettingsOptions } from "../api/useSettingsOptions";
+import { sortMucDoOptions } from "../lib/severity";
+import { NGUON_OPTIONS } from "./KhieuNaiForm";
 
 interface SlaBucket {
   label: string;
@@ -71,6 +74,30 @@ interface ChotLoiReport {
   thang: string | null;
 }
 
+interface TheoNgayRow {
+  ngay: string;
+  ca_moi: number;
+  ton_cu_chua_tiep_nhan: number | null;
+  ton_cu_da_tiep_nhan: number | null;
+  da_tiep_nhan: number;
+  da_dong: number;
+  tb_gio_tiep_nhan: number | null;
+  tb_gio_xu_ly: number | null;
+  ty_le_tiep_nhan: number | null;
+  cho_tiep_nhan: number | null;
+  con_ton: number | null;
+}
+interface TheoNgayReport {
+  tu_ngay: string;
+  den_ngay: string;
+  co_loc: boolean;
+  rows: TheoNgayRow[];
+}
+interface NguoiDungGon {
+  email: string;
+  ten: string | null;
+}
+
 function SlaBar({ b, max }: { b: SlaBucket; max: number }) {
   const total = b.da_ket_thuc + b.dang_xu_ly;
   const donePct = max > 0 ? (b.da_ket_thuc / max) * 100 : 0;
@@ -127,6 +154,38 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
 
   const thangQs = thang ? `?thang=${thang}` : "";
 
+  const todayISO = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const [ngayTu, setNgayTu] = useState(todayISO);
+  const [ngayDen, setNgayDen] = useState(todayISO);
+  const [locNguoiTiepNhan, setLocNguoiTiepNhan] = useState("");
+  const [locNguoiTao, setLocNguoiTao] = useState("");
+  const [locNguon, setLocNguon] = useState("");
+  const [locNhomYeuCau, setLocNhomYeuCau] = useState("");
+  const [locMucDo, setLocMucDo] = useState("");
+  const [locPhanLoaiKh, setLocPhanLoaiKh] = useState("");
+
+  const nhomYeuCauOpts = useSettingsOptions("nhom_yeu_cau");
+  const mucDoOptsTheoNgay = useSettingsOptions("muc_do");
+  const phanLoaiKhOpts = useSettingsOptions("phan_loai_kh");
+  const nguoiDungQuery = useQuery({
+    queryKey: ["bao-cao-nguoi-dung"],
+    queryFn: () => api.get<{ items: NguoiDungGon[] }>("/khieu-nai/bao-cao/nguoi-dung"),
+  });
+
+  const theoNgayQs = new URLSearchParams();
+  theoNgayQs.set("tu_ngay", ngayTu);
+  theoNgayQs.set("den_ngay", ngayDen);
+  if (locNguoiTiepNhan) theoNgayQs.set("nguoi_tiep_nhan", locNguoiTiepNhan);
+  if (locNguoiTao) theoNgayQs.set("nguoi_tao", locNguoiTao);
+  if (locNguon) theoNgayQs.set("nguon", locNguon);
+  if (locNhomYeuCau) theoNgayQs.set("nhom_yeu_cau", locNhomYeuCau);
+  if (locMucDo) theoNgayQs.set("muc_do", locMucDo);
+  if (locPhanLoaiKh) theoNgayQs.set("phan_loai_kh", locPhanLoaiKh);
+  const theoNgayQuery = useQuery({
+    queryKey: ["bao-cao-theo-ngay", ngayTu, ngayDen, locNguoiTiepNhan, locNguoiTao, locNguon, locNhomYeuCau, locMucDo, locPhanLoaiKh],
+    queryFn: () => api.get<TheoNgayReport>(`/khieu-nai/bao-cao/theo-ngay?${theoNgayQs.toString()}`),
+  });
+
   const slaQuery = useQuery({
     queryKey: ["bao-cao-sla", thang],
     queryFn: () => api.get<SlaReport>(`/khieu-nai/bao-cao/sla${thangQs}`),
@@ -144,6 +203,8 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
   const maxBucket = Math.max(1, ...(sla?.buckets.map((b) => b.da_ket_thuc + b.dang_xu_ly) ?? [1]));
   const maxNhom = Math.max(1, ...(sla?.theo_nhom_van_de.map((n) => n.so_ca) ?? [1]));
 
+  const selCls = "rounded-md border border-line bg-white px-2 py-1 text-xs text-ink focus:border-accent focus:outline-none";
+
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -159,6 +220,95 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         </div>
         <ThangFilter value={thang} onChange={setThang} />
       </div>
+
+      <Card title="Báo cáo theo ngày">
+        <div className="mb-3 flex flex-wrap items-end gap-2">
+          <label className="flex items-center gap-1 text-xs text-ink-soft">
+            Từ <input type="date" className={selCls} value={ngayTu} max={ngayDen} onChange={(e) => setNgayTu(e.target.value)} />
+          </label>
+          <label className="flex items-center gap-1 text-xs text-ink-soft">
+            đến <input type="date" className={selCls} value={ngayDen} min={ngayTu} onChange={(e) => setNgayDen(e.target.value)} />
+          </label>
+          <button
+            type="button"
+            onClick={() => { setNgayTu(todayISO); setNgayDen(todayISO); }}
+            className="rounded-md border border-line bg-white px-2 py-1 text-xs font-medium text-ink-soft hover:bg-gray-50"
+          >
+            Hôm nay
+          </button>
+          <select className={selCls} value={locNguoiTiepNhan} onChange={(e) => setLocNguoiTiepNhan(e.target.value)}>
+            <option value="">Mọi người tiếp nhận</option>
+            {(nguoiDungQuery.data?.items ?? []).map((u) => <option key={u.email} value={u.email}>{u.ten || u.email}</option>)}
+          </select>
+          <select className={selCls} value={locNguoiTao} onChange={(e) => setLocNguoiTao(e.target.value)}>
+            <option value="">Mọi người tạo</option>
+            {(nguoiDungQuery.data?.items ?? []).map((u) => <option key={u.email} value={u.email}>{u.ten || u.email}</option>)}
+          </select>
+          <select className={selCls} value={locNguon} onChange={(e) => setLocNguon(e.target.value)}>
+            <option value="">Mọi nguồn</option>
+            {NGUON_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <select className={selCls} value={locNhomYeuCau} onChange={(e) => setLocNhomYeuCau(e.target.value)}>
+            <option value="">Mọi nhóm yêu cầu</option>
+            {(nhomYeuCauOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
+          </select>
+          <select className={selCls} value={locMucDo} onChange={(e) => setLocMucDo(e.target.value)}>
+            <option value="">Mọi mức độ</option>
+            {sortMucDoOptions(mucDoOptsTheoNgay.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
+          </select>
+          <select className={selCls} value={locPhanLoaiKh} onChange={(e) => setLocPhanLoaiKh(e.target.value)}>
+            <option value="">Mọi phân loại KH</option>
+            {(phanLoaiKhOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
+          </select>
+        </div>
+
+        {theoNgayQuery.data?.co_loc && (
+          <p className="mb-2 text-xs text-amber-700">
+            Đang lọc: cột "Tồn cũ chưa/đã tiếp nhận", "Chưa tiếp nhận", "Còn tồn" chỉ tính được cho <b>hôm nay</b> —
+            các ngày quá khứ hiện "—" vì số tồn đọng theo bộ lọc tại 1 thời điểm cũ chưa được lưu lại.
+          </p>
+        )}
+
+        {theoNgayQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
+        {theoNgayQuery.data && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-line text-left font-semibold uppercase tracking-wide text-ink-soft">
+                  <th className="whitespace-nowrap px-2 py-1.5">Ngày</th>
+                  <th className="whitespace-nowrap px-2 py-1.5">Ca mới</th>
+                  <th className="whitespace-nowrap px-2 py-1.5">Tồn cũ chưa TN</th>
+                  <th className="whitespace-nowrap px-2 py-1.5">Tồn cũ đã TN</th>
+                  <th className="whitespace-nowrap px-2 py-1.5">Đã tiếp nhận</th>
+                  <th className="whitespace-nowrap px-2 py-1.5">Đã đóng</th>
+                  <th className="whitespace-nowrap px-2 py-1.5">TB giờ TN</th>
+                  <th className="whitespace-nowrap px-2 py-1.5">TB giờ XL</th>
+                  <th className="whitespace-nowrap px-2 py-1.5">Tỷ lệ TN</th>
+                  <th className="whitespace-nowrap px-2 py-1.5">Chưa TN</th>
+                  <th className="whitespace-nowrap px-2 py-1.5">Còn tồn</th>
+                </tr>
+              </thead>
+              <tbody>
+                {theoNgayQuery.data.rows.map((r) => (
+                  <tr key={r.ngay} className="border-b border-line last:border-0">
+                    <td className="whitespace-nowrap px-2 py-1.5 font-medium text-ink">{r.ngay}</td>
+                    <td className="px-2 py-1.5">{r.ca_moi}</td>
+                    <td className="px-2 py-1.5">{r.ton_cu_chua_tiep_nhan ?? "—"}</td>
+                    <td className="px-2 py-1.5">{r.ton_cu_da_tiep_nhan ?? "—"}</td>
+                    <td className="px-2 py-1.5">{r.da_tiep_nhan}</td>
+                    <td className="px-2 py-1.5">{r.da_dong}</td>
+                    <td className="px-2 py-1.5">{r.tb_gio_tiep_nhan ?? "—"}</td>
+                    <td className="px-2 py-1.5">{r.tb_gio_xu_ly ?? "—"}</td>
+                    <td className="px-2 py-1.5">{r.ty_le_tiep_nhan != null ? `${r.ty_le_tiep_nhan}%` : "—"}</td>
+                    <td className="px-2 py-1.5">{r.cho_tiep_nhan ?? "—"}</td>
+                    <td className="px-2 py-1.5">{r.con_ton ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       <Card title="SLA theo thời gian xử lý">
         {slaQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
