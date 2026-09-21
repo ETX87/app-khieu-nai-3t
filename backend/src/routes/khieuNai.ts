@@ -373,60 +373,75 @@ async function optionExists(db: D1Database, nhom: string, giaTri: string): Promi
   return !!r;
 }
 
+// Dung chung cho ca 2 nhanh tra cuu noi bo (id_lada VA id_truy_van) - cung 1 kieu du lieu can lay:
+// dien nhanh tu ban ghi cu gan nhat + liet ke lich su "tien trinh" de doi chieu ngay khong can mo
+// tung don. KHONG goi API ngoai o day (xem ghi chu rieng o tung nhanh trong "/tra-cuu").
+async function localIdentityLookup(db: D1Database, column: "id_lada" | "id_truy_van", value: string) {
+  const { results } = await db.prepare(
+    `SELECT id, ngay_tiep_nhan, trang_thai, nhom_van_de, van_de_dau_vao, thong_tin_ban_dau, nguoi_tao,
+            ${LADA_FILL_COLUMNS.join(", ")}, ${LADA_COMPARE_COLUMNS.join(", ")}
+     FROM khieu_nai WHERE ${column} = ? ORDER BY ngay_tiep_nhan DESC LIMIT 20`,
+  ).bind(value).all<Record<string, string | null>>();
+
+  const fill: Record<string, string> = {};
+  if (results.length > 0) {
+    const latest = results[0];
+    for (const col of LADA_FILL_COLUMNS) {
+      const v = latest[col];
+      if (v != null && v !== "") fill[col] = v;
+    }
+  }
+
+  const ids = results.map((r) => r.id as string);
+  const ph = ids.map(() => "?").join(",");
+  const { results: ttRows } = ids.length > 0
+    ? await db.prepare(
+        `SELECT khieu_nai_id, nguoi_tao, ngay_tao, noi_dung_ghi_chep, ly_do_xu_ly_cham
+         FROM khieu_nai_tien_trinh WHERE khieu_nai_id IN (${ph}) ORDER BY ngay_tao DESC`,
+      ).bind(...ids).all<{
+        khieu_nai_id: string; nguoi_tao: string; ngay_tao: string;
+        noi_dung_ghi_chep: string | null; ly_do_xu_ly_cham: string | null;
+      }>()
+    : { results: [] };
+  const tienTrinhByKn = new Map<string, typeof ttRows>();
+  for (const row of ttRows) {
+    const arr = tienTrinhByKn.get(row.khieu_nai_id) ?? [];
+    arr.push(row);
+    tienTrinhByKn.set(row.khieu_nai_id, arr);
+  }
+
+  const recent = results.map((r) => ({
+    id: r.id, ngay_tiep_nhan: r.ngay_tiep_nhan, trang_thai: r.trang_thai,
+    nhom_van_de: r.nhom_van_de, van_de_dau_vao: r.van_de_dau_vao,
+    thong_tin_ban_dau: r.thong_tin_ban_dau, nguoi_tao: r.nguoi_tao,
+    ten_khach: r.ten_khach, tinh: r.tinh, quan_huyen: r.quan_huyen, phuong_xa: r.phuong_xa,
+    tinh_moi: r.tinh_moi, phuong_xa_moi: r.phuong_xa_moi, hang: r.hang, model: r.model,
+    ket_luan_khieu_nai: r.ket_luan_khieu_nai,
+    loi_nha_san_xuat: r.loi_nha_san_xuat, loi_lap_dat: r.loi_lap_dat,
+    loi_thai_do_ktv: r.loi_thai_do_ktv, loi_quy_trinh_nskx: r.loi_quy_trinh_nskx,
+    tien_trinh: tienTrinhByKn.get(r.id as string) ?? [],
+  }));
+
+  return { results, fill, recent };
+}
+
 app.get("/tra-cuu", async (c) => {
   const idLada = c.req.query("id_lada")?.trim();
   const idCrm = c.req.query("id_crm")?.trim();
+  const idTruyVan = c.req.query("id_truy_van")?.trim();
+
+  // ID Truy xuat la he dinh danh KHAC id_lada (da xac nhan qua goi API Ecolada that, xem ghi chu o
+  // nhanh id_lada ben duoi) - API ngoai chi nhan ma dang "ID LADA" (tham so "codes", xem
+  // api_document_staff.md) nen KHONG the tra cuu he thong ngoai bang gia tri nay. Chi tra cuu noi
+  // bo (2026-09-21) - truoc day nhanh nay bi dung nham lai API id_lada nen luon tra ve "khong tim
+  // thay" voi gia tri ID Truy xuat that.
+  if (idTruyVan) {
+    const { results, fill, recent } = await localIdentityLookup(c.env.DB, "id_truy_van", idTruyVan);
+    return c.json({ found: results.length > 0, source: "truy_van", fill, recent });
+  }
 
   if (idLada) {
-    const { results } = await c.env.DB.prepare(
-      `SELECT id, ngay_tiep_nhan, trang_thai, nhom_van_de, van_de_dau_vao, thong_tin_ban_dau, nguoi_tao,
-              ${LADA_FILL_COLUMNS.join(", ")}, ${LADA_COMPARE_COLUMNS.join(", ")}
-       FROM khieu_nai WHERE id_lada = ? ORDER BY ngay_tiep_nhan DESC LIMIT 20`,
-    ).bind(idLada).all<Record<string, string | null>>();
-
-    const fill: Record<string, string> = {};
-    if (results.length > 0) {
-      const latest = results[0];
-      for (const col of LADA_FILL_COLUMNS) {
-        const v = latest[col];
-        if (v != null && v !== "") fill[col] = v;
-      }
-    }
-
-    // Log tien trinh cua tat ca cac don cu nay (gop 1 query, khong query rieng tung don) -
-    // hien so luong + cho phep mo rong xem chi tiet ngay tai giao dien tra cuu.
-    const ids = results.map((r) => r.id as string);
-    const ph = ids.map(() => "?").join(",");
-    const { results: ttRows } = ids.length > 0
-      ? await c.env.DB.prepare(
-          `SELECT khieu_nai_id, nguoi_tao, ngay_tao, noi_dung_ghi_chep, ly_do_xu_ly_cham
-           FROM khieu_nai_tien_trinh WHERE khieu_nai_id IN (${ph}) ORDER BY ngay_tao DESC`,
-        ).bind(...ids).all<{
-          khieu_nai_id: string; nguoi_tao: string; ngay_tao: string;
-          noi_dung_ghi_chep: string | null; ly_do_xu_ly_cham: string | null;
-        }>()
-      : { results: [] };
-    const tienTrinhByKn = new Map<string, typeof ttRows>();
-    for (const row of ttRows) {
-      const arr = tienTrinhByKn.get(row.khieu_nai_id) ?? [];
-      arr.push(row);
-      tienTrinhByKn.set(row.khieu_nai_id, arr);
-    }
-
-    // Hien "lich su cham soc" dang timeline (giong phong cach GT ton ben dvbh) thay vi bang phang -
-    // them day du thong tin de so sanh (ten/dia chi/san pham/loi ghi nhan) + log tien trinh cua
-    // tung don cu de nguoi tao doi chieu ngay, khong can mo tung don rieng.
-    const recent = results.map((r) => ({
-      id: r.id, ngay_tiep_nhan: r.ngay_tiep_nhan, trang_thai: r.trang_thai,
-      nhom_van_de: r.nhom_van_de, van_de_dau_vao: r.van_de_dau_vao,
-      thong_tin_ban_dau: r.thong_tin_ban_dau, nguoi_tao: r.nguoi_tao,
-      ten_khach: r.ten_khach, tinh: r.tinh, quan_huyen: r.quan_huyen, phuong_xa: r.phuong_xa,
-      tinh_moi: r.tinh_moi, phuong_xa_moi: r.phuong_xa_moi, hang: r.hang, model: r.model,
-      ket_luan_khieu_nai: r.ket_luan_khieu_nai,
-      loi_nha_san_xuat: r.loi_nha_san_xuat, loi_lap_dat: r.loi_lap_dat,
-      loi_thai_do_ktv: r.loi_thai_do_ktv, loi_quy_trinh_nskx: r.loi_quy_trinh_nskx,
-      tien_trinh: tienTrinhByKn.get(r.id as string) ?? [],
-    }));
+    const { results, fill, recent } = await localIdentityLookup(c.env.DB, "id_lada", idLada);
 
     // Tra cuu them he thong ngoai "center.dichvu3t.com" (API 3 - tai chi dinh Ecolada theo ID LADA,
     // xem lib/center3tClient.ts) - luon thu bat ke noi bo da co lich su hay chua, giong het tinh than

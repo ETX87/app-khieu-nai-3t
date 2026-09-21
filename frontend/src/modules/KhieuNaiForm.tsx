@@ -152,7 +152,7 @@ interface TraCuuGiaiTrinh {
 }
 interface TraCuuResponse {
   found: boolean;
-  source: "lada" | "crm";
+  source: "lada" | "crm" | "truy_van";
   fill?: Record<string, string>;
   recent?: TraCuuRecent[];
   preview?: TraCuuCrmPreview;
@@ -273,15 +273,17 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   const [filledFromLookup, setFilledFromLookup] = useState(false);
   const lookupSeq = useRef(0);
 
-  // "truy_van" (item 6, 2026-09-21) - o nhap rieng, chi de tra cuu, goi LAI DUNG API id_lada nhu ID
-  // Lada (cung backend /tra-cuu?id_lada=...) nhung gia tri khong ghi vao id_lada cua don.
+  // "truy_van" (2026-09-21) - tra cuu RIENG theo cot id_truy_van, chi noi bo (backend
+  // /tra-cuu?id_truy_van=...) - khong goi API Ecolada ngoai vi API do chi nhan ma dang "ID LADA",
+  // khong tim duoc theo ID Truy xuat (truoc day nhanh nay dung nham lai qs id_lada nen khong bao
+  // gio tim thay gia tri ID Truy xuat that).
   const runLookup = async (kind: "lada" | "crm" | "truy_van") => {
     const value = (kind === "crm" ? form.id_crm_karofi : kind === "lada" ? form.id_lada : form.id_truy_van).trim();
     if (!value) return;
     const seq = ++lookupSeq.current;
     setLookupBusy(kind);
     try {
-      const qs = kind === "crm" ? `id_crm=${encodeURIComponent(value)}` : `id_lada=${encodeURIComponent(value)}`;
+      const qs = `id_${kind === "crm" ? "crm" : kind === "lada" ? "lada" : "truy_van"}=${encodeURIComponent(value)}`;
       const res = await api.get<TraCuuResponse>(`/khieu-nai/tra-cuu?${qs}`);
       if (seq !== lookupSeq.current) return;
       setLookup(res);
@@ -298,7 +300,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
       }
     } catch {
       if (seq === lookupSeq.current) {
-        setLookup({ found: false, source: kind === "crm" ? "crm" : "lada", warning: "LOOKUP_ERROR" });
+        setLookup({ found: false, source: kind === "crm" ? "crm" : kind === "lada" ? "lada" : "truy_van", warning: "LOOKUP_ERROR" });
         showToast("Tra cứu thất bại, thử lại sau", "error");
       }
     } finally {
@@ -409,7 +411,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
     setFilledFromLookup(true);
     showToast(
       filledCount > 0
-        ? `Đã điền ${filledCount} thông tin từ ${lookup.source === "lada" ? "đơn cũ" : "CRM Karofi"}`
+        ? `Đã điền ${filledCount} thông tin từ ${lookup.source === "crm" ? "CRM Karofi" : "đơn cũ"}`
         : "Không có ô nào cần điền thêm (đã có dữ liệu)",
       "success",
     );
@@ -582,7 +584,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
         {/* ── Trái: Tra cứu · Khách hàng/Địa chỉ · Sản phẩm · Nội bộ ─────────── */}
         <div
-          className={`min-h-0 flex-col gap-3 overflow-y-auto pb-1 pr-1 lg:flex lg:pr-3 ${
+          className={`min-h-0 min-w-0 flex-col gap-3 overflow-y-auto pb-1 pr-1 lg:flex lg:pr-3 ${
             mobileTab === "left" ? "flex" : "hidden"
           }`}
         >
@@ -843,7 +845,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
 
         {/* ── Phải: Phân loại vấn đề · Nội dung phản ánh — cố định, cuộn riêng ── */}
         <div
-          className={`min-h-0 flex-col gap-3 overflow-y-auto pb-1 pl-1 lg:flex lg:border-l lg:border-line lg:pl-4 ${
+          className={`min-h-0 min-w-0 flex-col gap-3 overflow-y-auto pb-1 pl-1 lg:flex lg:border-l lg:border-line lg:pl-4 ${
             mobileTab === "right" ? "flex" : "hidden"
           }`}
         >
@@ -971,6 +973,8 @@ function LookupResult({
       <div className="mt-3 rounded-md border border-line bg-surface px-3 py-2 text-xs text-ink-soft">
         {res.source === "lada"
           ? "Không tìm thấy ID Lada này (đã kiểm tra cả lịch sử phản ánh cũ lẫn hệ thống đơn hàng) — nhập thủ công."
+          : res.source === "truy_van"
+          ? "Chưa có phản ánh nào cùng ID Truy xuất này — nhập thủ công."
           : CRM_WARNING_MESSAGES[res.warning ?? ""] ?? "Không tìm thấy trên CRM Karofi."}
       </div>
     );
@@ -1038,15 +1042,17 @@ function LookupResult({
     );
   }
 
-  // lada — thong tin don hang tra tu he thong ngoai (center.dichvu3t.com, neu co) + liet ke tung
-  // phan anh cu cung ID Lada (noi bo), day du thong tin de so sanh + log tien trinh mo rong duoc.
+  // lada/truy_van — thong tin don hang tra tu he thong ngoai (center.dichvu3t.com, chi co o nhanh
+  // lada) + liet ke tung phan anh cu cung ID (noi bo), day du thong tin de so sanh + log tien trinh
+  // mo rong duoc. truy_van khong co "preview" (khong goi API ngoai) nen chi hien danh sach cu.
   const rows = res.recent ?? [];
   const p = res.preview;
+  const idLabel = res.source === "truy_van" ? "ID Truy xuất" : "ID Lada";
   return (
     <div className="mt-3 rounded-md border border-violet-300 bg-violet-50 px-3 py-2 text-xs text-violet-900">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <span className="font-semibold">
-          {p ? "Tìm thấy thông tin đơn hàng" : `${rows.length} phản ánh cũ cùng ID Lada`}
+          {p ? "Tìm thấy thông tin đơn hàng" : `${rows.length} phản ánh cũ cùng ${idLabel}`}
         </span>
         {hasFill && (
           <button
@@ -1077,7 +1083,7 @@ function LookupResult({
       )}
       {rows.length > 0 && (
         <>
-          {p && <p className="mb-1 font-semibold">{rows.length} phản ánh cũ cùng ID Lada</p>}
+          {p && <p className="mb-1 font-semibold">{rows.length} phản ánh cũ cùng {idLabel}</p>}
           <div className="divide-y divide-violet-200">
             {rows.map((r) => <LadaCaseRow key={r.id} r={r} />)}
           </div>
