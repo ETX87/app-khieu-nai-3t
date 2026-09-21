@@ -6,6 +6,7 @@ import { fmtVN } from "../lib/formatVN";
 import { Card } from "../components/ui/Card";
 import { Badge, StatusBadge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
+import { ThangFilter } from "../components/ui/ThangFilter";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
 
 interface SlaBucket {
@@ -24,6 +25,7 @@ interface SlaReport {
   tong_dang_xu_ly: number;
   so_ngay_trung_binh: number;
   theo_nhom_van_de: SlaNhomVanDe[];
+  thang: string;
 }
 
 interface TrungLapItem {
@@ -66,6 +68,7 @@ interface ChotLoiReport {
   theo_nhom_van_de: ChotLoiGroup[];
   theo_nguon_tao: ChotLoiGroup[];
   theo_nguoi_tao: ChotLoiGroup[];
+  thang: string | null;
 }
 
 function SlaBar({ b, max }: { b: SlaBucket; max: number }) {
@@ -115,50 +118,46 @@ function ChotLoiMiniTable({ title, rows }: { title: string; rows: ChotLoiGroup[]
 }
 
 export function BaoCaoModule({ user }: { user: AppUser }) {
-  const [tuNgay, setTuNgay] = useState("");
-  const [denNgay, setDenNgay] = useState("");
+  // "thang" chi ap dung cho SLA + Chot loi (can gioi han theo thang de tranh quet toan bo lich su
+  // khi du lieu tang qua 2 nam - xem backend/src/lib/thangFilter.ts). "Ca trung lap/tai phat" CAN
+  // nhin xuyen nhieu thang de phat hien tai phat (vd tai phat sau 3-4 thang) nen KHONG loc theo
+  // thang o day, van giu logic rieng (LIMIT 20000 dong gan nhat lam phong ho).
+  const [thang, setThang] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const qs = new URLSearchParams();
-  if (tuNgay) qs.set("tu_ngay", tuNgay);
-  if (denNgay) qs.set("den_ngay", denNgay);
+  const thangQs = thang ? `?thang=${thang}` : "";
 
   const slaQuery = useQuery({
-    queryKey: ["bao-cao-sla", tuNgay, denNgay],
-    queryFn: () => api.get<SlaReport>(`/khieu-nai/bao-cao/sla?${qs.toString()}`),
+    queryKey: ["bao-cao-sla", thang],
+    queryFn: () => api.get<SlaReport>(`/khieu-nai/bao-cao/sla${thangQs}`),
   });
   const trungLapQuery = useQuery({
-    queryKey: ["bao-cao-trung-lap", tuNgay, denNgay],
-    queryFn: () => api.get<TrungLapReport>(`/khieu-nai/bao-cao/trung-lap?${qs.toString()}`),
+    queryKey: ["bao-cao-trung-lap"],
+    queryFn: () => api.get<TrungLapReport>("/khieu-nai/bao-cao/trung-lap"),
   });
   const chotLoiQuery = useQuery({
-    queryKey: ["bao-cao-chot-loi", tuNgay, denNgay],
-    queryFn: () => api.get<ChotLoiReport>(`/khieu-nai/bao-cao/chot-loi?${qs.toString()}`),
+    queryKey: ["bao-cao-chot-loi", thang],
+    queryFn: () => api.get<ChotLoiReport>(`/khieu-nai/bao-cao/chot-loi${thangQs}`),
   });
 
   const sla = slaQuery.data;
   const maxBucket = Math.max(1, ...(sla?.buckets.map((b) => b.da_ket_thuc + b.dang_xu_ly) ?? [1]));
   const maxNhom = Math.max(1, ...(sla?.theo_nhom_van_de.map((n) => n.so_ca) ?? [1]));
 
-  const selCls = "rounded-md border border-line bg-white px-2 py-1 text-xs text-ink focus:border-accent focus:outline-none";
-
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-ink">Báo cáo</h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1 text-xs text-ink-soft">
-            Từ <input type="date" className={selCls} value={tuNgay} onChange={(e) => setTuNgay(e.target.value)} />
-          </label>
-          <label className="flex items-center gap-1 text-xs text-ink-soft">
-            đến <input type="date" className={selCls} value={denNgay} onChange={(e) => setDenNgay(e.target.value)} />
-          </label>
-          {(tuNgay || denNgay) && (
-            <button onClick={() => { setTuNgay(""); setDenNgay(""); }} className="text-xs font-medium text-accent hover:underline">
-              Xoá lọc
-            </button>
-          )}
+        <div>
+          <h2 className="text-lg font-semibold text-ink">Báo cáo</h2>
+          <p className="text-xs text-ink-soft">
+            SLA + Chốt lỗi: ca đang tồn (mọi lúc) + ca đóng/hủy trong{" "}
+            <b className="text-ink">
+              {thang ? `tháng ${thang.slice(5)}/${thang.slice(0, 4)}` : `tháng hiện tại${sla ? ` (${sla.thang.slice(5)}/${sla.thang.slice(0, 4)})` : ""}`}
+            </b>
+            . Ca trùng lặp/tái phát xem xuyên suốt (không lọc theo tháng).
+          </p>
         </div>
+        <ThangFilter value={thang} onChange={setThang} />
       </div>
 
       <Card title="SLA theo thời gian xử lý">

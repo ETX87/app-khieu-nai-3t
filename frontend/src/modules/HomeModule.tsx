@@ -7,6 +7,7 @@ import { Table, type TableColumn } from "../components/ui/Table";
 import { StatusBadge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
+import { ThangFilter } from "../components/ui/ThangFilter";
 import { fmtVN } from "../lib/formatVN";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
 import { KhieuNaiForm, type KhieuNaiFormHandle, type KhieuNaiFormHeaderState } from "./KhieuNaiForm";
@@ -65,9 +66,10 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
   const closeDetail = () => setDetailId(null);
   const canCreate = ["CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "");
 
+  const [thang, setThang] = useState("");
   const statsQuery = useQuery({
-    queryKey: ["khieu-nai-stats"],
-    queryFn: () => api.get<KhieuNaiStats>("/khieu-nai/stats"),
+    queryKey: ["khieu-nai-stats", thang],
+    queryFn: () => api.get<KhieuNaiStats>(`/khieu-nai/stats${thang ? `?thang=${thang}` : ""}`),
   });
 
   const activeQuery = useQuery({
@@ -153,8 +155,16 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
         )}
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-ink-soft">
+          Số liệu: ca đang tồn (mọi lúc) + ca đóng/hủy trong{" "}
+          <b className="text-ink">{thang ? `tháng ${thang.slice(5)}/${thang.slice(0, 4)}` : `tháng hiện tại (${s ? `${s.thang.slice(5)}/${s.thang.slice(0, 4)}` : "..."})`}</b>
+        </p>
+        <ThangFilter value={thang} onChange={setThang} />
+      </div>
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-9">
-        <StatCard label="Tổng phản ánh" value={s?.tong ?? 0} tone="blue" onClick={() => onOpenList({})} />
+        <StatCard label="Tổng (phạm vi)" value={s?.tong ?? 0} tone="blue" onClick={() => onOpenList({})} />
         <StatCard label="Chờ tiếp nhận" value={s?.cho_tiep_nhan ?? 0} tone="red" onClick={() => onOpenList({ trang_thai: "Cho tiep nhan" })} />
         <StatCard label="Đang xử lý" value={s?.dang_xu_ly ?? 0} tone="amber" onClick={() => onOpenList({ trang_thai: "Dang xu ly" })} />
         <StatCard label="Chờ chốt kết thúc" value={s?.cho_chot_ket_thuc ?? 0} tone="amber" onClick={() => onOpenList({ trang_thai: "Cho chot ket thuc" })} />

@@ -3,7 +3,8 @@ import type { Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
-import { nowVN } from "../lib/vnTime";
+import { nowVN, currentMonthVN } from "../lib/vnTime";
+import { buildThangCondition, isValidThang } from "../lib/thangFilter";
 import { lookupDvbhCase, formatGiaiTrinhHistory } from "../lib/dvbhClient";
 import { lookupOrderByIdLada } from "../lib/center3tClient";
 import { notifyRoles } from "../lib/notify";
@@ -237,10 +238,14 @@ app.get("/", async (c) => {
     );
     binds.push(tonToiThieuNgay);
   }
-  const thangDong = c.req.query("thang_dong"); // "YYYY-MM" - loc theo thang cua ngay_ket_thuc (item: du lieu tang manh, can loc theo thang de bao cao/tra cuu khong phai quet toan bo).
+  const thangDong = c.req.query("thang_dong"); // "YYYY-MM" - loc theo thang dong/huy (item: du lieu tang manh, can loc theo thang de bao cao/tra cuu khong phai quet toan bo).
   if (thangDong && /^\d{4}-\d{2}$/.test(thangDong)) {
-    conditions.push("ngay_ket_thuc >= ? AND ngay_ket_thuc < datetime(? , '+1 month')");
-    binds.push(`${thangDong}-01 00:00:00`, `${thangDong}-01 00:00:00`);
+    // Ca "Da ket thuc" dung ngay_ket_thuc, ca "Huy" dung ngay_huy rieng (khong ghi ngay_ket_thuc) -
+    // truoc day chi loc ngay_ket_thuc nen bo sot het cac ca da huy trong thang.
+    conditions.push(
+      "((ngay_ket_thuc >= ? AND ngay_ket_thuc < datetime(?, '+1 month')) OR (ngay_huy >= ? AND ngay_huy < datetime(?, '+1 month')))",
+    );
+    binds.push(`${thangDong}-01 00:00:00`, `${thangDong}-01 00:00:00`, `${thangDong}-01 00:00:00`, `${thangDong}-01 00:00:00`);
   }
   if (q) {
     conditions.push("(ten_khach LIKE ? OR id_lada LIKE ? OR id LIKE ? OR id_crm_karofi LIKE ? OR sdt_khach LIKE ?)");
@@ -273,9 +278,18 @@ app.get("/stats", async (c) => {
   const user = c.get("user");
   // NV Sale/Tong dai vien (KTV cu) chi thay so lieu cua chinh minh (item 12), giong pham vi danh sach.
   const onlyMine = isKtvLike(user.vai_tro);
-  const whereMine = onlyMine ? "WHERE nguoi_tao = ?" : "";
-  const andMine = onlyMine ? "AND nguoi_tao = ?" : "";
-  const mineBind = onlyMine ? [user.email] : [];
+
+  // Bo loc "thang" (item: tranh quet toan bo lich su khi du lieu tang qua 2 nam) - mac dinh thang
+  // hien tai, van hien DU ca dang "ton" (khong phu thuoc thang), chi gioi han phan da dong/huy.
+  const currentMonth = currentMonthVN();
+  const thangParam = c.req.query("thang");
+  const thang = isValidThang(thangParam) ? thangParam : currentMonth;
+  const { sql: thangSql, binds: thangBinds } = buildThangCondition(thang, currentMonth);
+
+  const conditions = [thangSql];
+  const binds: unknown[] = [...thangBinds];
+  if (onlyMine) { conditions.push("nguoi_tao = ?"); binds.push(user.email); }
+  const where = `WHERE ${conditions.join(" AND ")}`;
 
   const row = await c.env.DB.prepare(
     `SELECT
@@ -304,18 +318,18 @@ app.get("/stats", async (c) => {
                       ngay_tiep_nhan
                     ), '+24 hours')
              THEN 1 ELSE 0 END) as qua_han_giai_trinh
-     FROM khieu_nai ${whereMine}`,
-  ).bind(...mineBind).first<{
+     FROM khieu_nai ${where}`,
+  ).bind(...binds).first<{
     tong: number; cho_tiep_nhan: number; dang_xu_ly: number; cho_chot_ket_thuc: number; da_ket_thuc: number; huy: number;
     ton_dong_crm: number; cho_tn_cskh: number; qua_han_giai_trinh: number;
   }>();
 
   const { results: theoNhomVanDe } = await c.env.DB.prepare(
     `SELECT nhom_van_de, COUNT(*) as so_luong FROM khieu_nai
-     WHERE nhom_van_de IS NOT NULL ${andMine} GROUP BY nhom_van_de ORDER BY so_luong DESC LIMIT 6`,
-  ).bind(...mineBind).all<{ nhom_van_de: string; so_luong: number }>();
+     WHERE nhom_van_de IS NOT NULL AND ${conditions.join(" AND ")} GROUP BY nhom_van_de ORDER BY so_luong DESC LIMIT 6`,
+  ).bind(...binds).all<{ nhom_van_de: string; so_luong: number }>();
 
-  return c.json({ ...row, theoNhomVanDe });
+  return c.json({ ...row, theoNhomVanDe, thang });
 });
 
 // GET /api/khieu-nai/tra-cuu?id_lada=... | ?id_crm=...
@@ -514,12 +528,12 @@ function slaBucketLabel(days: number): string {
 // (0-1 / 1-3 / 3-7 / >7), tach rieng ca "Da ket thuc" (tinh den ngay_ket_thuc) va ca con "Dang
 // xu ly" (tinh den hien tai, de thay ca nao dang keo dai).
 app.get("/bao-cao/sla", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
-  const tuNgay = c.req.query("tu_ngay");
-  const denNgay = c.req.query("den_ngay");
-  const conditions: string[] = ["trang_thai != 'Huy'"];
-  const binds: unknown[] = [];
-  if (tuNgay) { conditions.push("ngay_tiep_nhan >= ?"); binds.push(`${tuNgay} 00:00:00`); }
-  if (denNgay) { conditions.push("ngay_tiep_nhan <= ?"); binds.push(`${denNgay} 23:59:59`); }
+  const currentMonth = currentMonthVN();
+  const thangParam = c.req.query("thang");
+  const thang = isValidThang(thangParam) ? thangParam : currentMonth;
+  const { sql: thangSql, binds: thangBinds } = buildThangCondition(thang, currentMonth);
+  const conditions: string[] = ["trang_thai != 'Huy'", thangSql];
+  const binds: unknown[] = [...thangBinds];
 
   // LIMIT phong ho: du lieu du kien tang 10-20k/thang, khong de 1 lan tra cuu khong loc ngay keo
   // toan bo bang vao Worker (CPU/rows_read) khi so lieu lon dan theo thoi gian.
@@ -564,6 +578,7 @@ app.get("/bao-cao/sla", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"),
     tong_dang_xu_ly: tongDangXuLy,
     so_ngay_trung_binh: tongDaKetThuc > 0 ? Math.round((tongNgayDaKetThuc / tongDaKetThuc) * 10) / 10 : 0,
     theo_nhom_van_de: theoNhomVanDe,
+    thang,
   });
 });
 
@@ -712,12 +727,24 @@ function finalizeChotLoi(g: ChotLoiAgg) {
 // co the dinh dong thoi nhieu trong 4 loai loi. "Ty le loi" = ca co it nhat 1 trong 4 co = "Co" /
 // tong so ca da chot (theo xac nhan cua nguoi dung, khong tinh ca "Chua danh gia").
 app.get("/bao-cao/chot-loi", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
-  const tuNgay = c.req.query("tu_ngay");
-  const denNgay = c.req.query("den_ngay");
+  const currentMonth = currentMonthVN();
+  const thangParam = c.req.query("thang");
   const conditions: string[] = ["ket_luan_khieu_nai IS NOT NULL", "ket_luan_khieu_nai != 'Chua danh gia'"];
   const binds: unknown[] = [];
-  if (tuNgay) { conditions.push("ngay_ket_thuc >= ?"); binds.push(`${tuNgay} 00:00:00`); }
-  if (denNgay) { conditions.push("ngay_ket_thuc <= ?"); binds.push(`${denNgay} 23:59:59`); }
+  let thang: string | null = null;
+  if (isValidThang(thangParam)) {
+    // Chon 1 thang cu the: dung chung dieu kien voi Trang chu/SLA (dong/huy trong thang do).
+    thang = thangParam;
+    const { sql, binds: b } = buildThangCondition(thang, currentMonth);
+    conditions.push(sql);
+    binds.push(...b);
+  } else {
+    // Khong chon thang cu the: bang "Theo thang" can nhieu thang de xem xu huong -> mac dinh gioi
+    // han 12 thang gan nhat (thay vi quet toan bo lich su) - van giu lai cac ca chua ro ngay dong
+    // (vd bi huy sau khi da danh gia, ngay_ket_thuc rong) de khong lam mat du lieu so voi truoc day.
+    conditions.push("(ngay_ket_thuc IS NULL OR ngay_ket_thuc >= datetime(?, '-11 months'))");
+    binds.push(`${currentMonth}-01 00:00:00`);
+  }
 
   // LIMIT phong ho giong cac bao cao khac (xem giai thich o /bao-cao/sla).
   const [{ results }, { results: userRows }] = await Promise.all([
@@ -740,8 +767,8 @@ app.get("/bao-cao/chot-loi", requireRole("CSKH", "TN CSKH", "QL", "Admin", "View
 
   for (const r of results) {
     applyChotLoiRow(tong, r);
-    const thang = r.ngay_ket_thuc ? r.ngay_ket_thuc.slice(0, 7) : "Không rõ";
-    bumpChotLoi(theoThang, thang, r);
+    const thangKey = r.ngay_ket_thuc ? r.ngay_ket_thuc.slice(0, 7) : "Không rõ";
+    bumpChotLoi(theoThang, thangKey, r);
     bumpChotLoi(theoTinh, r.tinh_moi || r.tinh || "Không rõ", r);
     bumpChotLoi(theoNhomYeuCau, r.nhom_yeu_cau || "Không rõ", r);
     bumpChotLoi(theoNhomVanDe, r.nhom_van_de || "Không rõ", r);
@@ -759,6 +786,7 @@ app.get("/bao-cao/chot-loi", requireRole("CSKH", "TN CSKH", "QL", "Admin", "View
     theo_nhom_van_de: [...theoNhomVanDe.values()].sort(sortDesc).map(finalizeChotLoi),
     theo_nguon_tao: [...theoNguonTao.values()].sort(sortDesc).map(finalizeChotLoi),
     theo_nguoi_tao: [...theoNguoiTao.values()].sort(sortDesc).slice(0, 20).map(finalizeChotLoi),
+    thang,
   });
 });
 

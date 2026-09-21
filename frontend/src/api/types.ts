@@ -166,4 +166,5 @@ export interface KhieuNaiStats {
   cho_tn_cskh: number;
   qua_han_giai_trinh: number;
   theoNhomVanDe: { nhom_van_de: string; so_luong: number }[];
+  thang: string;
 }
