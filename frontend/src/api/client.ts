@@ -79,8 +79,27 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data as T;
 }
 
+async function requestForm<T>(method: string, path: string, form: FormData): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, { method, body: form, credentials: "include" });
+  } catch (err) {
+    throw new ApiError(0, "NETWORK_ERROR", err);
+  }
+  const contentType = res.headers.get("content-type") ?? "";
+  const data = contentType.includes("application/json") ? await res.json().catch(() => ({})) : undefined;
+  if (res.ok) markHadSession();
+  if (!res.ok) {
+    const code = (data && typeof data === "object" && "error" in data ? (data as { error: string }).error : undefined) ?? `HTTP_${res.status}`;
+    throw new ApiError(res.status, code, data);
+  }
+  return data as T;
+}
+
 export const api = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {}),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body ?? {}),
+  delete: <T>(path: string) => request<T>("DELETE", path),
+  postForm: <T>(path: string, form: FormData) => requestForm<T>("POST", path, form),
 };

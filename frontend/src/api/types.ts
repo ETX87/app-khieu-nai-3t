@@ -120,6 +120,17 @@ export interface LichSu {
   gia_tri_moi: string | null;
 }
 
+export interface KhieuNaiDinhKem {
+  id: string;
+  khieu_nai_id: string;
+  loai: "anh" | "video";
+  url: string;
+  drive_file_id: string;
+  ten_file: string | null;
+  nguoi_tao: string;
+  ngay_tao: string;
+}
+
 export interface TienTrinh {
   id: string;
   khieu_nai_id: string;

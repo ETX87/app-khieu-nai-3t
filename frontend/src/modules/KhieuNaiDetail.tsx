@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
-import type { AppUser, DanhGia3, KhieuNai, LichSu, TienTrinh } from "../api/types";
+import type { AppUser, DanhGia3, KhieuNai, KhieuNaiDinhKem, LichSu, TienTrinh } from "../api/types";
 import { fmtVN, translateDanhGia } from "../lib/formatVN";
 import { mucDoTone, MUC_DO_BG, camCoBorderClass, sortMucDoOptions } from "../lib/severity";
 import { useCreateSettingsOption, useSettingsOptions } from "../api/useSettingsOptions";
@@ -31,6 +31,7 @@ interface DetailResponse {
   khieuNai: KhieuNai;
   tienTrinh: TienTrinh[];
   lichSu: LichSu[];
+  dinhKem: KhieuNaiDinhKem[];
   giaiTrinhDeadline: { overdue: boolean; deadline: string } | null;
   related: RelatedItem[];
 }
@@ -130,6 +131,7 @@ const ICON: Record<string, ReactNode> = {
   swap: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" /></svg>,
   scale: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v18M5 7h14M7 7l-3 6a3 3 0 0 0 6 0zM17 7l-3 6a3 3 0 0 0 6 0z" /></svg>,
   check: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6 9 17l-5-5" /></svg>,
+  media: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="14" rx="2" /><path d="m3 15 5-5 4 4 3-3 6 6" /><circle cx="8" cy="9" r="1.5" /></svg>,
 };
 
 type Accent = "slate" | "violet" | "teal" | "amber" | "rose" | "green";
@@ -386,6 +388,7 @@ export function KhieuNaiDetail({
   const kn = detail.data.khieuNai;
   const tienTrinh = detail.data.tienTrinh;
   const lichSu = detail.data.lichSu ?? [];
+  const dinhKem = detail.data.dinhKem ?? [];
   const related = detail.data.related ?? [];
   const overdue = detail.data.giaiTrinhDeadline?.overdue ?? false;
   const giaiTrinhDeadline = detail.data.giaiTrinhDeadline?.deadline;
@@ -409,6 +412,9 @@ export function KhieuNaiDetail({
   const canPhuTrach =
     ["CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed && !chuaTiepNhan;
   const canTiepNhan = ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && chuaTiepNhan;
+  // Anh/video dinh kem: nguoi tao (thuong la NV Sale/Tong dai vien bao ca hien truong - 2 vai tro
+  // nay KHONG co quyen sua gi khac sau khi tao, xem canEditThongTin o tren) + CSKH/TN CSKH/QL/Admin.
+  const canDinhKem = (kn.nguoi_tao === user.email || ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "")) && kn.trang_thai !== "Huy" && !isClosed;
 
   const copyId = () => {
     navigator.clipboard?.writeText(kn.id).then(
@@ -576,6 +582,9 @@ export function KhieuNaiDetail({
             >
               <CustomerInfoSection kn={kn} editable={false} onSaved={invalidate} />
             </Zone>
+            <Zone accent="green" icon={ICON.media} title={`Ảnh / video đính kèm (${dinhKem.length})`}>
+              <DinhKemSection khieuNaiId={id} items={dinhKem} canEdit={canDinhKem} onSaved={invalidate} />
+            </Zone>
             {related.length > 0 && <RelatedList items={related} onNavigate={onNavigate} />}
           </div>
 
@@ -687,6 +696,248 @@ function ZoneBtn({ onClick, children }: { onClick: () => void; children: ReactNo
     >
       ✎ {children}
     </button>
+  );
+}
+
+// ---------- Ảnh / video đính kèm (Google Drive) ----------
+
+const DINH_KEM_MAX_ANH = 5;
+const DINH_KEM_MAX_VIDEO = 3;
+const VIDEO_MAX_BYTES = 80 * 1024 * 1024;
+const VIDEO_MAX_DURATION_S = 60;
+const IMAGE_MAX_DIMENSION = 1600;
+const IMAGE_JPEG_QUALITY = 0.75;
+
+const DINH_KEM_ERROR_MESSAGES: Record<string, string> = {
+  DRIVE_NOT_CONNECTED: "Chưa kết nối Google Drive (Admin cần vào Cài đặt để kết nối)",
+  FILE_TOO_LARGE: "File vượt quá dung lượng cho phép",
+  LIMIT_REACHED: "Đã đạt số lượng tối đa",
+  DRIVE_UPLOAD_FAILED: "Tải lên Google Drive thất bại",
+  INVALID_INPUT: "File không hợp lệ",
+};
+
+function driveViewUrl(driveFileId: string) {
+  return `https://drive.google.com/file/d/${driveFileId}/view`;
+}
+
+// Nen anh truoc khi day len Drive: resize canh dai nhat ve toi da IMAGE_MAX_DIMENSION, xuat JPEG
+// chat luong ~0.75. Neu trinh duyet khong ho tro (loi bat ky) thi tra ve file goc, server van
+// chan theo dung luong (DINH_KEM_MAX_BYTES.anh).
+async function compressImage(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, IMAGE_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", IMAGE_JPEG_QUALITY));
+    if (!blob) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
+// Khong nen that video (theo lua chon cua nguoi dung) - chi doc thoi luong de chan truoc khi upload,
+// tranh ton bang thong + luot doc D1/Drive API cho video qua dai.
+function readVideoDuration(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(url);
+      resolve(video.duration);
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("VIDEO_READ_FAILED"));
+    };
+    video.src = url;
+  });
+}
+
+function DinhKemSection({
+  khieuNaiId, items, canEdit, onSaved,
+}: {
+  khieuNaiId: string;
+  items: KhieuNaiDinhKem[];
+  canEdit: boolean;
+  onSaved: () => void;
+}) {
+  const { showToast } = useToast();
+  const [busy, setBusy] = useState(false);
+  const anhItems = items.filter((i) => i.loai === "anh");
+  const videoItems = items.filter((i) => i.loai === "video");
+
+  const uploadMutation = useMutation({
+    mutationFn: ({ file, loai }: { file: File; loai: "anh" | "video" }) => {
+      const form = new FormData();
+      form.set("file", file);
+      form.set("loai", loai);
+      return api.postForm<{ dinhKem: KhieuNaiDinhKem }>(`/khieu-nai/${khieuNaiId}/dinh-kem`, form);
+    },
+    onSuccess: () => onSaved(),
+    onError: (err) => {
+      const code = err instanceof ApiError ? err.code : "UPLOAD_FAILED";
+      showToast(DINH_KEM_ERROR_MESSAGES[code] ?? "Tải lên thất bại", "error");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (dinhKemId: string) => api.delete(`/khieu-nai/${khieuNaiId}/dinh-kem/${dinhKemId}`),
+    onSuccess: () => {
+      showToast("Đã xoá", "success");
+      onSaved();
+    },
+    onError: () => showToast("Xoá thất bại", "error"),
+  });
+
+  const handleAnhChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    const remain = DINH_KEM_MAX_ANH - anhItems.length;
+    if (remain <= 0) {
+      showToast(`Tối đa ${DINH_KEM_MAX_ANH} ảnh`, "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      for (const file of files.slice(0, remain)) {
+        const compressed = await compressImage(file);
+        await uploadMutation.mutateAsync({ file: compressed, loai: "anh" });
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleVideoChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    const remain = DINH_KEM_MAX_VIDEO - videoItems.length;
+    if (remain <= 0) {
+      showToast(`Tối đa ${DINH_KEM_MAX_VIDEO} video`, "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      for (const file of files.slice(0, remain)) {
+        if (file.size > VIDEO_MAX_BYTES) {
+          showToast(`Video "${file.name}" vượt quá ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)}MB`, "error");
+          continue;
+        }
+        try {
+          const duration = await readVideoDuration(file);
+          if (duration > VIDEO_MAX_DURATION_S) {
+            showToast(`Video "${file.name}" dài quá ${VIDEO_MAX_DURATION_S}s`, "error");
+            continue;
+          }
+        } catch {
+          // Khong doc duoc thoi luong (trinh duyet la/dinh dang khong ho tro) - van cho upload,
+          // server van chan theo dung luong.
+        }
+        await uploadMutation.mutateAsync({ file, loai: "video" });
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!canEdit && items.length === 0) {
+    return <p className="text-[13px] text-ink-faint">Không có ảnh/video đính kèm.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+            Ảnh ({anhItems.length}/{DINH_KEM_MAX_ANH})
+          </p>
+          {canEdit && anhItems.length < DINH_KEM_MAX_ANH && (
+            <label className="cursor-pointer rounded-md border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-sm hover:bg-gray-50">
+              + Thêm ảnh
+              <input type="file" accept="image/*" multiple className="hidden" disabled={busy} onChange={handleAnhChange} />
+            </label>
+          )}
+        </div>
+        {anhItems.length > 0 ? (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {anhItems.map((item) => (
+              <div key={item.id} className="group relative aspect-square overflow-hidden rounded-md border border-line bg-gray-50">
+                <a href={item.url} target="_blank" rel="noreferrer">
+                  <img src={item.url} alt={item.ten_file ?? ""} className="h-full w-full object-cover" />
+                </a>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => deleteMutation.mutate(item.id)}
+                    disabled={deleteMutation.isPending}
+                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white opacity-0 group-hover:opacity-100"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[12px] text-ink-faint">Chưa có ảnh</p>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+            Video ({videoItems.length}/{DINH_KEM_MAX_VIDEO})
+          </p>
+          {canEdit && videoItems.length < DINH_KEM_MAX_VIDEO && (
+            <label className="cursor-pointer rounded-md border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-sm hover:bg-gray-50">
+              + Thêm video
+              <input type="file" accept="video/*" multiple className="hidden" disabled={busy} onChange={handleVideoChange} />
+            </label>
+          )}
+        </div>
+        {videoItems.length > 0 ? (
+          <div className="space-y-1.5">
+            {videoItems.map((item) => (
+              <div key={item.id} className="flex items-center gap-2 rounded-md border border-line bg-gray-50 px-2 py-1.5">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-green-600 text-white">{ICON.media}</span>
+                <a
+                  href={driveViewUrl(item.drive_file_id)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 truncate text-[13px] text-accent hover:underline"
+                >
+                  {item.ten_file ?? "Video"}
+                </a>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => deleteMutation.mutate(item.id)}
+                    disabled={deleteMutation.isPending}
+                    className="rounded px-1.5 py-0.5 text-xs text-red-600 hover:bg-red-50"
+                  >
+                    Xoá
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[12px] text-ink-faint">Chưa có video</p>
+        )}
+      </div>
+      {busy && <p className="text-[12px] text-accent">Đang tải lên...</p>}
+    </div>
   );
 }
 

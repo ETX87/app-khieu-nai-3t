@@ -22,6 +22,10 @@ export interface Env {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   SESSION_SECRET: string;
+  // Ket noi Google Drive (upload anh/video dinh kem khi bao ca) - dung CHUNG 1 Google OAuth Client
+  // voi dang nhap app (GOOGLE_CLIENT_ID/SECRET o tren), chi khac redirect URI vi day la 1 luong
+  // OAuth rieng (xin quyen Drive, khong phai dang nhap) - xem lib/googleDrive.ts, routes/settings.ts.
+  GOOGLE_DRIVE_REDIRECT_URI: string;
   DVBH_API_BASE: string;
   DVBH_PARTNER_API_KEY: string;
   // Service Binding (RPC nội bộ qua Cloudflare, KHÔNG fetch() mạng thật) tới Worker "dvbh" - cùng 1

@@ -53,12 +53,61 @@ const TAB_GROUPS: { group: string; items: { key: SettingsNhom; label: string }[]
   },
 ];
 
+interface GoogleDriveStatus {
+  connected: boolean;
+  google_email?: string;
+  folder_id?: string;
+  authorized_by?: string | null;
+  authorized_at?: string;
+}
+
+function GoogleDriveCard() {
+  const statusQuery = useQuery({
+    queryKey: ["google-drive-status"],
+    queryFn: () => api.get<GoogleDriveStatus>("/settings/google-drive/status"),
+  });
+  const s = statusQuery.data;
+  return (
+    <Card title="Kết nối Google Drive">
+      <p className="mb-2 text-xs text-ink-soft">
+        Dùng để lưu ảnh/video đính kèm khi báo ca (tối đa 5 ảnh + 3 video/1 phản ánh). Chọn 1 tài khoản Google bất kỳ
+        (không nhất thiết trùng tài khoản đăng nhập app) — hệ thống tạo 1 thư mục riêng trên Drive của tài khoản đó.
+      </p>
+      {statusQuery.isLoading && <p className="text-sm text-ink-soft">Đang tải...</p>}
+      {s?.connected ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm">
+          <div>
+            <p className="font-medium text-green-800">Đã kết nối: {s.google_email}</p>
+            <p className="text-xs text-ink-soft">
+              Bởi {s.authorized_by ?? "—"} · {s.authorized_at}
+            </p>
+          </div>
+          <Btn size="sm" variant="secondary" onClick={() => { window.location.href = "/api/settings/google-drive/authorize"; }}>
+            Kết nối lại / đổi tài khoản
+          </Btn>
+        </div>
+      ) : (
+        !statusQuery.isLoading && (
+          <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
+            <p className="text-amber-800">Chưa kết nối — chức năng đính kèm ảnh/video sẽ báo lỗi cho đến khi kết nối.</p>
+            <Btn size="sm" onClick={() => { window.location.href = "/api/settings/google-drive/authorize"; }}>
+              Kết nối Google Drive
+            </Btn>
+          </div>
+        )
+      )}
+    </Card>
+  );
+}
+
 export function SettingsModule() {
   const [tab, setTab] = useState<SettingsNhom>("nhom_van_de");
 
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-lg font-semibold text-ink">Cấu hình danh mục</h2>
+
+      <GoogleDriveCard />
 
       <div className="flex flex-col gap-4 md:flex-row md:items-start">
         <nav className="flex shrink-0 flex-col gap-3 md:w-52">

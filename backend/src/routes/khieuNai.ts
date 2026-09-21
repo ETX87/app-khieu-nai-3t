@@ -6,6 +6,7 @@ import { requireRole } from "../middleware/requireRole";
 import { nowVN, currentMonthVN } from "../lib/vnTime";
 import { buildThangCondition, isValidThang } from "../lib/thangFilter";
 import { lookupDvbhCase, formatGiaiTrinhHistory } from "../lib/dvbhClient";
+import { uploadPublicFile, deletePublicFile } from "../lib/googleDrive";
 import { lookupOrderByIdLada } from "../lib/center3tClient";
 import { notifyRoles } from "../lib/notify";
 
@@ -987,19 +988,90 @@ async function getRelatedComplaints(db: D1Database, selfId: string, kn: RelatedS
 app.get("/:id", async (c) => {
   const user = c.get("user");
   const id = c.req.param("id");
-  const [khieuNai, tienTrinh, lichSu] = await Promise.all([
+  const [khieuNai, tienTrinh, lichSu, dinhKem] = await Promise.all([
     c.env.DB.prepare("SELECT * FROM khieu_nai WHERE id = ?").bind(id).first<
       { nguoi_tao: string | null } & RelatedSeed
     >(),
     c.env.DB.prepare("SELECT * FROM khieu_nai_tien_trinh WHERE khieu_nai_id = ? ORDER BY ngay_tao DESC").bind(id).all(),
     c.env.DB.prepare("SELECT * FROM khieu_nai_lich_su WHERE khieu_nai_id = ? ORDER BY thoi_diem DESC").bind(id).all(),
+    c.env.DB.prepare("SELECT * FROM khieu_nai_dinh_kem WHERE khieu_nai_id = ? ORDER BY ngay_tao").bind(id).all(),
   ]);
   if (!khieuNai) return c.json({ error: "NOT_FOUND" }, 404);
   // NV Sale/Tong dai vien (KTV cu) chi xem duoc phan anh do chinh minh tao (item 12), kem chan truy cap thang qua ID.
   if (isKtvLike(user.vai_tro) && khieuNai.nguoi_tao !== user.email) return c.json({ error: "FORBIDDEN" }, 403);
   const giaiTrinhDeadline = await getGiaiTrinhStatus(c.env.DB, id);
   const related = await getRelatedComplaints(c.env.DB, id, khieuNai, isKtvLike(user.vai_tro) ? user.email : null);
-  return c.json({ khieuNai, tienTrinh: tienTrinh.results, lichSu: lichSu.results, giaiTrinhDeadline, related });
+  return c.json({
+    khieuNai, tienTrinh: tienTrinh.results, lichSu: lichSu.results, dinhKem: dinhKem.results, giaiTrinhDeadline, related,
+  });
+});
+
+// ---------- Anh/video dinh kem (2026-09) ----------
+// Toi da 5 anh + 3 video/1 khieu nai (chan lai server-side, khong chi tin client). Anh da duoc nen
+// o client (canvas resize + JPEG quality) nen cap nho; video KHONG nen that o client (chi gioi han
+// dung luong/thoi luong) nen cap lon hon nhieu.
+const DINH_KEM_MAX_ANH = 5;
+const DINH_KEM_MAX_VIDEO = 3;
+const DINH_KEM_MAX_BYTES: Record<string, number> = { anh: 8 * 1024 * 1024, video: 80 * 1024 * 1024 };
+const DINH_KEM_ROLES = ["NV Sale", "Tổng đài viên", "CSKH", "TN CSKH", "QL", "Admin"] as const;
+
+app.post("/:id/dinh-kem", requireRole(...DINH_KEM_ROLES), async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+  const exists = await c.env.DB.prepare("SELECT id FROM khieu_nai WHERE id = ?").bind(id).first();
+  if (!exists) return c.json({ error: "NOT_FOUND" }, 404);
+
+  const form = await c.req.formData();
+  const fileRaw = form.get("file");
+  const loai = form.get("loai");
+  if (!fileRaw || typeof fileRaw === "string" || (loai !== "anh" && loai !== "video")) {
+    return c.json({ error: "INVALID_INPUT" }, 400);
+  }
+  const file = fileRaw as unknown as { size: number; type: string; name: string; arrayBuffer(): Promise<ArrayBuffer> };
+  if (file.size > DINH_KEM_MAX_BYTES[loai]) return c.json({ error: "FILE_TOO_LARGE" }, 413);
+
+  const { count } = (await c.env.DB.prepare(
+    "SELECT COUNT(*) as count FROM khieu_nai_dinh_kem WHERE khieu_nai_id = ? AND loai = ?",
+  ).bind(id, loai).first<{ count: number }>()) ?? { count: 0 };
+  const max = loai === "anh" ? DINH_KEM_MAX_ANH : DINH_KEM_MAX_VIDEO;
+  if (count >= max) return c.json({ error: "LIMIT_REACHED", max }, 409);
+
+  let uploaded: { driveFileId: string; url: string };
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    uploaded = await uploadPublicFile(c.env, c.env.DB, bytes, file.type || "application/octet-stream", file.name);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("DRIVE_NOT_CONNECTED")) return c.json({ error: "DRIVE_NOT_CONNECTED" }, 503);
+    console.error("Loi upload Google Drive:", msg);
+    return c.json({ error: "DRIVE_UPLOAD_FAILED" }, 502);
+  }
+
+  const dinhKemId = crypto.randomUUID();
+  await c.env.DB.prepare(
+    "INSERT INTO khieu_nai_dinh_kem (id, khieu_nai_id, loai, url, drive_file_id, ten_file, nguoi_tao) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  ).bind(dinhKemId, id, loai, uploaded.url, uploaded.driveFileId, file.name, user.email).run();
+
+  const created = await c.env.DB.prepare("SELECT * FROM khieu_nai_dinh_kem WHERE id = ?").bind(dinhKemId).first();
+  return c.json({ dinhKem: created }, 201);
+});
+
+app.delete("/:id/dinh-kem/:dinhKemId", requireRole(...DINH_KEM_ROLES), async (c) => {
+  const id = c.req.param("id");
+  const dinhKemId = c.req.param("dinhKemId");
+  const row = await c.env.DB.prepare(
+    "SELECT drive_file_id FROM khieu_nai_dinh_kem WHERE id = ? AND khieu_nai_id = ?",
+  ).bind(dinhKemId, id).first<{ drive_file_id: string }>();
+  if (!row) return c.json({ error: "NOT_FOUND" }, 404);
+
+  try {
+    await deletePublicFile(c.env, c.env.DB, row.drive_file_id);
+  } catch (err) {
+    console.error("Loi xoa file Google Drive:", err instanceof Error ? err.message : String(err));
+    // Khong chan xoa dong DB neu Drive loi (vd token het han) - tranh ket dinh kem "ma" mai khong xoa duoc.
+  }
+  await c.env.DB.prepare("DELETE FROM khieu_nai_dinh_kem WHERE id = ?").bind(dinhKemId).run();
+  return c.json({ ok: true });
 });
 
 // H1: gan / go nguoi phu trach ca.
