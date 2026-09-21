@@ -138,5 +138,7 @@ export interface KhieuNaiStats {
   da_ket_thuc: number;
   huy: number;
   ton_dong_crm: number;
+  cho_tn_cskh: number;
+  qua_han_giai_trinh: number;
   theoNhomVanDe: { nhom_van_de: string; so_luong: number }[];
 }

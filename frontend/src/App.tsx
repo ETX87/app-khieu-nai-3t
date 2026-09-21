@@ -25,7 +25,9 @@ function MainApp({ user }: { user: AppUser }) {
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Bộ lọc khởi tạo cho màn Phản ánh khi mở từ KPI Trang chủ. Đổi tham chiếu mỗi lần điều hướng.
-  const [listFilter, setListFilter] = useState<{ trang_thai?: string } | null>(null);
+  const [listFilter, setListFilter] = useState<{
+    trang_thai?: string; chua_dong_bo?: boolean; cho_tn_cskh?: boolean; qua_han_giai_trinh?: boolean;
+  } | null>(null);
   // Mo thang 1 don cu the tu chuong thong bao - object moi moi lan bam de useEffect trong
   // KhieuNaiModule luon nhan biet duoc kich hoat lai (ke ca bam trung 1 thong bao 2 lan lien tiep).
   const [openDetailRequest, setOpenDetailRequest] = useState<{ id: string } | null>(null);
@@ -42,7 +44,7 @@ function MainApp({ user }: { user: AppUser }) {
     localStorage.setItem(ACTIVE_MODULE_KEY, m);
   };
 
-  const openList = (filter: { trang_thai?: string }) => {
+  const openList = (filter: { trang_thai?: string; chua_dong_bo?: boolean; cho_tn_cskh?: boolean; qua_han_giai_trinh?: boolean }) => {
     setListFilter({ ...filter });
     selectModule("khieu-nai");
   };

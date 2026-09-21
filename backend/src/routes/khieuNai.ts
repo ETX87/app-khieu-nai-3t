@@ -205,7 +205,26 @@ app.get("/", async (c) => {
   if (tuNgay) { conditions.push("ngay_tiep_nhan >= ?"); binds.push(`${tuNgay} 00:00:00`); }
   if (denNgay) { conditions.push("ngay_tiep_nhan <= ?"); binds.push(`${denNgay} 23:59:59`); }
   if (chuaDongBo === "1") {
-    conditions.push("id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL AND trang_thai != 'Da ket thuc'");
+    conditions.push("id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL AND trang_thai NOT IN ('Da ket thuc', 'Huy')");
+  }
+  const choTnCskh = c.req.query("cho_tn_cskh");
+  if (choTnCskh === "1") {
+    conditions.push(
+      `trang_thai = 'Dang xu ly' AND loi_nha_san_xuat != 'Chua danh gia' AND loi_lap_dat != 'Chua danh gia'
+       AND loi_thai_do_ktv != 'Chua danh gia' AND loi_quy_trinh_nskx != 'Chua danh gia'
+       AND COALESCE(ket_luan_khieu_nai, 'Chua danh gia') != 'Chua danh gia'`,
+    );
+  }
+  const quaHanGiaiTrinh = c.req.query("qua_han_giai_trinh");
+  if (quaHanGiaiTrinh === "1") {
+    conditions.push(
+      `trang_thai NOT IN ('Da ket thuc', 'Huy') AND datetime('now', '+7 hours') > datetime(
+         COALESCE(
+           (SELECT MAX(t.ngay_tao) FROM khieu_nai_tien_trinh t
+            WHERE t.khieu_nai_id = khieu_nai.id AND t.ly_do_xu_ly_cham IS NOT NULL),
+           ngay_tiep_nhan
+         ), '+24 hours')`,
+    );
   }
   const tonToiThieuNgay = parseInt(c.req.query("ton_toi_thieu_ngay") ?? "", 10);
   if (Number.isFinite(tonToiThieuNgay) && tonToiThieuNgay > 0) {
@@ -264,10 +283,29 @@ app.get("/stats", async (c) => {
        SUM(CASE WHEN trang_thai = 'Cho chot ket thuc' THEN 1 ELSE 0 END) as cho_chot_ket_thuc,
        SUM(CASE WHEN trang_thai = 'Da ket thuc' THEN 1 ELSE 0 END) as da_ket_thuc,
        SUM(CASE WHEN trang_thai = 'Huy' THEN 1 ELSE 0 END) as huy,
-       SUM(CASE WHEN id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL THEN 1 ELSE 0 END) as ton_dong_crm
+       -- Ca da ket thuc/huy khong con "ton" nua du chua dong bo CRM (yeu cau ra soat 2026-09).
+       SUM(CASE WHEN id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL
+                  AND trang_thai NOT IN ('Da ket thuc', 'Huy') THEN 1 ELSE 0 END) as ton_dong_crm,
+       -- Da danh gia du 4 loi + ket luan (san sang "Dong ca") nhung con "Dang xu ly" cho TN CSKH bam.
+       SUM(CASE WHEN trang_thai = 'Dang xu ly'
+                  AND loi_nha_san_xuat != 'Chua danh gia' AND loi_lap_dat != 'Chua danh gia'
+                  AND loi_thai_do_ktv != 'Chua danh gia' AND loi_quy_trinh_nskx != 'Chua danh gia'
+                  AND COALESCE(ket_luan_khieu_nai, 'Chua danh gia') != 'Chua danh gia'
+             THEN 1 ELSE 0 END) as cho_tn_cskh,
+       -- Qua han 24h giai trinh ly do cham (tinh tu lan giai trinh gan nhat hoac luc tiep nhan neu
+       -- chua giai trinh lan nao) - cung dieu kien voi getGiaiTrinhStatus() dung khi khoa sua ca.
+       SUM(CASE WHEN trang_thai NOT IN ('Da ket thuc', 'Huy')
+                  AND datetime('now', '+7 hours') > datetime(
+                    COALESCE(
+                      (SELECT MAX(t.ngay_tao) FROM khieu_nai_tien_trinh t
+                       WHERE t.khieu_nai_id = khieu_nai.id AND t.ly_do_xu_ly_cham IS NOT NULL),
+                      ngay_tiep_nhan
+                    ), '+24 hours')
+             THEN 1 ELSE 0 END) as qua_han_giai_trinh
      FROM khieu_nai ${whereMine}`,
   ).bind(...mineBind).first<{
-    tong: number; cho_tiep_nhan: number; dang_xu_ly: number; cho_chot_ket_thuc: number; da_ket_thuc: number; huy: number; ton_dong_crm: number;
+    tong: number; cho_tiep_nhan: number; dang_xu_ly: number; cho_chot_ket_thuc: number; da_ket_thuc: number; huy: number;
+    ton_dong_crm: number; cho_tn_cskh: number; qua_han_giai_trinh: number;
   }>();
 
   const { results: theoNhomVanDe } = await c.env.DB.prepare(
@@ -1193,7 +1231,7 @@ app.post("/:id/dong-bo-crm", requireRole("CSKH", "NV Sale", "Tổng đài viên"
 
 app.post("/dong-bo-cac-ca-ton", requireRole("QL", "Admin"), async (c) => {
   const rows = await c.env.DB.prepare(
-    "SELECT id, id_crm_karofi FROM khieu_nai WHERE id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL AND trang_thai != 'Da ket thuc' LIMIT 50",
+    "SELECT id, id_crm_karofi FROM khieu_nai WHERE id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL AND trang_thai NOT IN ('Da ket thuc', 'Huy') LIMIT 50",
   ).all<{ id: string; id_crm_karofi: string }>();
 
   const results: { id: string; ok: boolean; error?: string }[] = [];

@@ -66,6 +66,8 @@ interface Filters {
   tuNgay: string;
   denNgay: string;
   chuaDongBo: boolean;
+  choTnCskh: boolean;
+  quaHanGiaiTrinh: boolean;
   caCuaToi: boolean;
   nguoiTaoVaiTro: string;
   tonToiThieu: string;
@@ -77,7 +79,7 @@ interface Filters {
 
 const EMPTY_FILTERS: Filters = {
   trangThai: "", mucDo: "", nhomVanDe: "", tuNgay: "", denNgay: "",
-  chuaDongBo: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "", thangDong: "",
+  chuaDongBo: false, choTnCskh: false, quaHanGiaiTrinh: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "", thangDong: "",
   q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
 };
 
@@ -109,7 +111,7 @@ export function KhieuNaiModule({
   user, initialFilter, openDetailRequest,
 }: {
   user: AppUser;
-  initialFilter?: { trang_thai?: string } | null;
+  initialFilter?: { trang_thai?: string; chua_dong_bo?: boolean; cho_tn_cskh?: boolean; qua_han_giai_trinh?: boolean } | null;
   // Mo thang 1 don tu chuong thong bao (App.tsx) - object moi moi lan bam nen luon kich hoat lai
   // duoc ke ca bam trung 1 thong bao 2 lan lien tiep.
   openDetailRequest?: { id: string } | null;
@@ -171,11 +173,19 @@ export function KhieuNaiModule({
     setPage(1);
   };
 
-  // KPI ở Trang chủ bấm sang -> áp trạng thái (hoặc bỏ hết lọc cũ nếu bấm "Tổng phản ánh"/"Tồn đọng
-  // CRM" - initialFilter khi đó là {} chứ không phải undefined, vẫn phải reset bộ lọc cũ).
+  // KPI ở Trang chủ bấm sang -> áp trạng thái/bộ lọc riêng (hoặc bỏ hết lọc cũ nếu bấm "Tổng phản
+  // ánh" - initialFilter khi đó là {} chứ không phải undefined, vẫn phải reset bộ lọc cũ).
   useEffect(() => {
     if (initialFilter) {
-      setF((p) => ({ ...EMPTY_FILTERS, sort: p.sort, pageSize: p.pageSize, trangThai: initialFilter.trang_thai ?? "" }));
+      setF((p) => ({
+        ...EMPTY_FILTERS,
+        sort: p.sort,
+        pageSize: p.pageSize,
+        trangThai: initialFilter.trang_thai ?? "",
+        chuaDongBo: initialFilter.chua_dong_bo ?? false,
+        choTnCskh: initialFilter.cho_tn_cskh ?? false,
+        quaHanGiaiTrinh: initialFilter.qua_han_giai_trinh ?? false,
+      }));
       setPage(1);
     }
   }, [initialFilter]);
@@ -201,6 +211,8 @@ export function KhieuNaiModule({
       if (f.tuNgay) p.set("tu_ngay", f.tuNgay);
       if (f.denNgay) p.set("den_ngay", f.denNgay);
       if (f.chuaDongBo) p.set("chua_dong_bo", "1");
+      if (f.choTnCskh) p.set("cho_tn_cskh", "1");
+      if (f.quaHanGiaiTrinh) p.set("qua_han_giai_trinh", "1");
       if (f.caCuaToi) p.set("nguoi_phu_trach", user.email);
       if (f.nguoiTaoVaiTro) p.set("nguoi_tao_vai_tro", f.nguoiTaoVaiTro);
       if (f.tonToiThieu) p.set("ton_toi_thieu_ngay", f.tonToiThieu);
@@ -328,7 +340,7 @@ export function KhieuNaiModule({
 
   const activeFilterCount =
     [f.trangThai, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.q].filter(Boolean).length +
-    (f.chuaDongBo ? 1 : 0) + (f.caCuaToi ? 1 : 0);
+    (f.chuaDongBo ? 1 : 0) + (f.choTnCskh ? 1 : 0) + (f.quaHanGiaiTrinh ? 1 : 0) + (f.caCuaToi ? 1 : 0);
 
   const handleSort = (field: string) => {
     setF((p) => {
@@ -394,6 +406,12 @@ export function KhieuNaiModule({
             </label>
             <label className="flex items-center gap-1 text-xs text-ink-soft">
               <input type="checkbox" checked={f.chuaDongBo} onChange={(e) => set("chuaDongBo", e.target.checked)} /> Chưa đồng bộ CRM
+            </label>
+            <label className="flex items-center gap-1 text-xs text-ink-soft">
+              <input type="checkbox" checked={f.choTnCskh} onChange={(e) => set("choTnCskh", e.target.checked)} /> Chờ TN CSKH đóng ca
+            </label>
+            <label className="flex items-center gap-1 text-xs text-ink-soft">
+              <input type="checkbox" checked={f.quaHanGiaiTrinh} onChange={(e) => set("quaHanGiaiTrinh", e.target.checked)} /> Quá hạn giải trình
             </label>
             <label className="flex items-center gap-1 text-xs text-ink-soft">
               <input type="checkbox" checked={f.caCuaToi} onChange={(e) => set("caCuaToi", e.target.checked)} /> Ca của tôi
