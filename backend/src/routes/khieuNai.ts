@@ -447,16 +447,21 @@ app.get("/tra-cuu", async (c) => {
         if (r["Nhãn hiệu máy"]?.trim()) fill.hang = r["Nhãn hiệu máy"].trim();
         put("ten_khach", "Tên KH");
         put("id_truy_van", "ID Truy xuất");
-        const tinhVal = r["Tỉnh/Thành"]?.trim() ?? "";
-        if (tinhVal && (await optionExists(c.env.DB, "tinh_moi", tinhVal))) {
-          if (!fill.tinh_moi) fill.tinh_moi = tinhVal;
-          // BUG (2026-09-21): truoc day chi dien tinh_moi, quen dien luon phuong_xa_moi - khien
-          // dia chi "moi" luon thieu phuong/xa du du lieu tho tu API co day du.
-          put("phuong_xa_moi", "Phường/Xã");
-        } else {
+        // BUG (2026-09-21): truoc day quyet dinh dia chinh cu/moi bang cach kiem tra ten tinh co
+        // khop danh muc "tinh_moi" khong - nhung da xac nhan bang goi API that (ID Lada B1391729,
+        // tra ve "Huyện Hoài Đức") la SAI: da so tinh KHONG doi ten sau sap nhap 2025 nen ten tinh
+        // luon khop CA HAI danh muc tinh/tinh_moi, khien du lieu cu (co huyen) bi hieu nham la moi
+        // va lam mat han cot Quan/Huyen du API tra ve day du. Tin hieu dang tin cay hon: du lieu tu
+        // nguon Ecolada nay luon la dia chinh CU 3 cap (tinh/huyen/xa) khi con cot Quan/Huyen - chi
+        // coi la dia chinh MOI (2 cap, khong huyen) khi cot Quan/Huyen thuc su rong.
+        const quanHuyenVal = r["Quận/Huyện"]?.trim() ?? "";
+        if (quanHuyenVal) {
           put("tinh", "Tỉnh/Thành");
           put("quan_huyen", "Quận/Huyện");
           put("phuong_xa", "Phường/Xã");
+        } else {
+          put("tinh_moi", "Tỉnh/Thành");
+          put("phuong_xa_moi", "Phường/Xã");
         }
         const str = (v?: string) => (v && v.trim() !== "" ? v.trim() : null);
         preview = {
