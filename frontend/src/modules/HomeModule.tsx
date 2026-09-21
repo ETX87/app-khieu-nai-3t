@@ -9,9 +9,9 @@ import { Modal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
 import { fmtVN } from "../lib/formatVN";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
-import { KhieuNaiForm, type KhieuNaiFormHeaderState } from "./KhieuNaiForm";
+import { KhieuNaiForm, type KhieuNaiFormHandle, type KhieuNaiFormHeaderState } from "./KhieuNaiForm";
 import { KhieuNaiCard } from "./KhieuNaiCard";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { AppUser } from "../api/types";
 
 interface ListResponse {
@@ -57,6 +57,7 @@ interface HomeProps {
 export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const createFormRef = useRef<KhieuNaiFormHandle>(null);
   const [createHeader, setCreateHeader] = useState<KhieuNaiFormHeaderState>({
     missing: [], pendingCount: 0, submitting: false, panelClassName: "bg-surface",
   });
@@ -258,8 +259,31 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
         title="Tạo phản ánh mới"
         width="full"
         panelClassName={createHeader.panelClassName}
+        actions={
+          <div className="flex items-center gap-3">
+            {createHeader.pendingCount > 0 && (
+              <span className="hidden text-[11px] text-ink-soft sm:inline">
+                {createHeader.pendingCount} lựa chọn mới sẽ được lưu khi bấm Tạo
+              </span>
+            )}
+            {createHeader.missing.length > 0 && createHeader.pendingCount === 0 && (
+              <span className="hidden text-xs text-amber-700 sm:inline">Còn thiếu: {createHeader.missing.join(", ")}</span>
+            )}
+            <Btn type="button" variant="secondary" size="sm" onClick={() => createFormRef.current?.cancel()}>Hủy</Btn>
+            <Btn
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={createHeader.submitting || createHeader.missing.length > 0}
+              onClick={() => createFormRef.current?.submit()}
+            >
+              {createHeader.submitting ? "Đang tạo..." : "Tạo phản ánh"}
+            </Btn>
+          </div>
+        }
       >
         <KhieuNaiForm
+          ref={createFormRef}
           onStateChange={setCreateHeader}
           onCreated={(id) => {
             setCreateOpen(false);
