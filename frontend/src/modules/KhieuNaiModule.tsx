@@ -272,6 +272,11 @@ export function KhieuNaiModule({
       ),
     },
     {
+      key: "nguon",
+      header: "Nguồn",
+      render: (r) => (r.nguon === "CRM" ? "CRM Karofi" : r.nguon) || <span className="text-ink-faint">—</span>,
+    },
+    {
       key: "muc_do",
       header: "Mức độ",
       sortKey: "muc_do",

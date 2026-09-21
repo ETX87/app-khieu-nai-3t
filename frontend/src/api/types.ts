@@ -23,6 +23,7 @@ export interface KhieuNai {
   ten_khach: string | null;
   sdt_khach: string | null;
   id_lada: string | null;
+  nguon: string | null;
   sale_khu_vuc: string | null;
   tinh: string | null;
   quan_huyen: string | null;

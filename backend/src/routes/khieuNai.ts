@@ -23,7 +23,7 @@ const CSKH_FIELDS = [
   "ten_khach", "sdt_khach", "id_lada", "sale_khu_vuc",
   "tinh", "quan_huyen", "phuong_xa", "tinh_moi", "phuong_xa_moi", "model", "hang",
   "thong_tin_ban_dau", "nguoi_bao", "muc_do", "nhom_yeu_cau", "nhom_van_de", "van_de_dau_vao",
-  "phan_loai_kh", "ghi_chu_nguoi_tao", "id_crm_karofi",
+  "phan_loai_kh", "ghi_chu_nguoi_tao", "id_crm_karofi", "nguon",
 ];
 
 // Nhanh doi may - CSKH/TN CSKH/QL/Admin cung xu ly duoc (mo rong theo yeu cau ra soat ma tran vai tro)
@@ -48,7 +48,7 @@ const FIELD_LABELS: Record<string, string> = {
   model: "Model", hang: "Hãng", thong_tin_ban_dau: "Thông tin ban đầu", nguoi_bao: "Người báo",
   muc_do: "Mức độ", nhom_yeu_cau: "Nhóm yêu cầu", nhom_van_de: "Nhóm vấn đề",
   van_de_dau_vao: "Vấn đề đầu vào", phan_loai_kh: "Phân loại KH", ghi_chu_nguoi_tao: "Ghi chú người tạo",
-  id_crm_karofi: "ID CRM Karofi",
+  id_crm_karofi: "ID CRM Karofi", nguon: "Nguồn",
   bo_phan_ban_giao: "Bộ phận bàn giao", ma_duyet_doi_linh_kien: "Mã duyệt đổi linh kiện",
   cam_co: "Cắm cờ", ghi_chu_ly_do_cham: "Ghi chú lý do chậm", id_lada_phat_sinh: "ID Lada phát sinh",
   ngay_ghi_nhan_doi_may: "Ngày ghi nhận đổi máy", ngay_dong_doi_may: "Ngày đóng đổi máy",
@@ -841,6 +841,7 @@ app.post("/", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "Q
     phan_loai_kh: body.phan_loai_kh ?? null,
     ghi_chu_nguoi_tao: body.ghi_chu_nguoi_tao ?? null,
     id_crm_karofi: body.id_crm_karofi ?? null,
+    nguon: body.nguon ?? null,
     trang_thai: autoReceived ? "Dang xu ly" : "Cho tiep nhan",
     nguoi_tao: user.email,
     cskh_tiep_nhan: autoReceived ? user.email : null,

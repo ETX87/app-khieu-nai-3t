@@ -7,6 +7,7 @@ import { api, ApiError } from "../api/client";
 import type { KhieuNai, SettingsNhom } from "../api/types";
 import { useSettingsOptions } from "../api/useSettingsOptions";
 import { Field, Input, Textarea } from "../components/ui/Input";
+import { Select } from "../components/ui/Select";
 import { Combobox } from "../components/ui/Combobox";
 import { useToast } from "../components/ui/Toast";
 import { fmtVN, translateDanhGia } from "../lib/formatVN";
@@ -28,6 +29,7 @@ export interface KhieuNaiFormHeaderState {
 interface FormState {
   id_crm_karofi: string;
   id_lada: string;
+  nguon: string;
   ten_khach: string;
   sdt_khach: string;
   phan_loai_kh: string;
@@ -48,8 +50,13 @@ interface FormState {
   nguoi_bao: string;
 }
 
+export const NGUON_OPTIONS = [
+  { value: "Lada", label: "Lada" },
+  { value: "CRM", label: "CRM Karofi" },
+];
+
 const EMPTY: FormState = {
-  id_crm_karofi: "", id_lada: "",
+  id_crm_karofi: "", id_lada: "", nguon: "",
   ten_khach: "", sdt_khach: "", phan_loai_kh: "Thường",
   tinh: "", quan_huyen: "", phuong_xa: "",
   tinh_moi: "", phuong_xa_moi: "",
@@ -491,7 +498,11 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                   <Input
                     className="w-32 !py-1"
                     value={form.id_crm_karofi}
-                    onChange={(e) => setField("id_crm_karofi", e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setField("id_crm_karofi", v);
+                      if (v.trim() !== "" && form.id_crm_karofi.trim() === "" && form.nguon === "") setField("nguon", "CRM");
+                    }}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void runLookup("crm"); } }}
                   />
                   <button
@@ -512,7 +523,11 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                   <Input
                     className="w-32 !py-1"
                     value={form.id_lada}
-                    onChange={(e) => setField("id_lada", e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setField("id_lada", v);
+                      if (v.trim() !== "" && form.id_lada.trim() === "" && form.nguon === "") setField("nguon", "Lada");
+                    }}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void runLookup("lada"); } }}
                   />
                   <button
@@ -526,6 +541,16 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     {lookupBusy === "lada" ? "…" : <SearchIcon />}
                   </button>
                 </div>
+              </div>
+              <div className="block">
+                <span className="mb-0.5 block text-xs font-medium text-ink-soft">Nguồn</span>
+                <Select
+                  className="w-32 !py-1"
+                  options={NGUON_OPTIONS}
+                  placeholder="— Chọn —"
+                  value={form.nguon}
+                  onChange={(e) => setField("nguon", e.target.value)}
+                />
               </div>
               <p className="mb-1 max-w-[14rem] text-[11px] leading-tight text-ink-faint">
                 Nhập ID rồi Enter / bấm kính lúp — tự điền vào các ô còn trống.
