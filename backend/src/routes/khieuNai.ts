@@ -265,6 +265,32 @@ app.get("/", async (c) => {
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const offset = (page - 1) * pageSize;
 
+  // View mac dinh "Tat ca" (khong loc gi + sap xep tiep nhan moi nhat, dung MOI khi mo module): ca
+  // "ton" (chua Da ket thuc/Huy) luon len truoc, sap theo ngay tiep nhan moi nhat, tong chi dem so
+  // ca ton (bi chan boi luong cong viec dang xu ly - khong phinh to theo lich su nam nay qua nam
+  // khac). Ca 2 truy van deu dung index idx_kn_ton_uu_tien/idx_kn_trang_thai (SEARCH, khong SCAN) -
+  // rows_read chi ti le voi so ca ton, khong ti le voi tong so ban ghi tu truoc den nay (2026-09-21).
+  const TON_ORDER_EXPR = "(CASE WHEN trang_thai NOT IN ('Da ket thuc','Huy') THEN 1 ELSE 0 END) DESC, ngay_tiep_nhan DESC";
+  const useTonPriority = conditions.length === 0 && sort === "ngay_tiep_nhan" && dir === "DESC";
+
+  if (useTonPriority) {
+    const [list, tonCount] = await Promise.all([
+      c.env.DB.prepare(`SELECT * FROM khieu_nai ORDER BY ${TON_ORDER_EXPR} LIMIT ? OFFSET ?`)
+        .bind(pageSize, offset)
+        .all(),
+      c.env.DB.prepare(
+        "SELECT COUNT(*) as cnt FROM khieu_nai WHERE trang_thai IN ('Cho tiep nhan','Dang xu ly','Cho chot ket thuc')",
+      ).first<{ cnt: number }>(),
+    ]);
+    return c.json({
+      items: list.results,
+      total: tonCount?.cnt ?? 0,
+      totalIsApprox: true, // dem so ca ton, chua tinh ca da dong/huy - luon "chi it nhat bay nhieu".
+      page,
+      pageSize,
+    });
+  }
+
   // Dem so dong: KHONG COUNT(*) truc tiep tren "where" rong (khi khong loc gi ca) - se buoc D1 quet
   // toan bo bang (rows_read = tong so ban ghi, tang mai theo thoi gian). Bao boc trong subquery co
   // LIMIT de rows_read toi da bang COUNT_CAP du bang co bao nhieu trieu dong - tu "~du du de biet
