@@ -914,28 +914,48 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
     mutation.mutate();
   };
 
+  const groupLabelCls = "mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint";
+  const groupLabelClsNotFirst = `mt-3 border-t border-line pt-3 ${groupLabelCls}`;
+
   if (!editable) {
     return (
       <>
+        <p className={groupLabelCls}>Thông tin khách hàng</p>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+          <ReadField label="Phân loại KH" value={kn.phan_loai_kh} />
           <ReadField label="Tên khách hàng" value={kn.ten_khach} />
           <ReadField label="Số điện thoại" value={kn.sdt_khach} />
           <ReadField label="ID Lada" value={kn.id_lada} />
           <ReadField label="ID Truy vấn" value={kn.id_truy_van} />
-          <ReadField label="Nguồn" value={kn.nguon ? (NGUON_LABEL[kn.nguon] ?? kn.nguon) : null} />
-          <ReadField label="Sale khu vực" value={kn.sale_khu_vuc} />
-          <ReadField label="Người báo" value={kn.nguoi_bao} />
+        </div>
+
+        <p className={groupLabelClsNotFirst}>Địa chỉ</p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
           <ReadField label="Tỉnh (cũ)" value={kn.tinh} />
           <ReadField label="Quận/Huyện (cũ)" value={kn.quan_huyen} />
           <ReadField label="Phường/Xã (cũ)" value={kn.phuong_xa} />
           <ReadField label="Tỉnh (mới)" value={kn.tinh_moi} />
           <ReadField label="Phường/Xã (mới)" value={kn.phuong_xa_moi} />
+        </div>
+
+        <p className={groupLabelClsNotFirst}>Thông tin nguồn</p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+          <ReadField label="Người báo" value={kn.nguoi_bao} />
+          <ReadField label="Nguồn" value={kn.nguon ? (NGUON_LABEL[kn.nguon] ?? kn.nguon) : null} />
+          <ReadField label="Sale khu vực" value={kn.sale_khu_vuc} />
+        </div>
+
+        <p className={groupLabelClsNotFirst}>Thông tin sản phẩm</p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
           <ReadField label="Model" value={kn.model} />
           <ReadField label="Hãng" value={kn.hang} />
-          <ReadField label="Mức độ" value={kn.muc_do} />
-          <ReadField label="Nhóm yêu cầu" value={kn.nhom_yeu_cau} />
-          <ReadField label="Phân loại KH" value={kn.phan_loai_kh} />
+        </div>
+
+        <p className={groupLabelClsNotFirst}>Thông tin phản ánh</p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
           <ReadField label="Nhóm vấn đề" value={kn.nhom_van_de} />
+          <ReadField label="Nhóm yêu cầu" value={kn.nhom_yeu_cau} />
+          <ReadField label="Mức độ" value={kn.muc_do} />
           <ReadField label="Vấn đề đầu vào" value={kn.van_de_dau_vao} />
         </div>
         <div className="mt-2">
@@ -948,155 +968,189 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
     );
   }
 
+  const legendCls = "px-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint";
+  const fieldsetCls = "rounded-lg border border-line bg-white p-2.5";
+  const fieldGridCls = "grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3";
+
   return (
     <>
-      <form onSubmit={submit} className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3">
-        <Field label="Tên khách hàng">
-          <Input value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} />
-        </Field>
-        <Field label="Số điện thoại">
-          <Input value={form.sdt_khach} onChange={(e) => setField("sdt_khach", e.target.value)} inputMode="tel" />
-        </Field>
-        <Field label="ID Lada">
-          <Input value={form.id_lada} onChange={(e) => setField("id_lada", e.target.value)} />
-        </Field>
-        <Field label="ID Truy vấn">
-          <Input value={form.id_truy_van} onChange={(e) => setField("id_truy_van", e.target.value)} />
-        </Field>
-        <Field label="Nguồn">
-          <Select
-            options={NGUON_OPTIONS}
-            placeholder="— Chọn —"
-            value={form.nguon}
-            onChange={(e) => setField("nguon", e.target.value)}
-          />
-        </Field>
-        <Field label="Sale khu vực">
-          <Combobox
-            options={(saleKhuVucOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.sale_khu_vuc}
-            onChange={(v) => setField("sale_khu_vuc", v)}
-            creatable
-            onCreate={createSaleKhuVuc}
-          />
-        </Field>
-        <Field label="Người báo">
-          <Input value={form.nguoi_bao} onChange={(e) => setField("nguoi_bao", e.target.value)} />
-        </Field>
-        <Field label="Tỉnh (cũ)">
-          <Combobox
-            options={(tinhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.tinh}
-            onChange={(v) => setForm((p) => ({ ...p, tinh: v, quan_huyen: "", phuong_xa: "" }))}
-            creatable
-            onCreate={createTinh}
-          />
-        </Field>
-        <Field label="Quận/Huyện (cũ)">
-          <Combobox
-            options={(quanHuyenOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.quan_huyen}
-            onChange={(v) => setForm((p) => ({ ...p, quan_huyen: v, phuong_xa: "" }))}
-            disabled={!form.tinh}
-            creatable
-            onCreate={(v) => createQuanHuyen(v, form.tinh)}
-          />
-        </Field>
-        <Field label="Phường/Xã (cũ)">
-          <Combobox
-            options={(phuongXaOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.phuong_xa}
-            onChange={(v) => setField("phuong_xa", v)}
-            disabled={!form.quan_huyen}
-            creatable
-            onCreate={(v) => createPhuongXa(v, form.quan_huyen)}
-          />
-        </Field>
-        <Field label="Tỉnh (mới)">
-          <Combobox
-            options={(tinhMoiOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.tinh_moi}
-            onChange={(v) => setForm((p) => ({ ...p, tinh_moi: v, phuong_xa_moi: "" }))}
-            creatable
-            onCreate={createTinhMoi}
-          />
-        </Field>
-        <Field label="Phường/Xã (mới)">
-          <Combobox
-            options={(phuongXaMoiOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.phuong_xa_moi}
-            onChange={(v) => setField("phuong_xa_moi", v)}
-            disabled={!form.tinh_moi}
-            creatable
-            onCreate={(v) => createPhuongXaMoi(v, form.tinh_moi)}
-          />
-        </Field>
-        <Field label="Model">
-          <Combobox
-            options={(modelOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.model}
-            onChange={(v) => setField("model", v)}
-          />
-        </Field>
-        <Field label="Hãng">
-          <Combobox
-            options={(hangOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.hang}
-            onChange={(v) => setField("hang", v)}
-            creatable
-            onCreate={createHang}
-          />
-        </Field>
-        <Field label="Mức độ">
-          <Combobox
-            options={sortMucDoOptions(mucDoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.muc_do}
-            onChange={(v) => setField("muc_do", v)}
-          />
-        </Field>
-        <Field label="Nhóm yêu cầu">
-          <Combobox
-            options={(nhomYeuCauOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.nhom_yeu_cau}
-            onChange={(v) => setField("nhom_yeu_cau", v)}
-          />
-        </Field>
-        <Field label="Phân loại KH">
-          <Combobox
-            options={(phanLoaiKhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.phan_loai_kh}
-            onChange={(v) => setField("phan_loai_kh", v)}
-          />
-        </Field>
-        <Field label="Nhóm vấn đề">
-          <Combobox
-            options={(nhomVanDeOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.nhom_van_de}
-            onChange={(v) => {
-              setField("nhom_van_de", v);
-              setField("van_de_dau_vao", "");
-            }}
-          />
-        </Field>
-        <Field label="Vấn đề đầu vào">
-          <Combobox
-            options={filteredVanDeDauVao.map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            value={form.van_de_dau_vao}
-            onChange={(v) => setField("van_de_dau_vao", v)}
-            disabled={!form.nhom_van_de}
-          />
-        </Field>
-        <div className="sm:col-span-3">
-          <Field label="Thông tin ban đầu">
-            <Textarea rows={2} value={form.thong_tin_ban_dau} onChange={(e) => setField("thong_tin_ban_dau", e.target.value)} />
-          </Field>
-        </div>
-        <div className="sm:col-span-3">
-          <Field label="Ghi chú người tạo">
-            <Textarea rows={2} value={form.ghi_chu_nguoi_tao} onChange={(e) => setField("ghi_chu_nguoi_tao", e.target.value)} />
-          </Field>
-        </div>
-        <div className="sm:col-span-3 flex justify-end">
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <fieldset className={fieldsetCls}>
+          <legend className={legendCls}>Thông tin khách hàng</legend>
+          <div className={fieldGridCls}>
+            <Field label="Phân loại KH">
+              <Combobox
+                options={(phanLoaiKhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.phan_loai_kh}
+                onChange={(v) => setField("phan_loai_kh", v)}
+              />
+            </Field>
+            <Field label="Tên khách hàng">
+              <Input value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} />
+            </Field>
+            <Field label="Số điện thoại">
+              <Input value={form.sdt_khach} onChange={(e) => setField("sdt_khach", e.target.value)} inputMode="tel" />
+            </Field>
+            <Field label="ID Lada">
+              <Input value={form.id_lada} onChange={(e) => setField("id_lada", e.target.value)} />
+            </Field>
+            <Field label="ID Truy vấn">
+              <Input value={form.id_truy_van} onChange={(e) => setField("id_truy_van", e.target.value)} />
+            </Field>
+          </div>
+        </fieldset>
+
+        <fieldset className={fieldsetCls}>
+          <legend className={legendCls}>Địa chỉ</legend>
+          <div className={fieldGridCls}>
+            <Field label="Tỉnh (cũ)">
+              <Combobox
+                options={(tinhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.tinh}
+                onChange={(v) => setForm((p) => ({ ...p, tinh: v, quan_huyen: "", phuong_xa: "" }))}
+                creatable
+                onCreate={createTinh}
+              />
+            </Field>
+            <Field label="Quận/Huyện (cũ)">
+              <Combobox
+                options={(quanHuyenOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.quan_huyen}
+                onChange={(v) => setForm((p) => ({ ...p, quan_huyen: v, phuong_xa: "" }))}
+                disabled={!form.tinh}
+                creatable
+                onCreate={(v) => createQuanHuyen(v, form.tinh)}
+              />
+            </Field>
+            <Field label="Phường/Xã (cũ)">
+              <Combobox
+                options={(phuongXaOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.phuong_xa}
+                onChange={(v) => setField("phuong_xa", v)}
+                disabled={!form.quan_huyen}
+                creatable
+                onCreate={(v) => createPhuongXa(v, form.quan_huyen)}
+              />
+            </Field>
+            <Field label="Tỉnh (mới)">
+              <Combobox
+                options={(tinhMoiOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.tinh_moi}
+                onChange={(v) => setForm((p) => ({ ...p, tinh_moi: v, phuong_xa_moi: "" }))}
+                creatable
+                onCreate={createTinhMoi}
+              />
+            </Field>
+            <Field label="Phường/Xã (mới)">
+              <Combobox
+                options={(phuongXaMoiOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.phuong_xa_moi}
+                onChange={(v) => setField("phuong_xa_moi", v)}
+                disabled={!form.tinh_moi}
+                creatable
+                onCreate={(v) => createPhuongXaMoi(v, form.tinh_moi)}
+              />
+            </Field>
+          </div>
+        </fieldset>
+
+        <fieldset className={fieldsetCls}>
+          <legend className={legendCls}>Thông tin nguồn</legend>
+          <div className={fieldGridCls}>
+            <Field label="Người báo">
+              <Input value={form.nguoi_bao} onChange={(e) => setField("nguoi_bao", e.target.value)} />
+            </Field>
+            <Field label="Nguồn">
+              <Select
+                options={NGUON_OPTIONS}
+                placeholder="— Chọn —"
+                value={form.nguon}
+                onChange={(e) => setField("nguon", e.target.value)}
+              />
+            </Field>
+            <Field label="Sale khu vực">
+              <Combobox
+                options={(saleKhuVucOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.sale_khu_vuc}
+                onChange={(v) => setField("sale_khu_vuc", v)}
+                creatable
+                onCreate={createSaleKhuVuc}
+              />
+            </Field>
+          </div>
+        </fieldset>
+
+        <fieldset className={fieldsetCls}>
+          <legend className={legendCls}>Thông tin sản phẩm</legend>
+          <div className={fieldGridCls}>
+            <Field label="Model">
+              <Combobox
+                options={(modelOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.model}
+                onChange={(v) => setField("model", v)}
+              />
+            </Field>
+            <Field label="Hãng">
+              <Combobox
+                options={(hangOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.hang}
+                onChange={(v) => setField("hang", v)}
+                creatable
+                onCreate={createHang}
+              />
+            </Field>
+          </div>
+        </fieldset>
+
+        <fieldset className={fieldsetCls}>
+          <legend className={legendCls}>Thông tin phản ánh</legend>
+          <div className={fieldGridCls}>
+            <Field label="Nhóm vấn đề">
+              <Combobox
+                options={(nhomVanDeOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.nhom_van_de}
+                onChange={(v) => {
+                  setField("nhom_van_de", v);
+                  setField("van_de_dau_vao", "");
+                }}
+              />
+            </Field>
+            <Field label="Nhóm yêu cầu">
+              <Combobox
+                options={(nhomYeuCauOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.nhom_yeu_cau}
+                onChange={(v) => setField("nhom_yeu_cau", v)}
+              />
+            </Field>
+            <Field label="Mức độ">
+              <Combobox
+                options={sortMucDoOptions(mucDoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.muc_do}
+                onChange={(v) => setField("muc_do", v)}
+              />
+            </Field>
+            <Field label="Vấn đề đầu vào">
+              <Combobox
+                options={filteredVanDeDauVao.map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
+                value={form.van_de_dau_vao}
+                onChange={(v) => setField("van_de_dau_vao", v)}
+                disabled={!form.nhom_van_de}
+              />
+            </Field>
+            <div className="sm:col-span-3">
+              <Field label="Thông tin ban đầu">
+                <Textarea rows={2} value={form.thong_tin_ban_dau} onChange={(e) => setField("thong_tin_ban_dau", e.target.value)} />
+              </Field>
+            </div>
+            <div className="sm:col-span-3">
+              <Field label="Ghi chú người tạo">
+                <Textarea rows={2} value={form.ghi_chu_nguoi_tao} onChange={(e) => setField("ghi_chu_nguoi_tao", e.target.value)} />
+              </Field>
+            </div>
+          </div>
+        </fieldset>
+
+        <div className="flex justify-end">
           <Btn type="submit" variant="primary" disabled={mutation.isPending}>
             {mutation.isPending ? "Đang lưu..." : "Lưu thông tin khách hàng"}
           </Btn>
