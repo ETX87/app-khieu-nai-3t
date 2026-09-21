@@ -1175,7 +1175,7 @@ app.post("/:id/huy", requireRole("CSKH", "TN CSKH", "QL", "Admin"), async (c) =>
 
   const row = await c.env.DB.prepare("SELECT trang_thai FROM khieu_nai WHERE id = ?").bind(id).first<{ trang_thai: string }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
-  if (row.trang_thai === "Da ket thuc") return c.json({ error: "INVALID_STATE" }, 400);
+  if (row.trang_thai === "Da ket thuc" || row.trang_thai === "Huy") return c.json({ error: "INVALID_STATE" }, 400);
 
   const user = c.get("user");
   const ts = nowVN();

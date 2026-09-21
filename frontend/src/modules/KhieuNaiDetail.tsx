@@ -1734,7 +1734,7 @@ function ActionBar({
   const chotReady = !chotTrucTiep || dongCaChecklist(kn).every((c) => c.ok);
   const canHuy =
     (user.vai_tro === "CSKH" || user.vai_tro === "TN CSKH" || user.vai_tro === "QL" || user.vai_tro === "Admin") &&
-    kn.trang_thai !== "Da ket thuc";
+    kn.trang_thai !== "Da ket thuc" && kn.trang_thai !== "Huy";
 
   const dongCa = useMutation({
     mutationFn: () => api.post<{ ok: true }>(`/khieu-nai/${kn.id}/dong-ca`),
