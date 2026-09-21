@@ -27,6 +27,16 @@ const FOCUSABLE =
 export function Modal({ open, onClose, title, actions, children, width = "lg", panelClassName = "bg-surface" }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
+  // Luon giu ban moi nhat cua onClose ma KHONG dua vao mang deps cua effect ben duoi - onClose thuong
+  // la ham inline (vd `onClose={() => setOpen(false)}`) nen doi tham chieu MOI LAN component cha
+  // render lai. Neu de thang trong deps, effect (va logic "cuop" focus vao phan tu focus-duoc DAU
+  // TIEN trong modal) se chay lai moi lan cha render lai vi ly do BAT KY - vd nguoi dung go 1 ky tu
+  // vao textarea lam cha doi state khac -> focus nhay khoi o dang go sang nut dau tien trong modal
+  // (thuong la "Huy") ngay giua luc go, phai bam chuot lai vao o nhap (bug bao 2026-09-21).
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -44,7 +54,7 @@ export function Modal({ open, onClose, title, actions, children, width = "lg", p
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === "Tab" && panelRef.current) {
@@ -74,7 +84,8 @@ export function Modal({ open, onClose, title, actions, children, width = "lg", p
       window.clearTimeout(t);
       prevFocus.current?.focus?.();
     };
-  }, [open, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (!open) return null;
 

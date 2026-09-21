@@ -287,7 +287,7 @@ export function KhieuNaiModule({
       render: (r) => (
         <div className="leading-tight">
           <div>{r.ten_khach ?? "—"}</div>
-          <div className="text-xs text-ink-soft">{r.tinh ?? "—"}</div>
+          <div className="text-xs text-ink-soft">{r.tinh || r.tinh_moi || "—"}</div>
         </div>
       ),
     },
