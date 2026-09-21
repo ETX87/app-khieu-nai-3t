@@ -188,6 +188,7 @@ app.get("/", async (c) => {
   const tuNgay = c.req.query("tu_ngay");
   const denNgay = c.req.query("den_ngay");
   const chuaDongBo = c.req.query("chua_dong_bo");
+  const chuaDong = c.req.query("chua_dong"); // "Tat ca ton" (item): chua Da ket thuc, chua Huy.
   const nguoiPhuTrach = c.req.query("nguoi_phu_trach");
   const sort = SORT_COLUMNS[c.req.query("sort") ?? ""] ?? "ngay_tiep_nhan";
   const dir = c.req.query("dir") === "asc" ? "ASC" : "DESC";
@@ -200,6 +201,7 @@ app.get("/", async (c) => {
   const conditions: string[] = [];
   const binds: unknown[] = [];
   if (trangThai) { conditions.push("trang_thai = ?"); binds.push(trangThai); }
+  else if (chuaDong === "1") { conditions.push("trang_thai NOT IN ('Da ket thuc', 'Huy')"); }
   if (idCrmKarofi) { conditions.push("id_crm_karofi = ?"); binds.push(idCrmKarofi); }
   if (mucDo) { conditions.push("muc_do = ?"); binds.push(mucDo); }
   if (nguon) { conditions.push("nguon = ?"); binds.push(nguon); }

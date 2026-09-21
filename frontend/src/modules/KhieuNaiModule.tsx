@@ -84,6 +84,15 @@ const NGUON_QUICK_OPTIONS = [
   { value: "CRM", label: "3T" },
 ];
 
+// Gia tri gia (khong trung voi trang_thai that nao) danh cho nut "Tat ca ton" - map sang query
+// param rieng "chua_dong" o backend (trang_thai NOT IN Da ket thuc/Huy) thay vi trang_thai = ?.
+const TRANG_THAI_TON = "__ton__";
+const TRANG_THAI_QUICK_OPTIONS = [
+  { value: "", label: "Tất cả" },
+  { value: TRANG_THAI_TON, label: "Tất cả tồn" },
+  ...STATUS_OPTIONS,
+];
+
 const EMPTY_FILTERS: Filters = {
   trangThai: "", nguon: "", mucDo: "", nhomVanDe: "", tuNgay: "", denNgay: "",
   chuaDongBo: false, choTnCskh: false, quaHanGiaiTrinh: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "", thangDong: "",
@@ -212,7 +221,8 @@ export function KhieuNaiModule({
     queryKey: ["khieu-nai", { ...f, page }],
     queryFn: () => {
       const p = new URLSearchParams();
-      if (f.trangThai) p.set("trang_thai", f.trangThai);
+      if (f.trangThai === TRANG_THAI_TON) p.set("chua_dong", "1");
+      else if (f.trangThai) p.set("trang_thai", f.trangThai);
       if (f.nguon) p.set("nguon", f.nguon);
       if (f.mucDo) p.set("muc_do", f.mucDo);
       if (f.nhomVanDe) p.set("nhom_van_de", f.nhomVanDe);
@@ -393,6 +403,20 @@ export function KhieuNaiModule({
                 onClick={() => set("nguon", o.value)}
                 className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
                   f.nguon === o.value ? "bg-accent text-white" : "text-ink-soft hover:bg-gray-50"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-0.5 rounded-md border border-line bg-white p-0.5">
+            {TRANG_THAI_QUICK_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => set("trangThai", o.value)}
+                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                  f.trangThai === o.value ? "bg-accent text-white" : "text-ink-soft hover:bg-gray-50"
                 }`}
               >
                 {o.label}
