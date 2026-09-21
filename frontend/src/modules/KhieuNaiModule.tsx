@@ -4,7 +4,7 @@ import { api, ApiError } from "../api/client";
 import type { AppUser, KhieuNai } from "../api/types";
 import { useSettingsOptions } from "../api/useSettingsOptions";
 import { fmtVN } from "../lib/formatVN";
-import { mucDoTone, MUC_DO_CARD_BG, vipGlowClass, sortMucDoOptions } from "../lib/severity";
+import { mucDoTone, MUC_DO_CARD_BG, MUC_DO_CARD_HOVER_BG, vipGlowClass, sortMucDoOptions } from "../lib/severity";
 import { Card } from "../components/ui/Card";
 import { Btn } from "../components/ui/Btn";
 import { Select } from "../components/ui/Select";
@@ -507,7 +507,7 @@ export function KhieuNaiModule({
                 sort={{ field: sortField, dir: sortDir === "asc" ? "asc" : "desc" }}
                 onSort={handleSort}
                 rowClassName={(r) =>
-                  `${MUC_DO_CARD_BG[mucDoTone(r.muc_do)]} ${vipGlowClass(r.phan_loai_kh)} ${r.trang_thai === "Huy" ? "line-through opacity-60" : ""}`
+                  `${MUC_DO_CARD_BG[mucDoTone(r.muc_do)]} ${MUC_DO_CARD_HOVER_BG[mucDoTone(r.muc_do)]} ${vipGlowClass(r.phan_loai_kh)} ${r.trang_thai === "Huy" ? "line-through opacity-60" : ""}`
                 }
               />
             </div>

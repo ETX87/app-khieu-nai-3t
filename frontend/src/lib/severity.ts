@@ -43,6 +43,17 @@ export const MUC_DO_CARD_BG: Record<SeverityTone, string> = {
   gray: "bg-white",
 };
 
+// Mau khi di chuot vao dong (hover) - dam hon 1 bac so voi MUC_DO_CARD_BG de van phan biet duoc
+// muc do trong luc hover, thay vi de mau xam mac dinh cua Table lam mat mau (item: hover che mat
+// mau xanh/do cua dong, kho xac dinh muc do khi ri chuot vao).
+export const MUC_DO_CARD_HOVER_BG: Record<SeverityTone, string> = {
+  red: "hover:bg-red-200",
+  violet: "hover:bg-violet-200",
+  green: "hover:bg-green-200",
+  blue: "hover:bg-blue-200",
+  gray: "hover:bg-gray-100",
+};
+
 // "Cắm cờ" (cam_co): viền dày + toả sáng nhấp nháy đều đặn theo màu cờ; không có cờ dùng viền mảnh mặc định.
 export function camCoBorderClass(v: string | null | undefined): string {
   if (v === "Co do") return "border-[3px] border-red-600 flag-glow-red";
