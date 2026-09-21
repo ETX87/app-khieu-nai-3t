@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { Drawer } from "../components/ui/Drawer";
 import { fmtVN } from "../lib/formatVN";
@@ -15,32 +15,62 @@ interface ThongBaoRow {
   ngay_tao: string;
 }
 
+interface ThongBaoCursor {
+  ngay_tao: string;
+  id: number;
+}
+
+interface ThongBaoPage {
+  items: ThongBaoRow[];
+  nextCursor: ThongBaoCursor | null;
+}
+
 const LOAI_ICON: Record<string, string> = {
   cho_tiep_nhan: "📥",
   cho_chot: "✅",
 };
 
+type Tab = "all" | "unread" | "read";
+const TABS: { key: Tab; label: string }[] = [
+  { key: "all", label: "Tổng" },
+  { key: "unread", label: "Chưa đọc" },
+  { key: "read", label: "Đã đọc" },
+];
+
 // Chuong thong bao (2026-09): "Don moi can tiep nhan" + "Don cho QL chot". Dem chua doc poll moi
 // 2 phut (Web Push lo phan "ngay lap tuc", polling chi la du phong/dong bo lai khi dang mo app).
 // UI doi tu popover absolute (bi bug hien thi sai/cat mat tren mobile) sang Drawer truot canh phai,
 // dung dung pattern da kiem thu ben linh-kien-app (xem NotificationBell.tsx cua app do).
+// 3 the Tong/Chua doc/Da doc + cuon vo han 10 dong/lan (giong Facebook) thay vi tai het 1 lan
+// (2026-09-21) - tranh doc/render toan bo lich su thong bao moi lan mo chuong.
 export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<Tab>("unread");
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const push = usePushNotifications();
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const countQuery = useQuery({
     queryKey: ["thong-bao-count"],
-    queryFn: () => api.get<{ chuaDoc: number }>("/thong-bao/count"),
+    queryFn: () => api.get<{ tong: number; chuaDoc: number; daDoc: number }>("/thong-bao/count"),
     refetchInterval: 120_000,
   });
 
   // Moi lan mo lai deu coi du lieu cu la stale va fetch lai (staleTime: 0) - tranh hien thong bao cu
   // trong luc Web Push da day toi thong bao moi ma cache React Query chua het han.
-  const listQuery = useQuery({
-    queryKey: ["thong-bao-list"],
-    queryFn: () => api.get<{ items: ThongBaoRow[] }>("/thong-bao"),
+  const listQuery = useInfiniteQuery({
+    queryKey: ["thong-bao-list", tab],
+    queryFn: ({ pageParam }) => {
+      const qs = new URLSearchParams({ filter: tab, limit: "10" });
+      if (pageParam) {
+        qs.set("before_ngay_tao", pageParam.ngay_tao);
+        qs.set("before_id", String(pageParam.id));
+      }
+      return api.get<ThongBaoPage>(`/thong-bao?${qs.toString()}`);
+    },
+    initialPageParam: null as ThongBaoCursor | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: open,
     staleTime: 0,
   });
@@ -80,7 +110,30 @@ export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) 
   }
 
   const unread = countQuery.data?.chuaDoc ?? 0;
-  const rows = listQuery.data?.items ?? [];
+  const tabCount: Record<Tab, number | undefined> = {
+    all: countQuery.data?.tong,
+    unread: countQuery.data?.chuaDoc,
+    read: countQuery.data?.daDoc,
+  };
+  const rows = listQuery.data?.pages.flatMap((p) => p.items) ?? [];
+
+  // Cuon vo han: khi sentinel (o cuoi danh sach) lot vao khung nhin thi tai trang tiep theo.
+  useEffect(() => {
+    if (!open) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && listQuery.hasNextPage && !listQuery.isFetchingNextPage) {
+          listQuery.fetchNextPage();
+        }
+      },
+      { rootMargin: "80px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tab, listQuery.hasNextPage, listQuery.isFetchingNextPage, rows.length]);
 
   return (
     <>
@@ -126,10 +179,30 @@ export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) 
           </div>
         }
       >
+        <div className="sticky top-0 z-10 flex gap-1 border-b border-line bg-surface p-2">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${
+                tab === t.key ? "bg-accent text-white" : "text-ink-soft hover:bg-gray-100"
+              }`}
+            >
+              {t.label}
+              {tabCount[t.key] != null && (
+                <span className={`ml-1 ${tab === t.key ? "text-white/80" : "text-ink-faint"}`}>({tabCount[t.key]})</span>
+              )}
+            </button>
+          ))}
+        </div>
+
         {listQuery.isLoading ? (
           <p className="px-4 py-6 text-center text-sm text-ink-soft">Đang tải...</p>
         ) : rows.length === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-ink-soft">Không có thông báo</p>
+          <p className="px-4 py-6 text-center text-sm text-ink-soft">
+            {tab === "unread" ? "Không có thông báo chưa đọc" : tab === "read" ? "Không có thông báo đã đọc" : "Không có thông báo"}
+          </p>
         ) : (
           <div className="flex flex-col gap-2 p-4">
             {rows.map((row) => (
@@ -146,6 +219,10 @@ export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) 
                 <div className="mt-0.5 text-[10px] text-ink-soft">{fmtVN.relative(row.ngay_tao)}</div>
               </button>
             ))}
+            <div ref={sentinelRef} className="h-1" />
+            {listQuery.isFetchingNextPage && (
+              <p className="py-2 text-center text-xs text-ink-soft">Đang tải thêm...</p>
+            )}
           </div>
         )}
       </Drawer>
