@@ -29,6 +29,9 @@ export interface KhieuNaiFormHeaderState {
 interface FormState {
   id_crm_karofi: string;
   id_lada: string;
+  // Chi dung de tra cuu (goi lai dung API nhu ID Lada) - KHONG luu vao khieu_nai, khong gui len
+  // server (backend chi doc tung truong body.xxx cu the, key la nay bi bo qua an toan).
+  id_truy_van: string;
   nguon: string;
   ten_khach: string;
   sdt_khach: string;
@@ -56,7 +59,7 @@ export const NGUON_OPTIONS = [
 ];
 
 const EMPTY: FormState = {
-  id_crm_karofi: "", id_lada: "", nguon: "",
+  id_crm_karofi: "", id_lada: "", id_truy_van: "", nguon: "",
   ten_khach: "", sdt_khach: "", phan_loai_kh: "Thường",
   tinh: "", quan_huyen: "", phuong_xa: "",
   tinh_moi: "", phuong_xa_moi: "",
@@ -259,17 +262,19 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   // Khong tu dien ngay khi tim thay (item: neu dang nhap do ma go nham ID, tim ra thong tin sai se
   // de nhap nham vao form) - chi dien sau khi nguoi dung bam nut "Xac nhan dien thong tin".
   const [lookup, setLookup] = useState<TraCuuResponse | null>(null);
-  const [lookupBusy, setLookupBusy] = useState<"lada" | "crm" | null>(null);
+  const [lookupBusy, setLookupBusy] = useState<"lada" | "crm" | "truy_van" | null>(null);
   const [filledFromLookup, setFilledFromLookup] = useState(false);
   const lookupSeq = useRef(0);
 
-  const runLookup = async (kind: "lada" | "crm") => {
-    const value = (kind === "lada" ? form.id_lada : form.id_crm_karofi).trim();
+  // "truy_van" (item 6, 2026-09-21) - o nhap rieng, chi de tra cuu, goi LAI DUNG API id_lada nhu ID
+  // Lada (cung backend /tra-cuu?id_lada=...) nhung gia tri khong ghi vao id_lada cua don.
+  const runLookup = async (kind: "lada" | "crm" | "truy_van") => {
+    const value = (kind === "crm" ? form.id_crm_karofi : kind === "lada" ? form.id_lada : form.id_truy_van).trim();
     if (!value) return;
     const seq = ++lookupSeq.current;
     setLookupBusy(kind);
     try {
-      const qs = kind === "lada" ? `id_lada=${encodeURIComponent(value)}` : `id_crm=${encodeURIComponent(value)}`;
+      const qs = kind === "crm" ? `id_crm=${encodeURIComponent(value)}` : `id_lada=${encodeURIComponent(value)}`;
       const res = await api.get<TraCuuResponse>(`/khieu-nai/tra-cuu?${qs}`);
       if (seq !== lookupSeq.current) return;
       setLookup(res);
@@ -278,15 +283,15 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         showToast("Đã tìm thấy thông tin — xem bên dưới và bấm \"Xác nhận điền thông tin\" nếu đúng", "info");
       } else {
         showToast(
-          kind === "lada"
-            ? "Chưa có phản ánh nào cùng ID Lada này"
-            : CRM_WARNING_MESSAGES[res.warning ?? ""] ?? "Không tìm thấy trên CRM Karofi",
+          kind === "crm"
+            ? CRM_WARNING_MESSAGES[res.warning ?? ""] ?? "Không tìm thấy trên CRM Karofi"
+            : "Chưa có phản ánh nào cùng ID này",
           "info",
         );
       }
     } catch {
       if (seq === lookupSeq.current) {
-        setLookup({ found: false, source: kind, warning: "LOOKUP_ERROR" });
+        setLookup({ found: false, source: kind === "crm" ? "crm" : "lada", warning: "LOOKUP_ERROR" });
         showToast("Tra cứu thất bại, thử lại sau", "error");
       }
     } finally {
@@ -539,6 +544,31 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     className="flex items-center justify-center rounded-md border border-line bg-white px-2 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {lookupBusy === "lada" ? "…" : <SearchIcon />}
+                  </button>
+                </div>
+              </div>
+              <div className="block">
+                <span className="mb-0.5 block text-xs font-medium text-ink-soft">ID Truy vấn</span>
+                <div className="flex gap-1">
+                  <Input
+                    className="w-32 !py-1"
+                    value={form.id_truy_van}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setField("id_truy_van", v);
+                      if (v.trim() !== "" && form.id_truy_van.trim() === "" && form.nguon === "") setField("nguon", "Lada");
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void runLookup("truy_van"); } }}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Tra cứu ID truy vấn"
+                    title="Tra cứu"
+                    onClick={() => void runLookup("truy_van")}
+                    disabled={!form.id_truy_van.trim() || lookupBusy === "truy_van"}
+                    className="flex items-center justify-center rounded-md border border-line bg-white px-2 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {lookupBusy === "truy_van" ? "…" : <SearchIcon />}
                   </button>
                 </div>
               </div>
