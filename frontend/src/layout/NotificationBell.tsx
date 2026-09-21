@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { Drawer } from "../components/ui/Drawer";
 import { fmtVN } from "../lib/formatVN";
 import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useToast } from "../components/ui/Toast";
@@ -20,8 +21,9 @@ const LOAI_ICON: Record<string, string> = {
 };
 
 // Chuong thong bao (2026-09): "Don moi can tiep nhan" + "Don cho QL chot". Dem chua doc poll moi
-// 2 phut (Web Push lo phan "ngay lap tuc", polling chi la du phong/dong bo lai khi dang mo app);
-// danh sach chi tai khi mo popover (giong pattern linh-kien-app).
+// 2 phut (Web Push lo phan "ngay lap tuc", polling chi la du phong/dong bo lai khi dang mo app).
+// UI doi tu popover absolute (bi bug hien thi sai/cat mat tren mobile) sang Drawer truot canh phai,
+// dung dung pattern da kiem thu ben linh-kien-app (xem NotificationBell.tsx cua app do).
 export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -34,6 +36,8 @@ export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) 
     refetchInterval: 120_000,
   });
 
+  // Moi lan mo lai deu coi du lieu cu la stale va fetch lai (staleTime: 0) - tranh hien thong bao cu
+  // trong luc Web Push da day toi thong bao moi ma cache React Query chua het han.
   const listQuery = useQuery({
     queryKey: ["thong-bao-list"],
     queryFn: () => api.get<{ items: ThongBaoRow[] }>("/thong-bao"),
@@ -76,12 +80,13 @@ export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) 
   }
 
   const unread = countQuery.data?.chuaDoc ?? 0;
+  const rows = listQuery.data?.items ?? [];
 
   return (
-    <div className="relative">
+    <>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(true)}
         title="Thông báo"
         className="relative flex h-9 w-9 items-center justify-center rounded-full text-lg text-ink-soft hover:bg-gray-100"
       >
@@ -92,32 +97,48 @@ export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) 
           </span>
         )}
       </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-50 mt-1 max-h-[70vh] w-[22rem] max-w-[90vw] overflow-y-auto rounded-md border border-line bg-white shadow-lg">
-            <div className="flex items-center justify-between border-b border-line px-3 py-2">
-              <span className="text-sm font-semibold text-ink">Thông báo</span>
+      <Drawer
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Thông báo"
+        footer={
+          <div className="flex flex-col gap-1.5">
+            {push.checked && push.supported && (
               <button
                 type="button"
-                disabled={unread === 0 || markAllRead.isPending}
-                onClick={() => markAllRead.mutate()}
-                className="text-xs font-medium text-accent hover:underline disabled:cursor-not-allowed disabled:text-ink-faint disabled:no-underline"
+                onClick={togglePush}
+                disabled={push.busy}
+                className={`w-full rounded-lg border py-1.5 text-center text-sm font-semibold disabled:opacity-60 ${
+                  push.subscribed ? "border-line text-ink-soft" : "border-accent/50 text-accent-ink"
+                }`}
               >
-                Đánh dấu tất cả đã đọc
+                {push.subscribed ? "✓ Đã bật thông báo trên thiết bị này" : "🔔 Bật thông báo đẩy trên thiết bị này"}
               </button>
-            </div>
-            {listQuery.isLoading && <p className="px-3 py-6 text-center text-sm text-ink-soft">Đang tải...</p>}
-            {listQuery.data && listQuery.data.items.length === 0 && (
-              <p className="px-3 py-6 text-center text-sm text-ink-soft">Không có thông báo</p>
             )}
-            {listQuery.data?.items.map((row) => (
+            <button
+              type="button"
+              onClick={() => markAllRead.mutate()}
+              disabled={unread === 0 || markAllRead.isPending}
+              className="w-full py-1.5 text-center text-sm font-semibold text-accent-ink disabled:cursor-default disabled:text-ink-faint"
+            >
+              Đánh dấu tất cả đã đọc
+            </button>
+          </div>
+        }
+      >
+        {listQuery.isLoading ? (
+          <p className="px-4 py-6 text-center text-sm text-ink-soft">Đang tải...</p>
+        ) : rows.length === 0 ? (
+          <p className="px-4 py-6 text-center text-sm text-ink-soft">Không có thông báo</p>
+        ) : (
+          <div className="flex flex-col gap-2 p-4">
+            {rows.map((row) => (
               <button
                 key={row.id}
                 type="button"
                 onClick={() => handleRowClick(row)}
-                className={`block w-full border-b border-line px-3 py-2 text-left text-xs last:border-0 hover:bg-gray-50 ${
-                  row.da_doc ? "" : "bg-accent-soft/40 font-medium"
+                className={`rounded-lg border px-3 py-2.5 text-left text-xs transition-colors hover:bg-gray-50 ${
+                  row.da_doc ? "border-line bg-surface" : "border-accent/40 bg-accent-soft/40 font-medium"
                 }`}
               >
                 <span className="mr-1">{LOAI_ICON[row.loai] ?? "🔔"}</span>
@@ -125,16 +146,9 @@ export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) 
                 <div className="mt-0.5 text-[10px] text-ink-soft">{fmtVN.relative(row.ngay_tao)}</div>
               </button>
             ))}
-            <div className="border-t border-line px-3 py-2">
-              {push.supported && push.checked && (
-                <button type="button" disabled={push.busy} onClick={togglePush} className="text-xs font-medium text-accent hover:underline">
-                  {push.subscribed ? "Tắt thông báo đẩy trên thiết bị này" : "Bật thông báo đẩy trên thiết bị này"}
-                </button>
-              )}
-            </div>
           </div>
-        </>
-      )}
-    </div>
+        )}
+      </Drawer>
+    </>
   );
 }

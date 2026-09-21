@@ -38,6 +38,15 @@ body {
   border-radius: 6px;
 }
 
+/* Drawer (chuông thông báo...): trượt vào từ cạnh phải. */
+@keyframes drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.drawer-in {
+  animation: drawer-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Cắm cờ: viền toả sáng nhấp nháy đều đặn theo màu cờ (vàng/đỏ). */
 @keyframes flag-glow-red {
   0%, 100% { box-shadow: 0 0 6px 1px rgba(220, 38, 38, 0.25); }
