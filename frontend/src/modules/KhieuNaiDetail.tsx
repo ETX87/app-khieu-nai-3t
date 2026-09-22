@@ -6,6 +6,7 @@ import { fmtVN, translateDanhGia } from "../lib/formatVN";
 import { mucDoTone, MUC_DO_BG, camCoBorderClass, sortMucDoOptions } from "../lib/severity";
 import { useCreateSettingsOption, useSettingsOptions } from "../api/useSettingsOptions";
 import { Btn } from "../components/ui/Btn";
+import { Modal } from "../components/ui/Modal";
 import { Field, Input, Textarea } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { Combobox } from "../components/ui/Combobox";
@@ -1364,6 +1365,7 @@ function CrmSection({
   const canResync =
     forceEditable !== true && !!user.vai_tro && user.vai_tro !== "Viewer" && kn.trang_thai !== "Da ket thuc";
   const [crmId, setCrmId] = useState(kn.id_crm_karofi ?? "");
+  const [showCaseDetail, setShowCaseDetail] = useState(false);
 
   useEffect(() => setCrmId(kn.id_crm_karofi ?? ""), [kn.id_crm_karofi]);
 
@@ -1398,12 +1400,34 @@ function CrmSection({
         <div className="w-36">
           <Field label="ID CRM Karofi">
             {editable ? (
-              <Input value={crmId} onChange={(e) => setCrmId(e.target.value)} placeholder="Chưa có" />
+              <div className="flex flex-col gap-0.5">
+                <Input value={crmId} onChange={(e) => setCrmId(e.target.value)} placeholder="Chưa có" />
+                {kn.id_crm_karofi && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCaseDetail(true)}
+                    className="self-start text-[11px] font-semibold text-teal-700 underline hover:text-teal-900"
+                  >
+                    Xem chi tiết ĐVBH
+                  </button>
+                )}
+              </div>
+            ) : kn.id_crm_karofi ? (
+              <button
+                type="button"
+                onClick={() => setShowCaseDetail(true)}
+                className="text-sm font-semibold text-teal-700 underline hover:text-teal-900"
+              >
+                {kn.id_crm_karofi}
+              </button>
             ) : (
-              <p className="text-sm text-ink">{kn.id_crm_karofi ?? "—"}</p>
+              <p className="text-sm text-ink">—</p>
             )}
           </Field>
         </div>
+        {showCaseDetail && kn.id_crm_karofi && (
+          <CrmCaseDetailModal idCrm={kn.id_crm_karofi} onClose={() => setShowCaseDetail(false)} />
+        )}
         {editable && (
           <Btn variant="secondary" size="sm" disabled={saveId.isPending || crmId === (kn.id_crm_karofi ?? "")} onClick={() => saveId.mutate()}>
             {saveId.isPending ? "Đang lưu..." : "Lưu ID"}
@@ -1439,6 +1463,87 @@ function CrmSection({
         <Timeline events={giaiTrinhDvbhEvents(kn)} />
       </div>
     </>
+  );
+}
+
+// Xem nhanh dữ liệu case bên ĐVBH (tương tự app "vi phạm") - bấm ID CRM mở modal, tra cứu SỐNG
+// (khong cache local) qua chinh /tra-cuu?id_crm= da co san (backend goi API "case-lookup" cua DVBH,
+// endpoint nay THIET KE cho tra cuu real-time tung ban ghi - khong ap rate-limit export hang loat,
+// xem partnerApi.ts ben he dvbh) - khong can them bang cache/rate-limit rieng nhu vi-pham-app.
+interface CrmCaseDetailPreview {
+  khach_hang: string | null; ky_thuat_vien: string | null; tien_do_hoan_thanh: string | null;
+  noi_dung_xu_ly: string | null; thoi_gian_cskh_tiep_nhan: string | null; thoi_gian_hoan_thanh: string | null;
+  mo_ta_loi: string | null; khu_vuc: string | null; loai_yeu_cau: string | null;
+  thoi_gian_hen_xu_ly: string | null; ly_do_qua_han: string | null; link_crm: string | null;
+}
+interface CrmCaseDetailResponse {
+  found: boolean;
+  preview?: CrmCaseDetailPreview;
+  giaiTrinh?: DvbhGiaiTrinhRow[];
+  warning?: string;
+}
+
+function CrmCaseDetailModal({ idCrm, onClose }: { idCrm: string; onClose: () => void }) {
+  const query = useQuery({
+    queryKey: ["crm-case-detail", idCrm],
+    queryFn: () => api.get<CrmCaseDetailResponse>(`/khieu-nai/tra-cuu?id_crm=${encodeURIComponent(idCrm)}`),
+  });
+  const p = query.data?.preview;
+  const giaiTrinhEvents: TimelineEvent[] = (query.data?.giaiTrinh ?? []).map((g, i) => ({
+    key: `case-gt-${i}`,
+    tone: "teal",
+    badge: "GT tồn",
+    time: fmtVN.dateTime(g.ngay_giai_trinh),
+    sortMs: parseVnNaive(g.ngay_giai_trinh),
+    actor: g.nguoi_giai_trinh ?? null,
+    summary: g.noi_dung ? `${g.ly_do_cham}: ${g.noi_dung}` : g.ly_do_cham,
+  }));
+
+  return (
+    <Modal open onClose={onClose} title={`Chi tiết đơn ĐVBH — ${idCrm}`} width="lg">
+      {query.isLoading ? (
+        <p className="py-6 text-center text-sm text-ink-soft">Đang tải...</p>
+      ) : query.isError ? (
+        <p className="py-6 text-center text-sm text-red-600">Không thể kết nối CRM Karofi lúc này, thử lại sau.</p>
+      ) : !query.data?.found ? (
+        <p className="py-6 text-center text-sm text-ink-soft">
+          {CRM_WARNING_MESSAGES[query.data?.warning ?? ""] ?? "Không tìm thấy trên CRM Karofi."}
+        </p>
+      ) : (
+        <div className="text-sm">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+            <ReadField label="Khách hàng" value={p?.khach_hang} />
+            <ReadField label="Kỹ thuật viên" value={p?.ky_thuat_vien} />
+            <ReadField label="Khu vực" value={p?.khu_vuc} />
+            <ReadField label="Tiến độ" value={p?.tien_do_hoan_thanh} />
+            <ReadField label="Loại yêu cầu" value={p?.loai_yeu_cau} />
+            <ReadField label="CSKH tiếp nhận" value={p?.thoi_gian_cskh_tiep_nhan ? fmtVN.dateTime(p.thoi_gian_cskh_tiep_nhan) : null} />
+            <ReadField label="Hẹn xử lý" value={p?.thoi_gian_hen_xu_ly ? fmtVN.dateTime(p.thoi_gian_hen_xu_ly) : null} />
+            <ReadField label="Hoàn thành" value={p?.thoi_gian_hoan_thanh ? fmtVN.dateTime(p.thoi_gian_hoan_thanh) : null} />
+            <ReadField label="Lý do quá hạn" value={p?.ly_do_qua_han} />
+          </div>
+          {p?.mo_ta_loi && (
+            <p className="mt-3 whitespace-pre-wrap border-t border-line pt-2"><b>Mô tả lỗi: </b>{p.mo_ta_loi}</p>
+          )}
+          {p?.noi_dung_xu_ly && (
+            <p className="mt-2 whitespace-pre-wrap border-t border-line pt-2"><b>Nội dung xử lý: </b>{p.noi_dung_xu_ly}</p>
+          )}
+          {p?.link_crm && (
+            <p className="mt-2 border-t border-line pt-2">
+              <a href={p.link_crm} target="_blank" rel="noreferrer" className="font-medium text-teal-700 underline">
+                Xem trên CRM ↗
+              </a>
+            </p>
+          )}
+          {giaiTrinhEvents.length > 0 && (
+            <div className="mt-3 border-t border-line pt-2">
+              <p className="mb-1 text-xs font-semibold text-ink-soft">Log giải trình tồn ({giaiTrinhEvents.length})</p>
+              <Timeline events={giaiTrinhEvents} />
+            </div>
+          )}
+        </div>
+      )}
+    </Modal>
   );
 }
 
