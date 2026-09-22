@@ -1471,10 +1471,34 @@ function CrmSection({
 // endpoint nay THIET KE cho tra cuu real-time tung ban ghi - khong ap rate-limit export hang loat,
 // xem partnerApi.ts ben he dvbh) - khong can them bang cache/rate-limit rieng nhu vi-pham-app.
 interface CrmCaseDetailPreview {
-  khach_hang: string | null; ky_thuat_vien: string | null; tien_do_hoan_thanh: string | null;
-  noi_dung_xu_ly: string | null; thoi_gian_cskh_tiep_nhan: string | null; thoi_gian_hoan_thanh: string | null;
-  mo_ta_loi: string | null; khu_vuc: string | null; loai_yeu_cau: string | null;
-  thoi_gian_hen_xu_ly: string | null; ly_do_qua_han: string | null; link_crm: string | null;
+  khach_hang: string | null; ky_thuat_vien: string | null; seri_san_pham: string | null;
+  khu_vuc: string | null; tinh: string | null; quan_huyen: string | null; hang: string | null;
+  san_pham_bao_hanh: string | null; tien_do_hoan_thanh: string | null; mo_ta_loi: string | null;
+  nhom_san_pham: string | null; nhom_yeu_cau: string | null; loai_yeu_cau: string | null;
+  hinh_thuc_bao_hanh: string | null; ngay_mua: string | null;
+  thoi_gian_cskh_tiep_nhan: string | null; thoi_gian_hen_xu_ly: string | null; thoi_gian_hoan_thanh: string | null;
+  doi_tac: string | null; link_crm: string | null; noi_dung_xu_ly: string | null;
+  luu_y_loi_linh_kien: string | null; cach_thuc_xu_ly: string | null;
+  nganh: string | null; loai_nganh: string | null; nhom_kh: string | null;
+  dt_san_pham: number | null; dt_linh_kien: number | null; dt_dich_vu: number | null;
+  ly_do_qua_han: string | null; ngay_import: string | null; ngay_cap_nhat_gan_nhat: string | null;
+  dung_han: string | null; xu_ly_24h_bucket: string | null; ly_do_huy: string | null;
+  link_hinh_anh: string[] | null;
+}
+function tienVN(v: number | null | undefined): string | null {
+  return v == null ? null : `${v.toLocaleString("vi-VN")} đ`;
+}
+// An ca nhom neu MOI truong con deu rong - tranh danh sach nhom toan gach ngang "—" gay roi mat.
+function hasAny(...vals: (string | number | null | undefined)[]): boolean {
+  return vals.some((v) => v != null && v !== "");
+}
+function CrmDetailSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="mb-3 border-t border-line pt-2 first:mt-0 first:border-t-0 first:pt-0">
+      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">{title}</p>
+      <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">{children}</div>
+    </div>
+  );
 }
 interface CrmCaseDetailResponse {
   found: boolean;
@@ -1511,22 +1535,77 @@ function CrmCaseDetailModal({ idCrm, onClose }: { idCrm: string; onClose: () => 
         </p>
       ) : (
         <div className="text-sm">
-          <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
-            <ReadField label="Khách hàng" value={p?.khach_hang} />
-            <ReadField label="Kỹ thuật viên" value={p?.ky_thuat_vien} />
-            <ReadField label="Khu vực" value={p?.khu_vuc} />
-            <ReadField label="Tiến độ" value={p?.tien_do_hoan_thanh} />
-            <ReadField label="Loại yêu cầu" value={p?.loai_yeu_cau} />
-            <ReadField label="CSKH tiếp nhận" value={p?.thoi_gian_cskh_tiep_nhan ? fmtVN.dateTime(p.thoi_gian_cskh_tiep_nhan) : null} />
-            <ReadField label="Hẹn xử lý" value={p?.thoi_gian_hen_xu_ly ? fmtVN.dateTime(p.thoi_gian_hen_xu_ly) : null} />
-            <ReadField label="Hoàn thành" value={p?.thoi_gian_hoan_thanh ? fmtVN.dateTime(p.thoi_gian_hoan_thanh) : null} />
-            <ReadField label="Lý do quá hạn" value={p?.ly_do_qua_han} />
-          </div>
+          {hasAny(p?.khach_hang, p?.ky_thuat_vien, p?.seri_san_pham, p?.khu_vuc, p?.tinh, p?.quan_huyen) && (
+            <CrmDetailSection title="Khách hàng & KTV">
+              <ReadField label="Khách hàng" value={p?.khach_hang} />
+              <ReadField label="Kỹ thuật viên" value={p?.ky_thuat_vien} />
+              <ReadField label="Seri sản phẩm" value={p?.seri_san_pham} />
+              <ReadField label="Khu vực" value={p?.khu_vuc} />
+              <ReadField label="Tỉnh" value={p?.tinh} />
+              <ReadField label="Quận/Huyện" value={p?.quan_huyen} />
+            </CrmDetailSection>
+          )}
+          {hasAny(p?.hang, p?.san_pham_bao_hanh, p?.nhom_san_pham, p?.nhom_yeu_cau, p?.loai_yeu_cau, p?.hinh_thuc_bao_hanh, p?.ngay_mua) && (
+            <CrmDetailSection title="Sản phẩm & yêu cầu">
+              <ReadField label="Hãng" value={p?.hang} />
+              <ReadField label="Sản phẩm bảo hành" value={p?.san_pham_bao_hanh} />
+              <ReadField label="Nhóm sản phẩm" value={p?.nhom_san_pham} />
+              <ReadField label="Nhóm yêu cầu" value={p?.nhom_yeu_cau} />
+              <ReadField label="Loại yêu cầu" value={p?.loai_yeu_cau} />
+              <ReadField label="Hình thức bảo hành" value={p?.hinh_thuc_bao_hanh} />
+              <ReadField label="Ngày mua" value={p?.ngay_mua ? fmtVN.date(p.ngay_mua) : null} />
+            </CrmDetailSection>
+          )}
+          {hasAny(p?.tien_do_hoan_thanh, p?.thoi_gian_cskh_tiep_nhan, p?.thoi_gian_hen_xu_ly, p?.thoi_gian_hoan_thanh, p?.dung_han, p?.xu_ly_24h_bucket, p?.ly_do_qua_han, p?.ly_do_huy, p?.ngay_import, p?.ngay_cap_nhat_gan_nhat) && (
+            <CrmDetailSection title="Tiến độ xử lý">
+              <ReadField label="Tiến độ hoàn thành" value={p?.tien_do_hoan_thanh} />
+              <ReadField label="CSKH tiếp nhận" value={p?.thoi_gian_cskh_tiep_nhan ? fmtVN.dateTime(p.thoi_gian_cskh_tiep_nhan) : null} />
+              <ReadField label="Hẹn xử lý" value={p?.thoi_gian_hen_xu_ly ? fmtVN.dateTime(p.thoi_gian_hen_xu_ly) : null} />
+              <ReadField label="Hoàn thành" value={p?.thoi_gian_hoan_thanh ? fmtVN.dateTime(p.thoi_gian_hoan_thanh) : null} />
+              <ReadField label="Đúng/Trễ hạn" value={p?.dung_han} />
+              <ReadField label="Nhóm xử lý 24h" value={p?.xu_ly_24h_bucket} />
+              <ReadField label="Lý do quá hạn" value={p?.ly_do_qua_han} />
+              <ReadField label="Lý do hủy" value={p?.ly_do_huy} />
+              <ReadField label="Ngày import" value={p?.ngay_import ? fmtVN.dateTime(p.ngay_import) : null} />
+              <ReadField label="Cập nhật gần nhất" value={p?.ngay_cap_nhat_gan_nhat ? fmtVN.dateTime(p.ngay_cap_nhat_gan_nhat) : null} />
+            </CrmDetailSection>
+          )}
+          {hasAny(p?.doi_tac, p?.nganh, p?.loai_nganh, p?.nhom_kh, p?.cach_thuc_xu_ly) && (
+            <CrmDetailSection title="Nghiệp vụ / tổ chức">
+              <ReadField label="Đối tác" value={p?.doi_tac} />
+              <ReadField label="Ngành hàng" value={p?.nganh} />
+              <ReadField label="Loại ngành hàng" value={p?.loai_nganh} />
+              <ReadField label="Nhóm KH" value={p?.nhom_kh} />
+              <ReadField label="Cách thức xử lý" value={p?.cach_thuc_xu_ly} />
+            </CrmDetailSection>
+          )}
+          {hasAny(p?.dt_san_pham, p?.dt_linh_kien, p?.dt_dich_vu) && (
+            <CrmDetailSection title="Định giá">
+              <ReadField label="Định giá sản phẩm" value={tienVN(p?.dt_san_pham)} />
+              <ReadField label="Định giá linh kiện" value={tienVN(p?.dt_linh_kien)} />
+              <ReadField label="Định giá dịch vụ" value={tienVN(p?.dt_dich_vu)} />
+            </CrmDetailSection>
+          )}
           {p?.mo_ta_loi && (
             <p className="mt-3 whitespace-pre-wrap border-t border-line pt-2"><b>Mô tả lỗi: </b>{p.mo_ta_loi}</p>
           )}
           {p?.noi_dung_xu_ly && (
             <p className="mt-2 whitespace-pre-wrap border-t border-line pt-2"><b>Nội dung xử lý: </b>{p.noi_dung_xu_ly}</p>
+          )}
+          {p?.luu_y_loi_linh_kien && (
+            <p className="mt-2 whitespace-pre-wrap border-t border-line pt-2"><b>Lưu ý lỗi linh kiện: </b>{p.luu_y_loi_linh_kien}</p>
+          )}
+          {p?.link_hinh_anh && p.link_hinh_anh.length > 0 && (
+            <div className="mt-2 border-t border-line pt-2">
+              <p className="mb-1 text-xs font-semibold text-ink-soft">Hình ảnh ({p.link_hinh_anh.length})</p>
+              <div className="flex flex-wrap gap-2">
+                {p.link_hinh_anh.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noreferrer">
+                    <img src={url} alt={`Hình ${i + 1}`} className="h-20 w-20 rounded border border-line object-cover" />
+                  </a>
+                ))}
+              </div>
+            </div>
           )}
           {p?.link_crm && (
             <p className="mt-2 border-t border-line pt-2">

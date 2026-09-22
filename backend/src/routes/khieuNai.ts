@@ -543,22 +543,31 @@ app.get("/tra-cuu", async (c) => {
         put("quan_huyen", p.quan_huyen);
       }
       const str = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v.trim() : null);
+      const num = (v: unknown): number | null => {
+        if (typeof v === "number") return Number.isFinite(v) ? v : null;
+        if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) return Number(v);
+        return null;
+      };
+      // Tra ve DU toan bo cot dvbh co (khong chi tap con dung tu dien form) - man chi tiet phan anh
+      // (KhieuNaiDetail.tsx, modal "Xem chi tiet DVBH") can day du thong tin xu ly cua KTV (cach
+      // thuc xu ly, dinh gia, nganh hang...) chu khong chi vai truong nhu truoc (2026-09-22).
       return c.json({
         found: true, source: "crm", fill,
         preview: {
-          khach_hang: p.khach_hang ?? null,
-          ky_thuat_vien: p.ky_thuat_vien ?? null,
-          tien_do_hoan_thanh: p.tien_do_hoan_thanh ?? null,
-          noi_dung_xu_ly: p.noi_dung_xu_ly ?? null,
-          thoi_gian_cskh_tiep_nhan: p.thoi_gian_cskh_tiep_nhan ?? null,
-          thoi_gian_hoan_thanh: p.thoi_gian_hoan_thanh ?? null,
-          // Thêm để người tạo nắm thông tin ngay khi tra cứu (không phải chờ tạo xong mới thấy).
-          mo_ta_loi: str(p.mo_ta_loi),
-          khu_vuc: str(p.khu_vuc),
-          loai_yeu_cau: str(p.loai_yeu_cau),
-          thoi_gian_hen_xu_ly: str(p.thoi_gian_hen_xu_ly),
-          ly_do_qua_han: str(p.ly_do_qua_han),
-          link_crm: str(p.link_crm),
+          khach_hang: str(p.khach_hang), ky_thuat_vien: str(p.ky_thuat_vien), seri_san_pham: str(p.seri_san_pham),
+          khu_vuc: str(p.khu_vuc), tinh: str(p.tinh), quan_huyen: str(p.quan_huyen), hang: str(p.hang),
+          san_pham_bao_hanh: str(p.san_pham_bao_hanh), tien_do_hoan_thanh: str(p.tien_do_hoan_thanh),
+          mo_ta_loi: str(p.mo_ta_loi), nhom_san_pham: str(p.nhom_san_pham), nhom_yeu_cau: str(p.nhom_yeu_cau),
+          loai_yeu_cau: str(p.loai_yeu_cau), hinh_thuc_bao_hanh: str(p.hinh_thuc_bao_hanh), ngay_mua: str(p.ngay_mua),
+          thoi_gian_cskh_tiep_nhan: str(p.thoi_gian_cskh_tiep_nhan), thoi_gian_hen_xu_ly: str(p.thoi_gian_hen_xu_ly),
+          thoi_gian_hoan_thanh: str(p.thoi_gian_hoan_thanh), doi_tac: str(p.doi_tac), link_crm: str(p.link_crm),
+          noi_dung_xu_ly: str(p.noi_dung_xu_ly), luu_y_loi_linh_kien: str(p.luu_y_loi_linh_kien),
+          cach_thuc_xu_ly: str(p.cach_thuc_xu_ly), nganh: str(p.nganh), loai_nganh: str(p.loai_nganh),
+          nhom_kh: str(p.nhom_kh), dt_san_pham: num(p.dt_san_pham), dt_linh_kien: num(p.dt_linh_kien),
+          dt_dich_vu: num(p.dt_dich_vu), ly_do_qua_han: str(p.ly_do_qua_han), ngay_import: str(p.ngay_import),
+          ngay_cap_nhat_gan_nhat: str(p.ngay_cap_nhat_gan_nhat), dung_han: str(p.dung_han),
+          xu_ly_24h_bucket: str(p.xu_ly_24h_bucket), ly_do_huy: str(p.ly_do_huy),
+          link_hinh_anh: Array.isArray(p.link_hinh_anh) ? p.link_hinh_anh : null,
         },
         giaiTrinh: result.giaiTrinh,
       });

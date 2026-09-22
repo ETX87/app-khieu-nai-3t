@@ -1,11 +1,23 @@
 import type { Env } from "../types";
 
+// Toan bo cot ma "/api/partner/case-lookup" ben dvbh tra ve (xem CASE_LOOKUP_COLUMNS trong
+// partnerApi.ts cua he do) - khai bao du de man chi tiet ben nay (KhieuNaiDetail.tsx) hien duoc
+// day du thong tin xu ly cua KTV (cach thuc xu ly, dinh gia, nganh hang...), khong chi tap con
+// dung de tu dien form tao phan anh (item 8).
 export interface DvbhCasePreview {
-  ky_thuat_vien: string | null; khach_hang: string | null; tien_do_hoan_thanh: string | null;
-  noi_dung_xu_ly: string | null; thoi_gian_cskh_tiep_nhan: string | null; thoi_gian_hoan_thanh: string | null;
-  // Bổ sung: DVBH trả kèm để tự điền form tạo phản ánh (item 8). DVBH không lưu SĐT/phường-xã
-  // riêng nên chỉ còn tỉnh/quận-huyện; "model" lấy từ san_pham_bao_hanh (tên sản phẩm bảo hành).
-  san_pham_bao_hanh: string | null; tinh: string | null; quan_huyen: string | null;
+  ky_thuat_vien: string | null; khach_hang: string | null; seri_san_pham: string | null;
+  khu_vuc: string | null; tinh: string | null; quan_huyen: string | null; hang: string | null;
+  san_pham_bao_hanh: string | null; tien_do_hoan_thanh: string | null; mo_ta_loi: string | null;
+  nhom_san_pham: string | null; nhom_yeu_cau: string | null; loai_yeu_cau: string | null;
+  hinh_thuc_bao_hanh: string | null; ngay_mua: string | null;
+  thoi_gian_cskh_tiep_nhan: string | null; thoi_gian_hen_xu_ly: string | null; thoi_gian_hoan_thanh: string | null;
+  doi_tac: string | null; link_crm: string | null; noi_dung_xu_ly: string | null;
+  luu_y_loi_linh_kien: string | null; cach_thuc_xu_ly: string | null;
+  nganh: string | null; loai_nganh: string | null; nhom_kh: string | null;
+  dt_san_pham: string | number | null; dt_linh_kien: string | number | null; dt_dich_vu: string | number | null;
+  ly_do_qua_han: string | null; ngay_import: string | null; ngay_cap_nhat_gan_nhat: string | null;
+  dung_han: string | number | null; xu_ly_24h_bucket: string | null; ly_do_huy: string | null;
+  link_hinh_anh: string[] | string | null;
   [key: string]: unknown;
 }
 export interface DvbhGiaiTrinhRow {
