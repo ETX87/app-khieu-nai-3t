@@ -17,7 +17,7 @@ export function Tabs({ tabs, active, onChange }: { tabs: TabItem[]; active: stri
             key={t.key}
             type="button"
             onClick={() => onChange(t.key)}
-            className={`-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
+            className={`-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-3 text-base font-semibold transition-colors lg:px-3 lg:py-2 lg:text-sm ${
               isActive
                 ? "border-accent text-accent"
                 : hasCount

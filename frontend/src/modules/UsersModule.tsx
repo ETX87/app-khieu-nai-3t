@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
 import type { AdminUserRow, AppUser, EtxNhanSuRow, EtxNhanSuSyncStatus, VaiTro } from "../api/types";
 import { fmtVN } from "../lib/formatVN";
@@ -9,7 +9,53 @@ import { Select } from "../components/ui/Select";
 import { Input } from "../components/ui/Input";
 import { Table, type TableColumn } from "../components/ui/Table";
 import { Badge } from "../components/ui/Badge";
+import { Tabs } from "../components/ui/Tabs";
 import { useToast } from "../components/ui/Toast";
+
+const PAGE_SIZE = 20;
+
+interface PagedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// Cho nguoi dung ngung go 300ms moi goi server - tranh 1 truy van D1/phim bam.
+function useDebounced<T>(value: T, ms = 300): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = window.setTimeout(() => setV(value), ms);
+    return () => window.clearTimeout(t);
+  }, [value, ms]);
+  return v;
+}
+
+// Trang gan voi bo loc: doi `filterKey` -> ve trang 1 ngay trong CUNG lan render (reset bang useEffect
+// se ban them 1 truy van thua voi trang cu + tu khoa moi).
+function usePageFor(filterKey: string): [number, (p: number) => void] {
+  const [state, setState] = useState({ key: filterKey, page: 1 });
+  if (state.key !== filterKey) setState({ key: filterKey, page: 1 });
+  const page = state.key === filterKey ? state.page : 1;
+  return [page, (p: number) => setState({ key: filterKey, page: p })];
+}
+
+function Pager({ page, total, onPage }: { page: number; total: number; onPage: (p: number) => void }) {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const to = Math.min(page * PAGE_SIZE, total);
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-ink-soft">
+      <span>
+        {from}–{to} / {total} dòng · Trang {page}/{totalPages}
+      </span>
+      <div className="flex gap-2">
+        <Btn size="touch" disabled={page <= 1} onClick={() => onPage(page - 1)}>Trước</Btn>
+        <Btn size="touch" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>Sau</Btn>
+      </div>
+    </div>
+  );
+}
 
 const VAI_TRO_OPTIONS = [
   { value: "Admin", label: "Admin" },
@@ -34,19 +80,28 @@ const ERR_MSG: Record<string, string> = {
 
 export function UsersModule({ user }: { user: AppUser }) {
   const isAdmin = user.vai_tro === "Admin";
+  const [tab, setTab] = useState<"nguoi-dung" | "etx-nhan-su">("nguoi-dung");
+  const pendingCount = useQuery({
+    queryKey: ["users", "pending-count"],
+    enabled: isAdmin,
+    queryFn: () => api.get<{ count: number }>("/users/pending-count"),
+    select: (d) => d.count,
+  });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="mb-3 text-lg font-semibold text-ink">Người dùng</h2>
-        <NguoiDungTab user={user} />
-      </div>
-      {isAdmin && (
-        <div className="border-t border-line pt-6">
-          <h2 className="mb-3 text-lg font-semibold text-ink">ETX nhân sự</h2>
-          <EtxNhanSuTab />
-        </div>
-      )}
+    <div className="flex flex-col gap-4">
+      <h2 className="text-lg font-semibold text-ink">Người dùng</h2>
+      <Tabs
+        tabs={[
+          { key: "nguoi-dung", label: "Người dùng", count: pendingCount.data },
+          // Du lieu nhan su nhay cam hon danh sach users thuong nen chi Admin thay tab nay.
+          ...(isAdmin ? [{ key: "etx-nhan-su", label: "ETX nhân sự" }] : []),
+        ]}
+        active={tab}
+        onChange={(k) => setTab(k as "nguoi-dung" | "etx-nhan-su")}
+      />
+      {tab === "nguoi-dung" && <NguoiDungTab user={user} />}
+      {tab === "etx-nhan-su" && isAdmin && <EtxNhanSuTab />}
     </div>
   );
 }
@@ -56,10 +111,17 @@ function NguoiDungTab({ user }: { user: AppUser }) {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [editRow, setEditRow] = useState<AdminUserRow | null>(null);
+  const search = useDebounced(q.trim());
+  const [page, setPage] = usePageFor(search);
 
   const query = useQuery({
-    queryKey: ["users"],
-    queryFn: () => api.get<{ items: AdminUserRow[] }>("/users"),
+    queryKey: ["users", "list", search, page],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
+      if (search) params.set("search", search);
+      return api.get<PagedResponse<AdminUserRow>>(`/users?${params.toString()}`);
+    },
+    placeholderData: keepPreviousData,
   });
 
   const invalidate = () => {
@@ -80,13 +142,6 @@ function NguoiDungTab({ user }: { user: AppUser }) {
       showToast(ERR_MSG[code] ?? (code ? `Lỗi: ${code}` : "Cập nhật thất bại"), "error");
     },
   });
-
-  const rows = useMemo(() => {
-    const items = query.data?.items ?? [];
-    if (!q.trim()) return items;
-    const s = q.trim().toLowerCase();
-    return items.filter((r) => r.email.toLowerCase().includes(s) || (r.ten ?? "").toLowerCase().includes(s));
-  }, [query.data, q]);
 
   const columns: TableColumn<AdminUserRow>[] = [
     {
@@ -136,11 +191,16 @@ function NguoiDungTab({ user }: { user: AppUser }) {
     <div className="flex flex-col gap-4">
       <Card>
         <div className="mb-3">
-          <Input className="max-w-xs" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo email hoặc tên..." />
+          <Input type="search" className="lg:max-w-xs" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo email hoặc tên..." />
         </div>
         {query.isLoading && <p className="py-8 text-center text-sm text-ink-soft">Đang tải...</p>}
         {query.isError && <p className="py-8 text-center text-sm text-red-600">Không thể tải danh sách người dùng.</p>}
-        {query.data && <Table columns={columns} rows={rows} rowKey={(r) => r.email} />}
+        {query.data && (
+          <>
+            <Table columns={columns} rows={query.data.items} rowKey={(r) => r.email} />
+            <Pager page={page} total={query.data.total} onPage={setPage} />
+          </>
+        )}
       </Card>
 
       {editRow && (
@@ -167,16 +227,18 @@ function EtxNhanSuTab() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [trangThai, setTrangThai] = useState("");
+  const debouncedSearch = useDebounced(search.trim());
+  const [page, setPage] = usePageFor(`${debouncedSearch}|${trangThai}`);
 
   const query = useQuery({
-    queryKey: ["etx-nhan-su", search, trangThai],
+    queryKey: ["etx-nhan-su", debouncedSearch, trangThai, page],
     queryFn: () => {
-      const params = new URLSearchParams();
-      if (search.trim()) params.set("search", search.trim());
+      const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (trangThai) params.set("trang_thai", trangThai);
-      const qs = params.toString();
-      return api.get<{ items: EtxNhanSuRow[] }>(`/etx-nhan-su${qs ? `?${qs}` : ""}`);
+      return api.get<PagedResponse<EtxNhanSuRow>>(`/etx-nhan-su?${params.toString()}`);
     },
+    placeholderData: keepPreviousData,
   });
 
   const syncStatus = useQuery({
@@ -248,9 +310,9 @@ function EtxNhanSuTab() {
           </Btn>
         </div>
         <div className="mb-3 flex flex-wrap gap-3">
-          <Input className="max-w-xs" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo mã NV, họ tên, gmail..." />
+          <Input type="search" className="lg:max-w-xs" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo mã NV, họ tên, gmail..." />
           <Select
-            className="max-w-[180px]"
+            className="lg:max-w-[180px]"
             options={[
               { value: "on", label: "Đang làm việc" },
               { value: "off", label: "Đã nghỉ" },
@@ -262,7 +324,12 @@ function EtxNhanSuTab() {
         </div>
         {query.isLoading && <p className="py-8 text-center text-sm text-ink-soft">Đang tải...</p>}
         {query.isError && <p className="py-8 text-center text-sm text-red-600">Không thể tải danh bạ ETX nhân sự.</p>}
-        {query.data && <Table columns={columns} rows={query.data.items} rowKey={(r) => r.ma_nhan_su} />}
+        {query.data && (
+          <>
+            <Table columns={columns} rows={query.data.items} rowKey={(r) => r.ma_nhan_su} />
+            <Pager page={page} total={query.data.total} onPage={setPage} />
+          </>
+        )}
       </Card>
     </div>
   );

@@ -5,19 +5,42 @@ import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
 import { nowVN } from "../lib/vnTime";
+import { viLikeClause } from "../lib/viSearch";
 
 const app = new Hono<{ Bindings: Env }>();
 app.use("*", verifySessionMiddleware, loadUser, requireRole("Admin"));
 
 const TRANG_THAI_DUYET_VALUES = ["Cho duyet", "Da duyet", "Tu choi"] as const;
 
+// GET /?search=&page=&pageSize= - phan trang o server (subquery last_login chi chay cho dung 1 trang).
 app.get("/", async (c) => {
-  const rows = await c.env.DB.prepare(
-    `SELECT u.email, u.ten, u.vai_tro, u.trang_thai_duyet, u.bi_khoa, u.created_at, u.updated_at,
-            (SELECT MAX(l.thoi_gian) FROM login_log l WHERE l.email = u.email) AS last_login
-     FROM users u ORDER BY u.created_at DESC`,
-  ).all();
-  return c.json({ items: rows.results });
+  const search = c.req.query("search")?.trim().normalize("NFC");
+  let page = parseInt(c.req.query("page") ?? "1", 10);
+  let pageSize = parseInt(c.req.query("pageSize") ?? "20", 10);
+  if (!Number.isFinite(page) || page < 1) page = 1;
+  if (!Number.isFinite(pageSize) || pageSize < 1) pageSize = 20;
+  if (pageSize > 100) pageSize = 100;
+
+  const like = search ? viLikeClause(["u.email", "COALESCE(u.ten,'')"], search) : null;
+  const where = like ? `WHERE ${like.sql}` : "";
+  const binds: unknown[] = like ? like.binds : [];
+
+  const [list, count] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT u.email, u.ten, u.vai_tro, u.trang_thai_duyet, u.bi_khoa, u.created_at, u.updated_at,
+              (SELECT MAX(l.thoi_gian) FROM login_log l WHERE l.email = u.email) AS last_login
+       FROM users u ${where} ORDER BY u.created_at DESC LIMIT ? OFFSET ?`,
+    )
+      .bind(...binds, pageSize, (page - 1) * pageSize)
+      .all(),
+    c.env.DB.prepare(`SELECT COUNT(*) AS n FROM users u ${where}`).bind(...binds).first<{ n: number }>(),
+  ]);
+  return c.json({ items: list.results, total: count?.n ?? 0, page, pageSize });
+});
+
+app.get("/pending-count", async (c) => {
+  const r = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM users WHERE trang_thai_duyet = 'Cho duyet'").first<{ n: number }>();
+  return c.json({ count: r?.n ?? 0 });
 });
 
 async function countActiveAdmins(db: D1Database): Promise<number> {

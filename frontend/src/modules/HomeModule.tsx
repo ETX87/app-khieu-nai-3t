@@ -80,8 +80,8 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
   const pendingUsersQuery = useQuery({
     queryKey: ["users", "pending-count"],
     enabled: user.vai_tro === "Admin",
-    queryFn: () => api.get<{ items: { trang_thai_duyet: string }[] }>("/users"),
-    select: (d) => d.items.filter((u) => u.trang_thai_duyet === "Cho duyet").length,
+    queryFn: () => api.get<{ count: number }>("/users/pending-count"),
+    select: (d) => d.count,
   });
 
   // "Việc của tôi" theo vai trò.
