@@ -101,8 +101,11 @@ async function getGiaiTrinhStatus(db: D1Database, id: string): Promise<GiaiTrinh
   const lastMoc = await db.prepare(
     "SELECT ngay_tao FROM khieu_nai_tien_trinh WHERE khieu_nai_id = ? AND ly_do_xu_ly_cham IS NOT NULL ORDER BY ngay_tao DESC LIMIT 1",
   ).bind(id).first<{ ngay_tao: string }>();
-  const mocAt = lastMoc?.ngay_tao ?? kn.ngay_tiep_nhan;
+  return giaiTrinhStatusFrom(lastMoc?.ngay_tao ?? kn.ngay_tiep_nhan);
+}
 
+// mocAt = lan giai trinh gan nhat (hoac ngay tiep nhan neu chua giai trinh lan nao).
+function giaiTrinhStatusFrom(mocAt: string): GiaiTrinhStatus {
   const deadlineMs = new Date(mocAt.replace(" ", "T") + "Z").getTime() + GIAI_TRINH_INTERVAL_MS;
   const trueNowAsVnNaiveMs = Date.now() + 7 * 60 * 60 * 1000;
   return {
@@ -1486,34 +1489,100 @@ app.post("/:id/chot", requireRole("QL", "Admin"), async (c) => {
   return c.json({ ok: true });
 });
 
-// Chot hang loat: chi chot cac don DA co danh gia QL rieng tung don (khong nhan danh gia chung ap
-// dung hang loat - yeu cau ra soat 2026-09) - moi id chay lai dung logic nhu "/:id/chot" don le, loi
-// 1 id khong lam hong cac id con lai (tra ve ket qua tung id de frontend hien thi).
-app.post("/chot-hang-loat", requireRole("QL", "Admin"), async (c) => {
+const DANH_GIA_QL_MAC_DINH = "Đã hoàn thành";
+const DONG_CA_HANG_LOAT_MAX = 100; // = pageSize toi da; D1 gioi han 100 tham so/cau lenh (IN (...))
+
+// Dong ca hang loat (QL/Admin, yeu cau 2026-09-23 - thay "chot hang loat" cu):
+//  - "San sang dong ca" (Dang xu ly + du 4 loi + ket luan): Danh gia QL = "Da hoan thanh" (giu nguyen
+//    neu QL da tu chon 1 danh gia khac truoc do) -> "Da ket thuc" thang, nhu "/:id/chot" di thang.
+//  - "Cho chot ket thuc" DA co Danh gia QL: chot nhu cu.
+// Doc gop 2 truy van + ghi gop 1 batch (khong lap tung id -> khong vuot gioi han so truy van D1/lan goi).
+// Loi 1 id khong lam hong cac id con lai (tra ket qua tung id).
+app.post("/dong-ca-hang-loat", requireRole("QL", "Admin"), async (c) => {
   const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
-  const ids = Array.isArray(body.ids) ? body.ids.filter((x: unknown): x is string => typeof x === "string") : [];
+  const ids: string[] = Array.isArray(body.ids)
+    ? [...new Set<string>(body.ids.filter((x: unknown): x is string => typeof x === "string"))]
+    : [];
   if (ids.length === 0) return c.json({ error: "CAN_DANH_SACH_ID" }, 400);
+  if (ids.length > DONG_CA_HANG_LOAT_MAX) return c.json({ error: "QUA_NHIEU_ID", max: DONG_CA_HANG_LOAT_MAX }, 400);
+
+  const ph = ids.map(() => "?").join(",");
+  const [rowsRes, mocRes] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT id, trang_thai, danh_gia_ql, ngay_tiep_nhan, ngay_ket_thuc,
+              loi_nha_san_xuat, loi_lap_dat, loi_thai_do_ktv, loi_quy_trinh_nskx, ket_luan_khieu_nai
+       FROM khieu_nai WHERE id IN (${ph})`,
+    ).bind(...ids).all<{
+      id: string; trang_thai: string; danh_gia_ql: string | null; ngay_tiep_nhan: string; ngay_ket_thuc: string | null;
+      loi_nha_san_xuat: string; loi_lap_dat: string; loi_thai_do_ktv: string; loi_quy_trinh_nskx: string;
+      ket_luan_khieu_nai: string | null;
+    }>(),
+    c.env.DB.prepare(
+      `SELECT khieu_nai_id, MAX(ngay_tao) AS moc FROM khieu_nai_tien_trinh
+       WHERE ly_do_xu_ly_cham IS NOT NULL AND khieu_nai_id IN (${ph}) GROUP BY khieu_nai_id`,
+    ).bind(...ids).all<{ khieu_nai_id: string; moc: string }>(),
+  ]);
+  const rowById = new Map(rowsRes.results.map((r) => [r.id, r]));
+  const mocById = new Map(mocRes.results.map((m) => [m.khieu_nai_id, m.moc]));
 
   const user = c.get("user");
+  const ts = nowVN();
   const results: { id: string; ok: boolean; error?: string }[] = [];
+  const stmts: D1PreparedStatement[] = [];
+  const updateIdx: { id: string; stmt: number }[] = [];
+  // Log chi ghi khi cau lenh NGAY TRUOC thuc su doi 1 dong (changes() = 1) - neu ca vua bi nguoi khac
+  // doi trang thai giua luc doc va ghi thi UPDATE (co dieu kien trang_thai) khong doi gi, khong log sai.
+  const logStmt = (id: string, hanhDong: string, truong: string, cu: string | null, moi: string) =>
+    c.env.DB.prepare(
+      `INSERT INTO khieu_nai_lich_su (id, khieu_nai_id, nguoi, hanh_dong, truong, gia_tri_cu, gia_tri_moi)
+       SELECT ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1`,
+    ).bind(crypto.randomUUID(), id, user.email, hanhDong, truong, cu, moi);
 
   for (const id of ids) {
-    const row = await c.env.DB.prepare(
-      "SELECT trang_thai, danh_gia_ql, ngay_tiep_nhan, ngay_ket_thuc FROM khieu_nai WHERE id = ?",
-    ).bind(id).first<{ trang_thai: string; danh_gia_ql: string | null; ngay_tiep_nhan: string; ngay_ket_thuc: string | null }>();
+    const row = rowById.get(id);
     if (!row) { results.push({ id, ok: false, error: "NOT_FOUND" }); continue; }
-    if (row.trang_thai !== "Cho chot ket thuc") { results.push({ id, ok: false, error: "INVALID_STATE" }); continue; }
-    const giaiTrinhStatus = await getGiaiTrinhStatus(c.env.DB, id);
-    if (giaiTrinhStatus?.overdue) { results.push({ id, ok: false, error: "QUA_HAN_GIAI_TRINH" }); continue; }
-    if (!row.danh_gia_ql || row.danh_gia_ql.trim() === "") { results.push({ id, ok: false, error: "CAN_DANH_GIA_QL" }); continue; }
+    const direct = row.trang_thai === "Dang xu ly";
+    if (!direct && row.trang_thai !== "Cho chot ket thuc") { results.push({ id, ok: false, error: "INVALID_STATE" }); continue; }
+    if (giaiTrinhStatusFrom(mocById.get(id) ?? row.ngay_tiep_nhan).overdue) {
+      results.push({ id, ok: false, error: "QUA_HAN_GIAI_TRINH" });
+      continue;
+    }
+    const danhGiaCu = row.danh_gia_ql?.trim() || null;
 
-    const ts = nowVN();
-    const gio = gioXuLyHeThong(row.ngay_tiep_nhan, row.ngay_ket_thuc);
-    await c.env.DB.prepare(
-      "UPDATE khieu_nai SET trang_thai = 'Da ket thuc', ql_nguoi_danh_gia = ?, ngay_ql_danh_gia = ?, ql_gio_xu_ly_he_thong = ?, ngay_thay_doi = ? WHERE id = ?",
-    ).bind(user.email, ts, gio, ts, id).run();
-    await logLichSu(c.env.DB, id, user.email, "chuyen_trang_thai", "trang_thai", "Cho chot ket thuc", "Da ket thuc");
-    results.push({ id, ok: true });
+    if (direct) {
+      const fields = [row.loi_nha_san_xuat, row.loi_lap_dat, row.loi_thai_do_ktv, row.loi_quy_trinh_nskx, row.ket_luan_khieu_nai];
+      if (fields.some((f) => f === "Chua danh gia" || f == null)) { results.push({ id, ok: false, error: "CAN_DANH_GIA_DAY_DU" }); continue; }
+      const danhGia = danhGiaCu ?? DANH_GIA_QL_MAC_DINH;
+      updateIdx.push({ id, stmt: stmts.length });
+      stmts.push(
+        c.env.DB.prepare(
+          `UPDATE khieu_nai SET trang_thai = 'Da ket thuc', danh_gia_ql = ?, ngay_ket_thuc = ?, nguoi_ket_thuc = ?,
+                  ql_nguoi_danh_gia = ?, ngay_ql_danh_gia = ?, ql_gio_xu_ly_he_thong = ?, ngay_thay_doi = ?
+           WHERE id = ? AND trang_thai = 'Dang xu ly'`,
+        ).bind(danhGia, ts, user.email, user.email, ts, gioXuLyHeThong(row.ngay_tiep_nhan, ts), ts, id),
+      );
+      if (!danhGiaCu) stmts.push(logStmt(id, "danh_gia_ql", "danh_gia_ql", null, danhGia));
+      stmts.push(logStmt(id, "chuyen_trang_thai", "trang_thai", "Dang xu ly", "Da ket thuc"));
+    } else {
+      if (!danhGiaCu) { results.push({ id, ok: false, error: "CAN_DANH_GIA_QL" }); continue; }
+      updateIdx.push({ id, stmt: stmts.length });
+      stmts.push(
+        c.env.DB.prepare(
+          `UPDATE khieu_nai SET trang_thai = 'Da ket thuc', ql_nguoi_danh_gia = ?, ngay_ql_danh_gia = ?,
+                  ql_gio_xu_ly_he_thong = ?, ngay_thay_doi = ?
+           WHERE id = ? AND trang_thai = 'Cho chot ket thuc'`,
+        ).bind(user.email, ts, gioXuLyHeThong(row.ngay_tiep_nhan, row.ngay_ket_thuc), ts, id),
+      );
+      stmts.push(logStmt(id, "chuyen_trang_thai", "trang_thai", "Cho chot ket thuc", "Da ket thuc"));
+    }
+  }
+
+  if (stmts.length > 0) {
+    const out = await c.env.DB.batch(stmts);
+    for (const u of updateIdx) {
+      const changed = (out[u.stmt]?.meta.changes ?? 0) === 1;
+      results.push(changed ? { id: u.id, ok: true } : { id: u.id, ok: false, error: "INVALID_STATE" });
+    }
   }
 
   return c.json({ results });

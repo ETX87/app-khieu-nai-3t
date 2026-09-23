@@ -108,16 +108,34 @@ function loadFilters(): Filters {
   return EMPTY_FILTERS;
 }
 
+function sanSangDongCa(r: KhieuNai): boolean {
+  return (
+    r.trang_thai === "Dang xu ly" &&
+    r.loi_nha_san_xuat !== "Chua danh gia" &&
+    r.loi_lap_dat !== "Chua danh gia" &&
+    r.loi_thai_do_ktv !== "Chua danh gia" &&
+    r.loi_quy_trinh_nskx !== "Chua danh gia" &&
+    (r.ket_luan_khieu_nai ?? "Chua danh gia") !== "Chua danh gia"
+  );
+}
+
+// Duoc chon de "Dong ca" hang loat - khop dieu kien backend POST /khieu-nai/dong-ca-hang-loat.
+function duocDongCaHangLoat(r: KhieuNai): boolean {
+  return sanSangDongCa(r) || (r.trang_thai === "Cho chot ket thuc" && !!r.danh_gia_ql?.trim());
+}
+
+const DONG_CA_ERR: Record<string, string> = {
+  QUA_HAN_GIAI_TRINH: "quá hạn giải trình",
+  CAN_DANH_GIA_DAY_DU: "chưa đủ đánh giá 4 lỗi + kết luận",
+  CAN_DANH_GIA_QL: "chưa có Đánh giá QL",
+  INVALID_STATE: "trạng thái đã thay đổi",
+  NOT_FOUND: "không tìm thấy",
+};
+
 function chiBao(r: KhieuNai): { text: string; tone: "amber" | "green" | "red" | "gray" } | null {
   if (r.trang_thai === "Cho chot ket thuc") return { text: "Sẵn sàng chốt", tone: "green" };
   if (r.trang_thai === "Dang xu ly") {
-    const du =
-      r.loi_nha_san_xuat !== "Chua danh gia" &&
-      r.loi_lap_dat !== "Chua danh gia" &&
-      r.loi_thai_do_ktv !== "Chua danh gia" &&
-      r.loi_quy_trinh_nskx !== "Chua danh gia" &&
-      (r.ket_luan_khieu_nai ?? "Chua danh gia") !== "Chua danh gia";
-    if (du) return { text: "Sẵn sàng đóng ca", tone: "green" };
+    if (sanSangDongCa(r)) return { text: "Sẵn sàng đóng ca", tone: "green" };
     if (r.id_crm_karofi && !r.ngay_ktv_hoan_thanh) return { text: "Chưa đồng bộ CRM", tone: "red" };
     return { text: "Chờ đánh giá", tone: "amber" };
   }
@@ -175,10 +193,11 @@ export function KhieuNaiModule({
     : {};
 
   const canCreate = !!user.vai_tro && user.vai_tro !== "Viewer";
-  // Chot hang loat (item 2026-09): QL/Admin chon nhieu don DA co danh gia QL rieng tung don -> chot
-  // 1 lan (backend van chay lai dung dieu kien nhu chot don le cho tung id).
+  // Dong ca hang loat (2026-09-23): QL/Admin tich chon ca "San sang dong ca" (hoac "Cho chot" da co
+  // Danh gia QL) -> "Dong ca": Danh gia QL = "Da hoan thanh" + chuyen "Da ket thuc" (xem backend).
   const canBulkChot = user.vai_tro === "QL" || user.vai_tro === "Admin";
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmDongCa, setConfirmDongCa] = useState(false);
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -188,20 +207,28 @@ export function KhieuNaiModule({
   };
   const { showToast } = useToast();
   const queryClient = useQueryClient();
-  const bulkChot = useMutation({
+  const bulkDongCa = useMutation({
     mutationFn: (ids: string[]) =>
-      api.post<{ results: { id: string; ok: boolean; error?: string }[] }>("/khieu-nai/chot-hang-loat", { ids }),
+      api.post<{ results: { id: string; ok: boolean; error?: string }[] }>("/khieu-nai/dong-ca-hang-loat", { ids }),
     onSuccess: (data) => {
       const okCount = data.results.filter((r) => r.ok).length;
-      const failCount = data.results.length - okCount;
+      const fails = data.results.filter((r) => !r.ok);
+      const byErr = new Map<string, number>();
+      fails.forEach((r) => byErr.set(r.error ?? "", (byErr.get(r.error ?? "") ?? 0) + 1));
+      const detail = [...byErr].map(([code, n]) => `${n} ca ${DONG_CA_ERR[code] ?? code}`).join(", ");
       showToast(
-        failCount === 0 ? `Đã chốt ${okCount} đơn` : `Đã chốt ${okCount} đơn, ${failCount} đơn lỗi (đã đổi trạng thái?)`,
-        failCount === 0 ? "success" : "error",
+        fails.length === 0 ? `Đã đóng ${okCount} ca` : `Đã đóng ${okCount} ca. Không đóng được: ${detail}`,
+        fails.length === 0 ? "success" : "error",
       );
       setSelectedIds(new Set());
+      setConfirmDongCa(false);
       queryClient.invalidateQueries({ queryKey: ["khieu-nai"] });
+      queryClient.invalidateQueries({ queryKey: ["khieu-nai-stats"] });
     },
-    onError: (e) => showToast(e instanceof ApiError ? `Chốt hàng loạt thất bại: ${e.code}` : "Chốt hàng loạt thất bại", "error"),
+    onError: (e) => {
+      setConfirmDongCa(false);
+      showToast(e instanceof ApiError ? `Đóng ca hàng loạt thất bại: ${e.code}` : "Đóng ca hàng loạt thất bại", "error");
+    },
   });
 
   const set = <K extends keyof Filters>(k: K, v: Filters[K]) => {
@@ -265,6 +292,28 @@ export function KhieuNaiModule({
     placeholderData: (prev) => prev,
   });
 
+  const eligibleOnPage = canBulkChot ? (query.data?.items ?? []).filter(duocDongCaHangLoat) : [];
+  const selectedOnPage = eligibleOnPage.filter((r) => selectedIds.has(r.id)).length;
+  const allPageSelected = eligibleOnPage.length > 0 && selectedOnPage === eligibleOnPage.length;
+  const toggleSelectPage = () =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      eligibleOnPage.forEach((r) => (allPageSelected ? next.delete(r.id) : next.add(r.id)));
+      return next;
+    });
+  const pageCheckbox = (
+    <input
+      type="checkbox"
+      className="h-5 w-5 accent-accent lg:h-4 lg:w-4"
+      checked={allPageSelected}
+      ref={(el) => { if (el) el.indeterminate = selectedOnPage > 0 && !allPageSelected; }}
+      disabled={eligibleOnPage.length === 0}
+      onChange={toggleSelectPage}
+      title="Chọn tất cả ca đủ điều kiện đóng ca trong trang"
+      aria-label="Chọn tất cả ca đủ điều kiện đóng ca trong trang"
+    />
+  );
+
   const submitSearch = (e: FormEvent) => {
     e.preventDefault();
     set("q", qInput.trim());
@@ -281,18 +330,19 @@ export function KhieuNaiModule({
       ? [
           {
             key: "chon",
-            header: "",
+            header: pageCheckbox,
             className: "w-8",
             render: (r: KhieuNai) => {
-              const eligible = r.trang_thai === "Cho chot ket thuc" && !!r.danh_gia_ql && r.danh_gia_ql.trim() !== "";
-              if (!eligible) return null;
+              if (!duocDongCaHangLoat(r)) return null;
               return (
                 <input
                   type="checkbox"
+                  className="h-4 w-4 accent-accent"
                   checked={selectedIds.has(r.id)}
                   onClick={(e) => e.stopPropagation()}
                   onChange={() => toggleSelect(r.id)}
-                  title="Chọn để chốt hàng loạt"
+                  title="Chọn để đóng ca hàng loạt"
+                  aria-label={`Chọn ${r.id} để đóng ca`}
                 />
               );
             },
@@ -528,17 +578,12 @@ export function KhieuNaiModule({
         </form>
 
         {canBulkChot && selectedIds.size > 0 && (
-          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-accent/30 bg-accent-soft px-3 py-2 text-sm">
-            <span className="font-medium text-ink">Đã chọn {selectedIds.size} đơn</span>
-            <Btn
-              size="sm"
-              variant="primary"
-              disabled={bulkChot.isPending}
-              onClick={() => bulkChot.mutate([...selectedIds])}
-            >
-              {bulkChot.isPending ? "Đang chốt..." : "Chốt hàng loạt"}
+          <div className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-3 rounded-md border border-accent/30 bg-accent-soft px-3 py-2 text-sm shadow-sm">
+            <span className="font-medium text-ink">Đã chọn {selectedIds.size} ca</span>
+            <Btn size="touch" variant="primary" disabled={bulkDongCa.isPending} onClick={() => setConfirmDongCa(true)}>
+              {bulkDongCa.isPending ? "Đang đóng ca..." : `Đóng ca (${selectedIds.size})`}
             </Btn>
-            <button type="button" className="text-xs text-ink-soft hover:underline" onClick={() => setSelectedIds(new Set())}>
+            <button type="button" className="text-sm text-ink-soft hover:underline lg:text-xs" onClick={() => setSelectedIds(new Set())}>
               Bỏ chọn
             </button>
           </div>
@@ -549,10 +594,32 @@ export function KhieuNaiModule({
         {query.data && (
           <>
             <div className="flex flex-col gap-2 md:hidden">
+              {eligibleOnPage.length > 0 && (
+                <label className="flex items-center gap-3 rounded-md border border-line bg-white px-3 py-3 text-sm font-medium text-ink">
+                  {pageCheckbox}
+                  Chọn tất cả ca đủ điều kiện đóng ca ({eligibleOnPage.length})
+                </label>
+              )}
               {query.data.items.length === 0 && <p className="py-8 text-center text-sm text-ink-soft">Không có dữ liệu</p>}
-              {query.data.items.map((r) => (
-                <KhieuNaiCard key={r.id} kn={r} onClick={() => setDetailId(r.id)} />
-              ))}
+              {query.data.items.map((r) =>
+                canBulkChot && duocDongCaHangLoat(r) ? (
+                  <div key={r.id} className="flex items-stretch gap-2">
+                    <label className="flex shrink-0 items-center rounded-lg border border-line bg-white px-3" aria-label={`Chọn ${r.id} để đóng ca`}>
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5 accent-accent"
+                        checked={selectedIds.has(r.id)}
+                        onChange={() => toggleSelect(r.id)}
+                      />
+                    </label>
+                    <div className="min-w-0 flex-1">
+                      <KhieuNaiCard kn={r} onClick={() => setDetailId(r.id)} />
+                    </div>
+                  </div>
+                ) : (
+                  <KhieuNaiCard key={r.id} kn={r} onClick={() => setDetailId(r.id)} />
+                ),
+              )}
             </div>
             <div className="hidden md:block">
               <Table
@@ -613,6 +680,27 @@ export function KhieuNaiModule({
           onCreated={(id) => { setCreateOpen(false); query.refetch(); setDetailId(id); }}
           onCancel={() => setCreateOpen(false)}
         />
+      </Modal>
+
+      <Modal
+        open={confirmDongCa}
+        onClose={() => !bulkDongCa.isPending && setConfirmDongCa(false)}
+        title={`Đóng ${selectedIds.size} ca?`}
+        width="md"
+      >
+        <div className="space-y-2 text-base text-ink lg:text-sm">
+          <p>
+            Ca chưa có Đánh giá QL sẽ được ghi <b>Đánh giá QL = "{`Đã hoàn thành`}"</b>. Ca đã có Đánh giá QL giữ nguyên.
+          </p>
+          <p>Tất cả chuyển sang trạng thái <b>Đã kết thúc</b>.</p>
+          <p className="text-sm text-ink-soft lg:text-xs">Ca quá hạn giải trình hoặc vừa đổi trạng thái sẽ được bỏ qua và báo lại.</p>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <Btn size="touch" variant="secondary" disabled={bulkDongCa.isPending} onClick={() => setConfirmDongCa(false)}>Không</Btn>
+          <Btn size="touch" variant="primary" disabled={bulkDongCa.isPending} onClick={() => bulkDongCa.mutate([...selectedIds])}>
+            {bulkDongCa.isPending ? "Đang đóng ca..." : `Đóng ca (${selectedIds.size})`}
+          </Btn>
+        </div>
       </Modal>
 
       <Modal open={!!detailId} onClose={closeDetail} width="full">
