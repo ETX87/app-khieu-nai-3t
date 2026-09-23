@@ -1097,42 +1097,33 @@ app.get("/bao-cao/theo-ngay", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
 });
 
 // Bao cao theo NGUOI TIEP NHAN trong khoang ngay (cung bo loc voi bang theo ngay). Chi hien nguoi
-// thuc su co tiep nhan ca trong khoang + 1 dong tong toan he thong. "Tu mo" = ca nguoi do tu tao va
-// nhan luon (CSKH/TN CSKH/QL/Admin tao, khong qua nut Tiep nhan). "Tu nguon khac" = bam "Tiep nhan"
-// ca do NV Sale/Tong dai vien tao (lich su hanh_dong='tiep_nhan'). Ty le = tong tiep nhan / tong ca
-// mo moi trong khoang (moi nguon) + ton cu chua tiep nhan dau khoang. TB gio tiep nhan chi tinh ca tu nguon khac (ca tu mo = 0 gio,
-// tinh vao se keo trung binh xuong sai thuc te).
+// thuc su co tiep nhan ca trong khoang + 1 dong tong toan he thong. Ca tiep nhan tach 3 nhom:
+//   tu_mo         = ca MO TRONG KHOANG, nguoi do tu tao va nhan luon (khong qua nut Tiep nhan)
+//   tu_nguon_khac = ca MO TRONG KHOANG do nguoi khac (NV Sale/Tong dai vien) tao, bam "Tiep nhan"
+//   ton_cu        = ca MO TRUOC KHOANG, duoc bam "Tiep nhan" trong khoang
+// Ty le = (tu_mo + tu_nguon_khac) / tong ca mo moi trong khoang (moi nguon) - tu so va mau so cung la
+// ca mo trong khoang, moi ca chi nhan 1 lan nen khong vuot 100%. Ton cu hien rieng, khong vao ty le.
+// TB gio tiep nhan = moi ca bam "Tiep nhan" (nguon khac + ton cu); ca tu mo = 0 gio nen khong tinh.
 app.get("/bao-cao/theo-nguoi-tiep-nhan", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
   const { tuNgay, denNgay, hasFilter, fEmpty, fK } = parseNgayVaLoc((k) => c.req.query(k));
   const rangeStart = `${tuNgay} 00:00:00`;
   const rangeEndBind = `${denNgay} 00:00:00`;
 
-  // Ton cu CHUA tiep nhan luc dau khoang (mo truoc khoang, toi dau khoang van chua ai nhan) cung la
-  // "viec can tiep nhan" trong khoang - thieu phan nay thi ca ton cu duoc nhan trong khoang lam ty le
-  // vuot 100%. = (a) nhan qua nut Tiep nhan tu dau khoang tro ve sau + (b) van dang Cho tiep nhan +
-  // (c) bi huy tu dau khoang tro ve sau khi chua ai nhan. Ca tu mo luon da nhan luc tao -> khong tinh.
-  const [moiQ, tonNhanSauQ, tonConChoQ, tonHuySauQ, nguonKhacQ, tuMoQ] = await Promise.all([
+  const [moiQ, bamNhanQ, tuMoQ] = await Promise.all([
     c.env.DB.prepare(
       `SELECT COUNT(*) as n FROM khieu_nai WHERE ngay_tiep_nhan >= ? AND ngay_tiep_nhan < datetime(?, '+1 day')${fEmpty.sql}`,
     ).bind(rangeStart, rangeEndBind, ...fEmpty.binds).first<{ n: number }>(),
     c.env.DB.prepare(
-      `SELECT COUNT(DISTINCT l.khieu_nai_id) as n FROM khieu_nai_lich_su l JOIN khieu_nai k ON k.id = l.khieu_nai_id
-       WHERE l.hanh_dong = 'tiep_nhan' AND l.thoi_diem >= ? AND k.ngay_tiep_nhan < ?${fK.sql}`,
-    ).bind(rangeStart, rangeStart, ...fK.binds).first<{ n: number }>(),
-    c.env.DB.prepare(
-      `SELECT COUNT(*) as n FROM khieu_nai k WHERE k.trang_thai = 'Cho tiep nhan' AND k.ngay_tiep_nhan < ?${fK.sql}`,
-    ).bind(rangeStart, ...fK.binds).first<{ n: number }>(),
-    c.env.DB.prepare(
-      `SELECT COUNT(*) as n FROM khieu_nai k WHERE k.trang_thai = 'Huy' AND k.cskh_tiep_nhan IS NULL
-         AND k.ngay_huy >= ? AND k.ngay_tiep_nhan < ?${fK.sql}`,
-    ).bind(rangeStart, rangeStart, ...fK.binds).first<{ n: number }>(),
-    c.env.DB.prepare(
-      `SELECT l.nguoi as email, u.ten as ten, COUNT(*) as sl,
+      `SELECT l.nguoi as email, u.ten as ten,
+              SUM(CASE WHEN k.ngay_tiep_nhan >= ?1 THEN 1 ELSE 0 END) as moi,
+              SUM(CASE WHEN k.ngay_tiep_nhan < ?1 THEN 1 ELSE 0 END) as ton_cu,
+              COUNT(*) as sl,
               AVG(julianday(l.thoi_diem) - julianday(k.ngay_tiep_nhan)) as tb_ngay
        FROM khieu_nai_lich_su l JOIN khieu_nai k ON k.id = l.khieu_nai_id LEFT JOIN users u ON u.email = l.nguoi
-       WHERE l.hanh_dong = 'tiep_nhan' AND l.thoi_diem >= ? AND l.thoi_diem < datetime(?, '+1 day')${fK.sql}
+       WHERE l.hanh_dong = 'tiep_nhan' AND l.thoi_diem >= ?1 AND l.thoi_diem < datetime(?2, '+1 day')${fK.sql}
        GROUP BY l.nguoi`,
-    ).bind(rangeStart, rangeEndBind, ...fK.binds).all<{ email: string; ten: string | null; sl: number; tb_ngay: number | null }>(),
+    ).bind(rangeStart, rangeEndBind, ...fK.binds)
+      .all<{ email: string; ten: string | null; moi: number; ton_cu: number; sl: number; tb_ngay: number | null }>(),
     c.env.DB.prepare(
       `SELECT k.cskh_tiep_nhan as email, u.ten as ten, COUNT(*) as sl
        FROM khieu_nai k LEFT JOIN users u ON u.email = k.cskh_tiep_nhan
@@ -1144,35 +1135,41 @@ app.get("/bao-cao/theo-nguoi-tiep-nhan", requireRole("CSKH", "TN CSKH", "QL", "A
   ]);
 
   const tongCaMoi = moiQ?.n ?? 0;
-  const tonCuChuaTn = (tonNhanSauQ?.n ?? 0) + (tonConChoQ?.n ?? 0) + (tonHuySauQ?.n ?? 0);
-  const mauSo = tongCaMoi + tonCuChuaTn;
-  const byEmail = new Map<string, { email: string; ten: string | null; tu_mo: number; tu_nguon_khac: number; tb_ngay: number | null }>();
+  type Acc = { tu_mo: number; tu_nguon_khac: number; ton_cu: number; sl_bam: number; tb_ngay: number | null };
+  const byEmail = new Map<string, Acc & { email: string; ten: string | null }>();
   const get = (email: string, ten: string | null) => {
     let r = byEmail.get(email);
-    if (!r) { r = { email, ten, tu_mo: 0, tu_nguon_khac: 0, tb_ngay: null }; byEmail.set(email, r); }
+    if (!r) { r = { email, ten, tu_mo: 0, tu_nguon_khac: 0, ton_cu: 0, sl_bam: 0, tb_ngay: null }; byEmail.set(email, r); }
     return r;
   };
   for (const r of tuMoQ.results) get(r.email, r.ten).tu_mo = r.sl;
-  for (const r of nguonKhacQ.results) { const x = get(r.email, r.ten); x.tu_nguon_khac = r.sl; x.tb_ngay = r.tb_ngay; }
+  for (const r of bamNhanQ.results) {
+    const x = get(r.email, r.ten);
+    x.tu_nguon_khac = r.moi; x.ton_cu = r.ton_cu; x.sl_bam = r.sl; x.tb_ngay = r.tb_ngay;
+  }
 
-  const shape = (x: { tu_mo: number; tu_nguon_khac: number; tb_ngay: number | null }) => {
-    const tong = x.tu_mo + x.tu_nguon_khac;
-    return { tu_mo: x.tu_mo, tu_nguon_khac: x.tu_nguon_khac, tong_tiep_nhan: tong, ty_le: tyLe1(tong, mauSo), tb_gio_tiep_nhan: gio1(x.tb_ngay) };
-  };
+  const shape = (x: Acc) => ({
+    tu_mo: x.tu_mo,
+    tu_nguon_khac: x.tu_nguon_khac,
+    ton_cu: x.ton_cu,
+    tong_tiep_nhan: x.tu_mo + x.tu_nguon_khac + x.ton_cu,
+    ty_le: tyLe1(x.tu_mo + x.tu_nguon_khac, tongCaMoi),
+    tb_gio_tiep_nhan: gio1(x.tb_ngay),
+  });
   const rows = [...byEmail.values()]
     .map((x) => ({ email: x.email, ten: x.ten, ...shape(x) }))
     .sort((a, b) => b.tong_tiep_nhan - a.tong_tiep_nhan || (a.ten ?? a.email).localeCompare(b.ten ?? b.email, "vi"));
 
-  // Dong tong: TB gio = trung binh co trong so theo so ca tu nguon khac cua tung nguoi.
-  let slKhac = 0, tongNgay = 0;
-  for (const x of byEmail.values()) if (x.tb_ngay != null) { slKhac += x.tu_nguon_khac; tongNgay += x.tb_ngay * x.tu_nguon_khac; }
+  // Dong tong: TB gio = trung binh co trong so theo so ca bam "Tiep nhan" cua tung nguoi.
+  let slBam = 0, tongNgay = 0;
+  for (const x of byEmail.values()) if (x.tb_ngay != null) { slBam += x.sl_bam; tongNgay += x.tb_ngay * x.sl_bam; }
+  const sum = (k: "tu_mo" | "tu_nguon_khac" | "ton_cu") => rows.reduce((s, r) => s + r[k], 0);
   const tong = shape({
-    tu_mo: rows.reduce((s, r) => s + r.tu_mo, 0),
-    tu_nguon_khac: rows.reduce((s, r) => s + r.tu_nguon_khac, 0),
-    tb_ngay: slKhac > 0 ? tongNgay / slKhac : null,
+    tu_mo: sum("tu_mo"), tu_nguon_khac: sum("tu_nguon_khac"), ton_cu: sum("ton_cu"),
+    sl_bam: slBam, tb_ngay: slBam > 0 ? tongNgay / slBam : null,
   });
 
-  return c.json({ tu_ngay: tuNgay, den_ngay: denNgay, co_loc: hasFilter, tong_ca_moi: tongCaMoi, ton_cu_chua_tn: tonCuChuaTn, tong, rows });
+  return c.json({ tu_ngay: tuNgay, den_ngay: denNgay, co_loc: hasFilter, tong_ca_moi: tongCaMoi, tong, rows });
 });
 
 // Toc do xu ly toan he thong theo ky (ngay/tuan/thang) x 4 moc, tuy chon phan loai theo nguoi tiep

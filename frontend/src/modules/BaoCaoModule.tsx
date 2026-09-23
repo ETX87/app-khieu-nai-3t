@@ -104,6 +104,7 @@ interface NguoiDungGon {
 interface TheoNguoiTnSo {
   tu_mo: number;
   tu_nguon_khac: number;
+  ton_cu: number;
   tong_tiep_nhan: number;
   ty_le: number | null;
   tb_gio_tiep_nhan: number | null;
@@ -114,7 +115,6 @@ interface TheoNguoiTnRow extends TheoNguoiTnSo {
 }
 interface TheoNguoiTnReport {
   tong_ca_moi: number;
-  ton_cu_chua_tn: number;
   tong: TheoNguoiTnSo;
   rows: TheoNguoiTnRow[];
 }
@@ -194,7 +194,8 @@ function TheoNguoiTnCard({ ten, v, tong }: { ten: string; v: TheoNguoiTnSo; tong
       <div className="mb-2 text-base font-semibold text-ink">{ten}</div>
       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
         <TheoNgayStat k="Tự mở mới" v={v.tu_mo} />
-        <TheoNgayStat k="Từ nguồn khác" v={v.tu_nguon_khac} />
+        <TheoNgayStat k="Nguồn khác" v={v.tu_nguon_khac} />
+        <TheoNgayStat k="Tồn cũ" v={v.ton_cu} />
         <TheoNgayStat k="Tổng tiếp nhận" v={v.tong_tiep_nhan} />
         <TheoNgayStat k="Tỷ lệ TN" v={v.ty_le != null ? `${v.ty_le}%` : "—"} />
         <TheoNgayStat k="TB giờ TN" v={fmtGio(v.tb_gio_tiep_nhan)} />
@@ -473,13 +474,11 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         <div className="mt-5 border-t border-line pt-4">
           <h4 className="mb-1 text-sm font-semibold text-ink">Theo người tiếp nhận</h4>
           <p className="mb-3 text-xs text-ink-soft">
-            Cùng khoảng ngày và bộ lọc ở trên. Chỉ hiện người có tiếp nhận ca trong khoảng. Tỷ lệ = tổng tiếp nhận ÷ (ca mở mới
-            mọi nguồn + ca tồn cũ chưa tiếp nhận đầu kỳ)
-            {theoNguoiTnQuery.data ? (
-              <> = <b className="text-ink">{theoNguoiTnQuery.data.tong_ca_moi}</b> + <b className="text-ink">{theoNguoiTnQuery.data.ton_cu_chua_tn}</b> ={" "}
-                <b className="text-ink">{theoNguoiTnQuery.data.tong_ca_moi + theoNguoiTnQuery.data.ton_cu_chua_tn}</b> ca</>
-            ) : null}.
-            TB giờ TN chỉ tính ca tiếp nhận từ nguồn khác (ca tự mở được nhận ngay).
+            Cùng khoảng ngày và bộ lọc ở trên. Chỉ hiện người có tiếp nhận ca trong khoảng. <b>Tự mở mới</b> / <b>Nguồn khác</b>: ca mở
+            trong khoảng (tự tạo & nhận luôn / người khác tạo, bấm Tiếp nhận). <b>Tồn cũ</b>: ca mở trước khoảng, được nhận trong khoảng.
+            Tỷ lệ = (tự mở mới + nguồn khác) ÷ tổng ca mở mới mọi nguồn
+            {theoNguoiTnQuery.data ? <> (<b className="text-ink">{theoNguoiTnQuery.data.tong_ca_moi}</b> ca)</> : null} — tồn cũ không tính vào tỷ lệ.
+            TB giờ TN tính các ca bấm Tiếp nhận (nguồn khác + tồn cũ).
           </p>
           {theoNguoiTnQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
           {theoNguoiTnQuery.data && (
@@ -489,12 +488,13 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                 {theoNguoiTnQuery.data.rows.map((r) => <TheoNguoiTnCard key={r.email} ten={r.ten || r.email} v={r} />)}
               </div>
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[640px] border-collapse text-xs">
+                <table className="w-full min-w-[720px] border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-line text-left font-semibold uppercase tracking-wide text-ink-soft">
                       <th className="whitespace-nowrap px-2 py-1.5">Người tiếp nhận</th>
                       <th className="whitespace-nowrap px-2 py-1.5">Tự mở mới</th>
-                      <th className="whitespace-nowrap px-2 py-1.5">Từ nguồn khác</th>
+                      <th className="whitespace-nowrap px-2 py-1.5">Nguồn khác</th>
+                      <th className="whitespace-nowrap px-2 py-1.5">Tồn cũ</th>
                       <th className="whitespace-nowrap px-2 py-1.5">Tổng tiếp nhận</th>
                       <th className="whitespace-nowrap px-2 py-1.5">Tỷ lệ TN</th>
                       <th className="whitespace-nowrap px-2 py-1.5">TB giờ TN</th>
@@ -507,6 +507,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                         <td className="whitespace-nowrap px-2 py-1.5 font-medium text-ink">{x.ten}</td>
                         <td className="px-2 py-1.5">{x.v.tu_mo}</td>
                         <td className="px-2 py-1.5">{x.v.tu_nguon_khac}</td>
+                        <td className="px-2 py-1.5">{x.v.ton_cu}</td>
                         <td className="px-2 py-1.5">{x.v.tong_tiep_nhan}</td>
                         <td className="px-2 py-1.5">{x.v.ty_le != null ? `${x.v.ty_le}%` : "—"}</td>
                         <td className="px-2 py-1.5">{fmtGio(x.v.tb_gio_tiep_nhan)}</td>
