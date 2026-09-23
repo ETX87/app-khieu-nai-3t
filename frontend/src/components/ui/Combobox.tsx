@@ -11,6 +11,13 @@ interface ComboboxProps {
   creatable?: boolean;
   onCreate?: (value: string) => Promise<void> | void;
   id?: string;
+  clearable?: boolean; // false: khong hien dong "xoa lua chon" (vd bo loc sap xep luon phai co gia tri)
+  inputClassName?: string; // thay class mac dinh cua o nhap (vd o loc tren thanh cong cu, gon hon)
+}
+
+// Bo dau tieng Viet de go "bui" van tim ra "Bùi", "dang" ra "Đặng".
+export function foldVi(s: string): string {
+  return s.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
 }
 
 const BASE_CLS =
@@ -28,6 +35,8 @@ export function Combobox({
   creatable,
   onCreate,
   id,
+  clearable = true,
+  inputClassName,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -50,10 +59,11 @@ export function Combobox({
   );
 
   const q = query.trim().toLowerCase();
-  const filtered = useMemo(
-    () => (q === "" ? options : options.filter((o) => o.label.toLowerCase().includes(q))),
-    [options, q],
-  );
+  const filtered = useMemo(() => {
+    if (q === "") return options;
+    const fq = foldVi(q);
+    return options.filter((o) => foldVi(o.label).includes(fq));
+  }, [options, q]);
   const exactMatch = useMemo(
     () => options.find((o) => o.label.toLowerCase() === q),
     [options, q],
@@ -61,7 +71,7 @@ export function Combobox({
   const canCreateNew = !!creatable && q !== "" && !exactMatch;
   // Số dòng "chọn được": [xoá lựa chọn?] + filtered + [tạo mới?]
   const rows: Array<{ kind: "clear" | "option" | "create"; value?: string; label: string }> = [];
-  if (value !== "") rows.push({ kind: "clear", label: placeholder });
+  if (clearable && value !== "") rows.push({ kind: "clear", label: placeholder });
   filtered.forEach((o) => rows.push({ kind: "option", value: o.value, label: o.label }));
   if (canCreateNew) rows.push({ kind: "create", label: `+ Thêm "${query.trim()}"` });
 
@@ -224,7 +234,7 @@ export function Combobox({
           if (!open) setOpen(true);
         }}
         onKeyDown={onKeyDown}
-        className={BASE_CLS}
+        className={inputClassName ?? BASE_CLS}
       />
       {open && !disabled && pos &&
         createPortal(

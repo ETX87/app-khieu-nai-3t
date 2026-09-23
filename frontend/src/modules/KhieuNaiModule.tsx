@@ -16,6 +16,7 @@ import { useToast } from "../components/ui/Toast";
 import { KhieuNaiForm, type KhieuNaiFormHandle, type KhieuNaiFormHeaderState, NGUON_LABEL } from "./KhieuNaiForm";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
 import { KhieuNaiCard } from "./KhieuNaiCard";
+import { FilterSelect } from "../components/ui/FilterSelect";
 
 const STATUS_OPTIONS = [
   { value: "Cho tiep nhan", label: "Chờ tiếp nhận" },
@@ -78,6 +79,12 @@ interface Filters {
   sort: string; // "field|dir"
   pageSize: string;
 }
+
+const CRM_TRANG_THAI_OPTIONS = [
+  { value: "1", label: "Tồn đồng bộ CRM (tất cả)" },
+  { value: "cho", label: "Chờ đồng bộ (ID đúng)" },
+  { value: "sai", label: "ID CRM sai" },
+];
 
 const NGUON_QUICK_OPTIONS = [
   { value: "", label: "Tất cả" },
@@ -523,30 +530,20 @@ export function KhieuNaiModule({
 
         {filtersOpen && (
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <select className={selCls} value={f.trangThai} onChange={(e) => set("trangThai", e.target.value)}>
-              <option value="">Mọi trạng thái</option>
-              {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <select className={selCls} value={f.mucDo} onChange={(e) => set("mucDo", e.target.value)}>
-              <option value="">Mọi mức độ</option>
-              {sortMucDoOptions(mucDoOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
-            </select>
-            <select className={selCls} value={f.nhomVanDe} onChange={(e) => set("nhomVanDe", e.target.value)}>
-              <option value="">Mọi nhóm vấn đề</option>
-              {(nhomVanDeOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
-            </select>
+            <FilterSelect className={selCls} value={f.trangThai} onChange={(v) => set("trangThai", v)} allLabel="Mọi trạng thái"
+              options={STATUS_OPTIONS} />
+            <FilterSelect className={selCls} value={f.mucDo} onChange={(v) => set("mucDo", v)} allLabel="Mọi mức độ"
+              options={(sortMucDoOptions(mucDoOpts.data ?? [])).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
+            <FilterSelect className={selCls} value={f.nhomVanDe} onChange={(v) => set("nhomVanDe", v)} allLabel="Mọi nhóm vấn đề"
+              options={(nhomVanDeOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
             <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               Từ <input type="date" className={selCls} value={f.tuNgay} onChange={(e) => set("tuNgay", e.target.value)} />
             </label>
             <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               đến <input type="date" className={selCls} value={f.denNgay} onChange={(e) => set("denNgay", e.target.value)} />
             </label>
-            <select className={selCls} value={f.chuaDongBo} onChange={(e) => set("chuaDongBo", e.target.value)}>
-              <option value="">Mọi tình trạng CRM</option>
-              <option value="1">Tồn đồng bộ CRM (tất cả)</option>
-              <option value="cho">Chờ đồng bộ (ID đúng)</option>
-              <option value="sai">ID CRM sai</option>
-            </select>
+            <FilterSelect className={selCls} value={f.chuaDongBo} onChange={(v) => set("chuaDongBo", v)} allLabel="Mọi tình trạng CRM"
+              options={CRM_TRANG_THAI_OPTIONS} />
             <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               <input type="checkbox" checked={f.choTnCskh} onChange={(e) => set("choTnCskh", e.target.checked)} /> Chờ TN CSKH đóng ca
             </label>
@@ -556,14 +553,10 @@ export function KhieuNaiModule({
             <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               <input type="checkbox" checked={f.caCuaToi} onChange={(e) => set("caCuaToi", e.target.checked)} /> Ca của tôi
             </label>
-            <select className={selCls} value={f.nguoiTaoVaiTro} onChange={(e) => set("nguoiTaoVaiTro", e.target.value)}>
-              <option value="">Mọi người tạo</option>
-              {NGUOI_TAO_VAI_TRO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <select className={selCls} value={f.tonToiThieu} onChange={(e) => set("tonToiThieu", e.target.value)}>
-              <option value="">Mọi thời gian tồn</option>
-              {TON_TOI_THIEU_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <FilterSelect className={selCls} value={f.nguoiTaoVaiTro} onChange={(v) => set("nguoiTaoVaiTro", v)} allLabel="Mọi người tạo"
+              options={NGUOI_TAO_VAI_TRO_OPTIONS} />
+            <FilterSelect className={selCls} value={f.tonToiThieu} onChange={(v) => set("tonToiThieu", v)} allLabel="Mọi thời gian tồn"
+              options={TON_TOI_THIEU_OPTIONS} />
             <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               Tháng đóng
               <input type="month" className={selCls} value={f.thangDong} onChange={(e) => set("thangDong", e.target.value)} />
@@ -580,12 +573,10 @@ export function KhieuNaiModule({
           />
           <Btn type="submit" variant="secondary" size="touch">Tìm</Btn>
           <div className="ml-auto flex items-center gap-2">
-            <select className={selCls} value={f.sort} onChange={(e) => set("sort", e.target.value)}>
-              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <select className={selCls} value={f.pageSize} onChange={(e) => set("pageSize", e.target.value)}>
-              {PAGE_SIZE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <FilterSelect className={selCls} value={f.sort} onChange={(v) => set("sort", v)}
+              options={SORT_OPTIONS} />
+            <FilterSelect className={selCls} value={f.pageSize} onChange={(v) => set("pageSize", v)}
+              options={PAGE_SIZE_OPTIONS} />
           </div>
         </form>
 

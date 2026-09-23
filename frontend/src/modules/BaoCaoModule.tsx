@@ -11,6 +11,7 @@ import { KhieuNaiDetail } from "./KhieuNaiDetail";
 import { useSettingsOptions } from "../api/useSettingsOptions";
 import { sortMucDoOptions } from "../lib/severity";
 import { NGUON_OPTIONS } from "./KhieuNaiForm";
+import { FilterSelect } from "../components/ui/FilterSelect";
 
 interface SlaBucket {
   label: string;
@@ -273,30 +274,18 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
           >
             Hôm nay
           </button>
-          <select className={selCls} value={locNguoiTiepNhan} onChange={(e) => setLocNguoiTiepNhan(e.target.value)}>
-            <option value="">Mọi người tiếp nhận</option>
-            {(nguoiDungQuery.data?.items ?? []).map((u) => <option key={u.email} value={u.email}>{u.ten || u.email}</option>)}
-          </select>
-          <select className={selCls} value={locNguoiTao} onChange={(e) => setLocNguoiTao(e.target.value)}>
-            <option value="">Mọi người tạo</option>
-            {(nguoiDungQuery.data?.items ?? []).map((u) => <option key={u.email} value={u.email}>{u.ten || u.email}</option>)}
-          </select>
-          <select className={selCls} value={locNguon} onChange={(e) => setLocNguon(e.target.value)}>
-            <option value="">Mọi nguồn</option>
-            {NGUON_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <select className={selCls} value={locNhomYeuCau} onChange={(e) => setLocNhomYeuCau(e.target.value)}>
-            <option value="">Mọi nhóm yêu cầu</option>
-            {(nhomYeuCauOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
-          </select>
-          <select className={selCls} value={locMucDo} onChange={(e) => setLocMucDo(e.target.value)}>
-            <option value="">Mọi mức độ</option>
-            {sortMucDoOptions(mucDoOptsTheoNgay.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
-          </select>
-          <select className={selCls} value={locPhanLoaiKh} onChange={(e) => setLocPhanLoaiKh(e.target.value)}>
-            <option value="">Mọi phân loại KH</option>
-            {(phanLoaiKhOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
-          </select>
+          <FilterSelect className={selCls} value={locNguoiTiepNhan} onChange={setLocNguoiTiepNhan} allLabel="Mọi người tiếp nhận"
+            options={(nguoiDungQuery.data?.items ?? []).map((u) => ({ value: u.email, label: u.ten || u.email }))} />
+          <FilterSelect className={selCls} value={locNguoiTao} onChange={setLocNguoiTao} allLabel="Mọi người tạo"
+            options={(nguoiDungQuery.data?.items ?? []).map((u) => ({ value: u.email, label: u.ten || u.email }))} />
+          <FilterSelect className={selCls} value={locNguon} onChange={setLocNguon} allLabel="Mọi nguồn"
+            options={NGUON_OPTIONS} />
+          <FilterSelect className={selCls} value={locNhomYeuCau} onChange={setLocNhomYeuCau} allLabel="Mọi nhóm yêu cầu"
+            options={(nhomYeuCauOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
+          <FilterSelect className={selCls} value={locMucDo} onChange={setLocMucDo} allLabel="Mọi mức độ"
+            options={(sortMucDoOptions(mucDoOptsTheoNgay.data ?? [])).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
+          <FilterSelect className={selCls} value={locPhanLoaiKh} onChange={setLocPhanLoaiKh} allLabel="Mọi phân loại KH"
+            options={(phanLoaiKhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
         </div>
 
         {theoNgayQuery.data?.co_loc && (
