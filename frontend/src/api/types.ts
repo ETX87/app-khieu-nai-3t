@@ -6,6 +6,7 @@ export interface AppUser {
   vai_tro: VaiTro | null;
   trang_thai_duyet: "Cho duyet" | "Da duyet" | "Tu choi";
   bi_khoa: boolean;
+  xem_tat_ca: boolean; // NV Sale/Tong dai vien: Admin bat de xem (chi doc) moi ca
 }
 
 export interface AdminUserRow extends AppUser {

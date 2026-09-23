@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Env } from "../types";
+import type { AppUser, Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
@@ -19,6 +19,11 @@ const DANH_GIA_VALUES = new Set(["Khong", "Co", "Chua danh gia"]);
 // trinh/quyen han - dung chung 1 danh sach de khong lap lai logic o nhieu noi.
 const KTV_LIKE_ROLES = ["NV Sale", "Tổng đài viên"] as const;
 const isKtvLike = (vaiTro: string | null | undefined) => (KTV_LIKE_ROLES as readonly string[]).includes(vaiTro ?? "");
+// Pham vi XEM: NV Sale/Tong dai vien chi thay ca minh tao, tru khi Admin bat quyen "Xem tat ca ca".
+const chiThayCaCuaMinh = (u: AppUser) => isKtvLike(u.vai_tro) && !u.xem_tat_ca;
+// Quyen SUA: NV Sale/Tong dai vien chi thao tac tren ca minh tao - ca nguoi khac (thay duoc nho quyen
+// "Xem tat ca ca") chi xem. Dung cho cac route mo cho 2 vai tro nay (dinh kem, phu trach, dong bo CRM).
+const chiXemCaNguoiKhac = (u: AppUser, nguoiTao: string | null) => isKtvLike(u.vai_tro) && nguoiTao !== u.email;
 
 // Thong tin khach hang + CRM - chi CSKH/Admin sua
 const CSKH_FIELDS = [
@@ -287,7 +292,7 @@ app.get("/", async (c) => {
   }
   // NV Sale/Tong dai vien (KTV cu) chi tao phan anh de bao gia ho hien truong, khong tham gia xu ly
   // toan bo hang doi -> chi nhin thay dun minh tao (item 12).
-  if (isKtvLike(user.vai_tro)) { conditions.push("nguoi_tao = ?"); binds.push(user.email); }
+  if (chiThayCaCuaMinh(user)) { conditions.push("nguoi_tao = ?"); binds.push(user.email); }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const offset = (page - 1) * pageSize;
 
@@ -347,7 +352,7 @@ app.get("/", async (c) => {
 app.get("/stats", async (c) => {
   const user = c.get("user");
   // NV Sale/Tong dai vien (KTV cu) chi thay so lieu cua chinh minh (item 12), giong pham vi danh sach.
-  const onlyMine = isKtvLike(user.vai_tro);
+  const onlyMine = chiThayCaCuaMinh(user);
 
   // Bo loc "thang" (item: tranh quet toan bo lich su khi du lieu tang qua 2 nam) - mac dinh thang
   // hien tai, van hien DU ca dang "ton" (khong phu thuoc thang), chi gioi han phan da dong/huy.
@@ -1127,9 +1132,9 @@ app.get("/:id", async (c) => {
   ]);
   if (!khieuNai) return c.json({ error: "NOT_FOUND" }, 404);
   // NV Sale/Tong dai vien (KTV cu) chi xem duoc phan anh do chinh minh tao (item 12), kem chan truy cap thang qua ID.
-  if (isKtvLike(user.vai_tro) && khieuNai.nguoi_tao !== user.email) return c.json({ error: "FORBIDDEN" }, 403);
+  if (chiThayCaCuaMinh(user) && khieuNai.nguoi_tao !== user.email) return c.json({ error: "FORBIDDEN" }, 403);
   const giaiTrinhDeadline = await getGiaiTrinhStatus(c.env.DB, id);
-  const related = await getRelatedComplaints(c.env.DB, id, khieuNai, isKtvLike(user.vai_tro) ? user.email : null);
+  const related = await getRelatedComplaints(c.env.DB, id, khieuNai, chiThayCaCuaMinh(user) ? user.email : null);
   return c.json({
     khieuNai, tienTrinh: tienTrinh.results, lichSu: lichSu.results, dinhKem: dinhKem.results, giaiTrinhDeadline, related,
   });
@@ -1147,8 +1152,9 @@ const DINH_KEM_ROLES = ["NV Sale", "Tổng đài viên", "CSKH", "TN CSKH", "QL"
 app.post("/:id/dinh-kem", requireRole(...DINH_KEM_ROLES), async (c) => {
   const user = c.get("user");
   const id = c.req.param("id");
-  const exists = await c.env.DB.prepare("SELECT id FROM khieu_nai WHERE id = ?").bind(id).first();
+  const exists = await c.env.DB.prepare("SELECT nguoi_tao FROM khieu_nai WHERE id = ?").bind(id).first<{ nguoi_tao: string | null }>();
   if (!exists) return c.json({ error: "NOT_FOUND" }, 404);
+  if (chiXemCaNguoiKhac(user, exists.nguoi_tao)) return c.json({ error: "FORBIDDEN" }, 403);
 
   const form = await c.req.formData();
   const fileRaw = form.get("file");
@@ -1189,9 +1195,11 @@ app.delete("/:id/dinh-kem/:dinhKemId", requireRole(...DINH_KEM_ROLES), async (c)
   const id = c.req.param("id");
   const dinhKemId = c.req.param("dinhKemId");
   const row = await c.env.DB.prepare(
-    "SELECT drive_file_id FROM khieu_nai_dinh_kem WHERE id = ? AND khieu_nai_id = ?",
-  ).bind(dinhKemId, id).first<{ drive_file_id: string }>();
+    `SELECT d.drive_file_id, k.nguoi_tao FROM khieu_nai_dinh_kem d JOIN khieu_nai k ON k.id = d.khieu_nai_id
+     WHERE d.id = ? AND d.khieu_nai_id = ?`,
+  ).bind(dinhKemId, id).first<{ drive_file_id: string; nguoi_tao: string | null }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
+  if (chiXemCaNguoiKhac(c.get("user"), row.nguoi_tao)) return c.json({ error: "FORBIDDEN" }, 403);
 
   try {
     await deletePublicFile(c.env, c.env.DB, row.drive_file_id);
@@ -1210,9 +1218,10 @@ app.post("/:id/phu-trach", requireRole("CSKH", "NV Sale", "Tổng đài viên", 
   const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
   const target = body.email === null ? null : typeof body.email === "string" && body.email ? body.email : user.email;
 
-  const row = await c.env.DB.prepare("SELECT trang_thai, nguoi_phu_trach FROM khieu_nai WHERE id = ?")
-    .bind(id).first<{ trang_thai: string; nguoi_phu_trach: string | null }>();
+  const row = await c.env.DB.prepare("SELECT trang_thai, nguoi_phu_trach, nguoi_tao FROM khieu_nai WHERE id = ?")
+    .bind(id).first<{ trang_thai: string; nguoi_phu_trach: string | null; nguoi_tao: string | null }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
+  if (chiXemCaNguoiKhac(user, row.nguoi_tao)) return c.json({ error: "FORBIDDEN" }, 403);
   if (row.trang_thai === "Da ket thuc") return c.json({ error: "CASE_CLOSED" }, 409);
   // Phai "Tiep nhan" truoc (qua route /tiep-nhan) roi moi duoc gan lai nguoi phu trach.
   if (row.trang_thai === "Cho tiep nhan") return c.json({ error: "CHUA_TIEP_NHAN" }, 423);
@@ -1664,9 +1673,10 @@ const CRM_RESYNC_MIN_INTERVAL_MS = 5000;
 app.post("/:id/dong-bo-crm", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"), async (c) => {
   const id = c.req.param("id");
   const row = await c.env.DB.prepare(
-    "SELECT id_crm_karofi, trang_thai, crm_last_sync_at FROM khieu_nai WHERE id = ?",
-  ).bind(id).first<{ id_crm_karofi: string | null; trang_thai: string; crm_last_sync_at: string | null }>();
+    "SELECT id_crm_karofi, trang_thai, crm_last_sync_at, nguoi_tao FROM khieu_nai WHERE id = ?",
+  ).bind(id).first<{ id_crm_karofi: string | null; trang_thai: string; crm_last_sync_at: string | null; nguoi_tao: string | null }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
+  if (chiXemCaNguoiKhac(c.get("user"), row.nguoi_tao)) return c.json({ error: "FORBIDDEN" }, 403);
   if (!row.id_crm_karofi) return c.json({ error: "NO_CRM_ID" }, 400);
   if (row.trang_thai === "Da ket thuc") return c.json({ error: "CASE_CLOSED" }, 400);
   if (row.trang_thai === "Cho tiep nhan") return c.json({ error: "CHUA_TIEP_NHAN" }, 423);

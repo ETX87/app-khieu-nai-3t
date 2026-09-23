@@ -57,6 +57,9 @@ function Pager({ page, total, onPage }: { page: number; total: number; onPage: (
   );
 }
 
+// NV Sale / Tong dai vien mac dinh chi thay ca minh tao - Admin bat "Xem tat ca ca" cho tung nguoi.
+const KTV_LIKE: string[] = ["NV Sale", "Tổng đài viên"];
+
 const VAI_TRO_OPTIONS = [
   { value: "Admin", label: "Admin" },
   { value: "Viewer", label: "Viewer" },
@@ -162,6 +165,18 @@ function NguoiDungTab({ user }: { user: AppUser }) {
         const tone = r.trang_thai_duyet === "Da duyet" ? "green" : r.trang_thai_duyet === "Tu choi" ? "red" : "amber";
         return <Badge tone={tone}>{DUYET_LABEL[r.trang_thai_duyet] ?? r.trang_thai_duyet}</Badge>;
       },
+    },
+    {
+      key: "xem_tat_ca",
+      header: "Xem tất cả ca",
+      render: (r) =>
+        !r.vai_tro || !KTV_LIKE.includes(r.vai_tro) ? (
+          <span className="text-xs text-ink-faint">{r.vai_tro ? "Sẵn có" : "—"}</span>
+        ) : r.xem_tat_ca ? (
+          <Badge tone="green">Bật (chỉ xem)</Badge>
+        ) : (
+          <Badge tone="gray">Tắt · ca của mình</Badge>
+        ),
     },
     { key: "bi_khoa", header: "Trạng thái", render: (r) => (r.bi_khoa ? <Badge tone="red">Đã khoá</Badge> : <Badge tone="green">Hoạt động</Badge>) },
     { key: "last_login", header: "Đăng nhập gần nhất", render: (r) => <span className="text-xs text-ink-soft">{fmtVN.relative(r.last_login)}</span> },
@@ -347,6 +362,7 @@ function EditUserDialog({
   const [vaiTro, setVaiTro] = useState<string>(row.vai_tro ?? "");
   const [duyet, setDuyet] = useState<string>(pending ? "Da duyet" : row.trang_thai_duyet);
   const [biKhoa, setBiKhoa] = useState<boolean>(!!row.bi_khoa);
+  const [xemTatCa, setXemTatCa] = useState<boolean>(!!row.xem_tat_ca);
   const [confirmText, setConfirmText] = useState("");
 
   const promotingAdmin = vaiTro === "Admin" && row.vai_tro !== "Admin";
@@ -358,6 +374,7 @@ function EditUserDialog({
     if ((vaiTro || null) !== (row.vai_tro ?? null)) body.vai_tro = vaiTro || null;
     if (duyet !== row.trang_thai_duyet) body.trang_thai_duyet = duyet;
     if (biKhoa !== !!row.bi_khoa) body.bi_khoa = biKhoa;
+    if (xemTatCa !== !!row.xem_tat_ca) body.xem_tat_ca = xemTatCa;
     if (Object.keys(body).length === 0) return onClose();
     if (duyet === "Da duyet" && !vaiTro) return; // không cho duyệt mà chưa gán vai trò
     onSubmit(body);
@@ -397,6 +414,20 @@ function EditUserDialog({
         {duyet === "Da duyet" && !vaiTro && (
           <p className="mb-3 text-xs text-amber-700">Phải gán vai trò trước khi duyệt.</p>
         )}
+
+        {KTV_LIKE.includes(vaiTro) ? (
+          <label className="mb-3 flex items-start gap-2 text-sm text-ink">
+            <input type="checkbox" className="mt-1" checked={xemTatCa} onChange={(e) => setXemTatCa(e.target.checked)} />
+            <span>
+              Xem tất cả ca trên hệ thống
+              <span className="block text-xs text-ink-soft">
+                Tắt (mặc định): chỉ thấy ca do mình tạo. Bật: thấy mọi ca, ca của người khác chỉ được xem.
+              </span>
+            </span>
+          </label>
+        ) : vaiTro ? (
+          <p className="mb-3 text-xs text-ink-soft">Vai trò {vaiTro} đã xem được tất cả các ca.</p>
+        ) : null}
 
         <label className="mb-3 flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" checked={biKhoa} onChange={(e) => setBiKhoa(e.target.checked)} />

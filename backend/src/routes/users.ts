@@ -27,7 +27,7 @@ app.get("/", async (c) => {
 
   const [list, count] = await Promise.all([
     c.env.DB.prepare(
-      `SELECT u.email, u.ten, u.vai_tro, u.trang_thai_duyet, u.bi_khoa, u.created_at, u.updated_at,
+      `SELECT u.email, u.ten, u.vai_tro, u.trang_thai_duyet, u.bi_khoa, u.xem_tat_ca, u.created_at, u.updated_at,
               (SELECT MAX(l.thoi_gian) FROM login_log l WHERE l.email = u.email) AS last_login
        FROM users u ${where} ORDER BY u.created_at DESC LIMIT ? OFFSET ?`,
     )
@@ -96,6 +96,10 @@ app.patch("/:email", async (c) => {
     sets.push("bi_khoa = ?");
     binds.push(body.bi_khoa ? 1 : 0);
   }
+  if (body.xem_tat_ca !== undefined) {
+    sets.push("xem_tat_ca = ?");
+    binds.push(body.xem_tat_ca ? 1 : 0);
+  }
   if (sets.length === 0) return c.json({ error: "NO_FIELDS" }, 400);
 
   sets.push("updated_at = ?");
@@ -106,7 +110,7 @@ app.patch("/:email", async (c) => {
   if (result.meta.changes === 0) return c.json({ error: "NOT_FOUND" }, 404);
 
   const updated = await c.env.DB.prepare(
-    "SELECT email, ten, vai_tro, trang_thai_duyet, bi_khoa, updated_at FROM users WHERE email = ?",
+    "SELECT email, ten, vai_tro, trang_thai_duyet, bi_khoa, xem_tat_ca, updated_at FROM users WHERE email = ?",
   ).bind(email).first();
   return c.json({ user: updated });
 });

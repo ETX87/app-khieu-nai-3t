@@ -11,6 +11,7 @@ export interface AppUser {
   vai_tro: VaiTro | null;
   trang_thai_duyet: TrangThaiDuyet;
   bi_khoa: boolean;
+  xem_tat_ca: boolean; // NV Sale/Tong dai vien: Admin bat de xem (chi doc) moi ca, khong chi ca minh tao
 }
 
 export interface Env {

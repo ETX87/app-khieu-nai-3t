@@ -3,9 +3,9 @@ import type { AppUser, Env, VaiTro } from "../types";
 
 interface UserRow {
   email: string; ten: string | null; vai_tro: VaiTro | null;
-  trang_thai_duyet: "Cho duyet" | "Da duyet" | "Tu choi"; bi_khoa: number;
+  trang_thai_duyet: "Cho duyet" | "Da duyet" | "Tu choi"; bi_khoa: number; xem_tat_ca: number;
 }
-const USER_COLUMNS = "email, ten, vai_tro, trang_thai_duyet, bi_khoa";
+const USER_COLUMNS = "email, ten, vai_tro, trang_thai_duyet, bi_khoa, xem_tat_ca";
 
 export async function loadUser(c: Context<{ Bindings: Env }>, next: Next) {
   const email = c.get("email");
@@ -20,7 +20,7 @@ export async function loadUser(c: Context<{ Bindings: Env }>, next: Next) {
   if (row.bi_khoa) return c.json({ error: "DISABLED" }, 403);
   if (row.trang_thai_duyet === "Cho duyet") return c.json({ error: "PENDING_APPROVAL" }, 403);
   if (row.trang_thai_duyet === "Tu choi") return c.json({ error: "REJECTED" }, 403);
-  const user: AppUser = { email: row.email, ten: row.ten, vai_tro: row.vai_tro, trang_thai_duyet: row.trang_thai_duyet, bi_khoa: !!row.bi_khoa };
+  const user: AppUser = { email: row.email, ten: row.ten, vai_tro: row.vai_tro, trang_thai_duyet: row.trang_thai_duyet, bi_khoa: !!row.bi_khoa, xem_tat_ca: !!row.xem_tat_ca };
   c.set("user", user);
   await next();
 }

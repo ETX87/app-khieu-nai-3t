@@ -79,6 +79,8 @@ function labelFrom(opts: { value: string; label: string }[], v: string | null | 
 const camCoLabel = (v: string | null | undefined) => labelFrom(CAM_CO_OPTIONS, v);
 const ketQuaDoiMayLabel = (v: string | null | undefined) => labelFrom(KET_QUA_DOI_MAY_OPTIONS, v);
 
+const isKtvLikeRole = (v: string | null) => v === "NV Sale" || v === "Tổng đài viên";
+
 const CRM_WARNING_MESSAGES: Record<string, string> = {
   DVBH_NOT_FOUND: "Không tìm thấy case trên CRM Karofi",
   DVBH_LOOKUP_FAILED: "Không thể kết nối CRM Karofi lúc này",
@@ -418,8 +420,10 @@ export function KhieuNaiDetail({
   const canDanhGia4Loi = isCskh;
   const canXuLyDoiMay = canDanhGia4Loi;
   const canThemTienTrinh = ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed && !chuaTiepNhan;
+  // NV Sale/Tong dai vien xem duoc ca nguoi khac (quyen "Xem tat ca ca") nhung CHI XEM.
+  const laCaNguoiKhacChiXem = isKtvLikeRole(user.vai_tro) && kn.nguoi_tao !== user.email;
   const canPhuTrach =
-    ["CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed && !chuaTiepNhan;
+    ["CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && !isClosed && !chuaTiepNhan && !laCaNguoiKhacChiXem;
   const canTiepNhan = ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "") && chuaTiepNhan;
   // Anh/video dinh kem: nguoi tao (thuong la NV Sale/Tong dai vien bao ca hien truong - 2 vai tro
   // nay KHONG co quyen sua gi khac sau khi tao, xem canEditThongTin o tren) + CSKH/TN CSKH/QL/Admin.
@@ -1458,7 +1462,8 @@ function CrmSection({
   const { showToast } = useToast();
   const editable = forceEditable ?? (user.vai_tro === "CSKH" || user.vai_tro === "Admin");
   const canResync =
-    forceEditable !== true && !!user.vai_tro && user.vai_tro !== "Viewer" && kn.trang_thai !== "Da ket thuc";
+    forceEditable !== true && !!user.vai_tro && user.vai_tro !== "Viewer" && kn.trang_thai !== "Da ket thuc" &&
+    !(isKtvLikeRole(user.vai_tro) && kn.nguoi_tao !== user.email);
   const [crmId, setCrmId] = useState(kn.id_crm_karofi ?? "");
   const [showCaseDetail, setShowCaseDetail] = useState(false);
 
