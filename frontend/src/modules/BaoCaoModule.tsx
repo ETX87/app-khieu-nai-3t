@@ -106,7 +106,7 @@ function SlaBar({ b, max }: { b: SlaBucket; max: number }) {
   const openPct = max > 0 ? (b.dang_xu_ly / max) * 100 : 0;
   return (
     <div>
-      <div className="mb-0.5 flex items-center justify-between text-xs text-ink-soft">
+      <div className="mb-0.5 flex items-center justify-between text-sm text-ink-soft lg:text-xs">
         <span>{b.label}</span>
         <span className="font-medium text-ink">{total}</span>
       </div>
@@ -121,7 +121,7 @@ function SlaBar({ b, max }: { b: SlaBucket; max: number }) {
 function ChotLoiRowView({ g }: { g: ChotLoiGroup }) {
   const rateCls = g.ca_co_loi === 0 ? "text-ink-faint" : g.ty_le_loi >= 50 ? "text-red-600" : "text-amber-600";
   return (
-    <div className="flex items-center justify-between gap-2 py-1 text-xs">
+    <div className="flex items-center justify-between gap-2 py-1.5 text-sm lg:py-1 lg:text-xs">
       <span className="min-w-0 flex-1 truncate text-ink-soft" title={g.key}>{g.key}</span>
       <span className="shrink-0 text-ink">{g.so_ca} ca</span>
       <span className={`shrink-0 w-16 text-right font-medium ${rateCls}`}>
@@ -136,12 +136,45 @@ function ChotLoiMiniTable({ title, rows }: { title: string; rows: ChotLoiGroup[]
     <div>
       <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-faint">{title}</p>
       {rows.length === 0 ? (
-        <p className="text-xs text-ink-faint">—</p>
+        <p className="text-sm text-ink-faint lg:text-xs">—</p>
       ) : (
         <div className="divide-y divide-line">
           {rows.map((g) => <ChotLoiRowView key={g.key} g={g} />)}
         </div>
       )}
+    </div>
+  );
+}
+
+function TheoNgayStat({ k, v }: { k: string; v: string | number }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-ink-soft">{k}</span>
+      <span className="font-medium text-ink">{v}</span>
+    </div>
+  );
+}
+
+// Card doc cho mobile - mo phong pattern KhieuNaiCard (bang 11 cot khong xem duoc tren man hinh
+// hep, phai cuon ngang - card 1 the/ngay de doc thang khong can cuon).
+function TheoNgayCard({ r }: { r: TheoNgayRow }) {
+  return (
+    <div className="rounded-lg border border-line bg-white p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-base font-semibold text-ink">{r.ngay}</span>
+        <span className="text-sm text-ink-soft">Còn tồn: <b className="text-ink">{r.con_ton ?? "—"}</b></span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
+        <TheoNgayStat k="Ca mới" v={r.ca_moi} />
+        <TheoNgayStat k="Đã tiếp nhận" v={r.da_tiep_nhan} />
+        <TheoNgayStat k="Đã đóng" v={r.da_dong} />
+        <TheoNgayStat k="Tỷ lệ TN" v={r.ty_le_tiep_nhan != null ? `${r.ty_le_tiep_nhan}%` : "—"} />
+        <TheoNgayStat k="Tồn cũ chưa TN" v={r.ton_cu_chua_tiep_nhan ?? "—"} />
+        <TheoNgayStat k="Tồn cũ đã TN" v={r.ton_cu_da_tiep_nhan ?? "—"} />
+        <TheoNgayStat k="TB giờ TN" v={r.tb_gio_tiep_nhan ?? "—"} />
+        <TheoNgayStat k="TB giờ XL" v={r.tb_gio_xu_ly ?? "—"} />
+        <TheoNgayStat k="Chưa TN" v={r.cho_tiep_nhan ?? "—"} />
+      </div>
     </div>
   );
 }
@@ -206,7 +239,8 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
   const maxBucket = Math.max(1, ...(sla?.buckets.map((b) => b.da_ket_thuc + b.dang_xu_ly) ?? [1]));
   const maxNhom = Math.max(1, ...(sla?.theo_nhom_van_de.map((n) => n.so_ca) ?? [1]));
 
-  const selCls = "rounded-md border border-line bg-white px-2 py-1 text-xs text-ink focus:border-accent focus:outline-none";
+  const selCls =
+    "rounded-md border border-line bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none lg:px-2 lg:py-1 lg:text-xs";
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -226,16 +260,16 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
 
       <Card title="Báo cáo theo ngày">
         <div className="mb-3 flex flex-wrap items-end gap-2">
-          <label className="flex items-center gap-1 text-xs text-ink-soft">
+          <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
             Từ <input type="date" className={selCls} value={ngayTu} max={ngayDen} onChange={(e) => setNgayTu(e.target.value)} />
           </label>
-          <label className="flex items-center gap-1 text-xs text-ink-soft">
+          <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
             đến <input type="date" className={selCls} value={ngayDen} min={ngayTu} onChange={(e) => setNgayDen(e.target.value)} />
           </label>
           <button
             type="button"
             onClick={() => { setNgayTu(todayISO); setNgayDen(todayISO); }}
-            className="rounded-md border border-line bg-white px-2 py-1 text-xs font-medium text-ink-soft hover:bg-gray-50"
+            className="rounded-md border border-line bg-white px-3 py-2 text-sm font-medium text-ink-soft hover:bg-gray-50 lg:px-2 lg:py-1 lg:text-xs"
           >
             Hôm nay
           </button>
@@ -274,7 +308,12 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
 
         {theoNgayQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
         {theoNgayQuery.data && (
-          <div className="overflow-x-auto">
+          <>
+            <div className="flex flex-col gap-2 md:hidden">
+              {theoNgayQuery.data.rows.length === 0 && <p className="py-4 text-center text-sm text-ink-soft">Không có dữ liệu</p>}
+              {theoNgayQuery.data.rows.map((r) => <TheoNgayCard key={r.ngay} r={r} />)}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[980px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-line text-left font-semibold uppercase tracking-wide text-ink-soft">
@@ -309,7 +348,8 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </Card>
 
@@ -317,7 +357,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         {slaQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
         {sla && (
           <>
-            <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-ink-soft">
+            <div className="mb-3 flex flex-wrap items-center gap-4 text-sm text-ink-soft lg:text-xs">
               <span>Đã kết thúc: <b className="text-ink">{sla.tong_da_ket_thuc}</b></span>
               <span>Đang xử lý: <b className="text-ink">{sla.tong_dang_xu_ly}</b></span>
               <span>Số ngày xử lý trung bình (đã kết thúc): <b className="text-ink">{sla.so_ngay_trung_binh} ngày</b></span>
@@ -338,7 +378,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                 <div className="space-y-2">
                   {sla.theo_nhom_van_de.map((n) => (
                     <div key={n.nhom_van_de}>
-                      <div className="mb-0.5 flex items-center justify-between text-xs text-ink-soft">
+                      <div className="mb-0.5 flex items-center justify-between text-sm text-ink-soft lg:text-xs">
                         <span className="truncate">{n.nhom_van_de}</span>
                         <span className="font-medium text-ink">{n.so_ca} ca · {n.so_ngay_trung_binh} ngày TB</span>
                       </div>
@@ -358,7 +398,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         {chotLoiQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
         {chotLoiQuery.data && (
           <>
-            <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-ink-soft">
+            <div className="mb-3 flex flex-wrap items-center gap-4 text-sm text-ink-soft lg:text-xs">
               <span>Đã chốt: <b className="text-ink">{chotLoiQuery.data.tong.so_ca}</b> ca</span>
               <span>
                 Có lỗi: <b className="text-ink">{chotLoiQuery.data.tong.ca_co_loi}</b> ca (
@@ -394,7 +434,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         title="Ca trùng lặp / tái phát theo ID Lada"
         actions={
           trungLapQuery.data && (
-            <span className="text-xs text-ink-soft">
+            <span className="text-sm text-ink-soft lg:text-xs">
               {trungLapQuery.data.tong_nhom} nhóm
               {trungLapQuery.data.tong_tai_phat_7_ngay > 0 && (
                 <span className="ml-2 text-red-700 font-medium">· {trungLapQuery.data.tong_tai_phat_7_ngay} tái phát &lt;7 ngày</span>
@@ -412,12 +452,12 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
             <div key={[...g.id_truy_van_ids, ...g.lada_ids].join("+")} className="rounded-md border border-line p-2.5">
               <div className="mb-1.5 flex flex-wrap items-center gap-2">
                 {g.id_truy_van_ids.length > 0 && (
-                  <span className="font-mono text-xs text-ink-soft">
+                  <span className="font-mono text-sm text-ink-soft lg:text-xs">
                     ID Truy xuất: {g.id_truy_van_ids.join(" → ")}
                   </span>
                 )}
                 {g.lada_ids.length > 0 && (
-                  <span className="font-mono text-xs text-ink-soft">
+                  <span className="font-mono text-sm text-ink-soft lg:text-xs">
                     ID Lada: {g.lada_ids.join(" → ")}
                   </span>
                 )}
@@ -426,14 +466,14 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                 ) : (
                   <Badge tone="gray">Cách nhau {g.khoang_cach_ngan_nhat} ngày</Badge>
                 )}
-                <span className="text-xs text-ink-soft">{g.so_lan} lần phản ánh</span>
+                <span className="text-sm text-ink-soft lg:text-xs">{g.so_lan} lần phản ánh</span>
               </div>
               <div className="flex flex-col gap-1">
                 {g.items.map((it) => (
                   <button
                     key={it.id}
                     onClick={() => setDetailId(it.id)}
-                    className="flex items-center justify-between gap-3 rounded-md px-2 py-1 text-left text-xs hover:bg-gray-50"
+                    className="flex items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-gray-50 lg:py-1 lg:text-xs"
                   >
                     <span className="min-w-0 flex-1 truncate">
                       <span className="font-mono text-ink-soft">{it.id}</span> · {it.ten_khach ?? "—"} ·{" "}

@@ -390,7 +390,8 @@ export function KhieuNaiModule({
     setPage(1);
   };
 
-  const selCls = "rounded-md border border-line bg-white px-2 py-1 text-xs text-ink focus:border-accent focus:outline-none";
+  const selCls =
+    "rounded-md border border-line bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none lg:px-2 lg:py-1 lg:text-xs";
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -406,15 +407,15 @@ export function KhieuNaiModule({
           <button
             type="button"
             onClick={() => setFiltersOpen((o) => !o)}
-            className="flex items-center gap-1.5 rounded-md border border-line bg-white px-2.5 py-1 text-xs font-medium text-ink hover:bg-gray-50"
+            className="flex items-center gap-1.5 rounded-md border border-line bg-white px-3 py-2 text-sm font-medium text-ink hover:bg-gray-50 lg:px-2.5 lg:py-1 lg:text-xs"
           >
             Bộ lọc
             {activeFilterCount > 0 && (
-              <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+              <span className="rounded-full bg-accent px-1.5 py-0.5 text-xs font-semibold leading-none text-white lg:text-[10px]">
                 {activeFilterCount}
               </span>
             )}
-            <span className="text-[10px] text-ink-soft">{filtersOpen ? "▲" : "▼"}</span>
+            <span className="text-xs text-ink-soft lg:text-[10px]">{filtersOpen ? "▲" : "▼"}</span>
           </button>
           <div className="flex items-center gap-0.5 rounded-md border border-line bg-white p-0.5">
             {NGUON_QUICK_OPTIONS.map((o) => (
@@ -422,7 +423,7 @@ export function KhieuNaiModule({
                 key={o.value}
                 type="button"
                 onClick={() => set("nguon", o.value)}
-                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                className={`rounded px-3 py-2 text-sm font-medium transition-colors lg:px-2 lg:py-1 lg:text-xs ${
                   f.nguon === o.value ? "bg-accent text-white" : "text-ink-soft hover:bg-gray-50"
                 }`}
               >
@@ -436,7 +437,7 @@ export function KhieuNaiModule({
                 key={o.value}
                 type="button"
                 onClick={() => set("trangThai", o.value)}
-                className={`flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1 rounded px-3 py-2 text-sm font-medium transition-colors lg:px-2 lg:py-1 lg:text-xs ${
                   f.trangThai === o.value ? "bg-accent text-white" : "text-ink-soft hover:bg-gray-50"
                 }`}
               >
@@ -444,7 +445,7 @@ export function KhieuNaiModule({
                 {TRANG_THAI_QUICK_COUNT[o.value] != null && (
                   <span
                     title="Số ca trong phạm vi tháng hiện tại (giống Trang chủ) - có thể khác số ca thực tế hiển thị nếu đang lọc theo khoảng ngày/tháng khác"
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+                    className={`rounded-full px-1.5 py-0.5 text-xs font-semibold leading-none lg:text-[10px] ${
                       f.trangThai === o.value ? "bg-white/25 text-white" : "bg-gray-100 text-ink-soft"
                     }`}
                   >
@@ -455,7 +456,7 @@ export function KhieuNaiModule({
             ))}
           </div>
           {activeFilterCount > 0 && (
-            <button onClick={resetFilters} className="text-xs font-medium text-accent hover:underline">
+            <button onClick={resetFilters} className="text-sm font-medium text-accent hover:underline lg:text-xs">
               Xoá lọc ({activeFilterCount})
             </button>
           )}
@@ -475,22 +476,22 @@ export function KhieuNaiModule({
               <option value="">Mọi nhóm vấn đề</option>
               {(nhomVanDeOpts.data ?? []).map((o) => <option key={o.id} value={o.gia_tri}>{o.gia_tri}</option>)}
             </select>
-            <label className="flex items-center gap-1 text-xs text-ink-soft">
+            <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               Từ <input type="date" className={selCls} value={f.tuNgay} onChange={(e) => set("tuNgay", e.target.value)} />
             </label>
-            <label className="flex items-center gap-1 text-xs text-ink-soft">
+            <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               đến <input type="date" className={selCls} value={f.denNgay} onChange={(e) => set("denNgay", e.target.value)} />
             </label>
-            <label className="flex items-center gap-1 text-xs text-ink-soft">
+            <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               <input type="checkbox" checked={f.chuaDongBo} onChange={(e) => set("chuaDongBo", e.target.checked)} /> Chưa đồng bộ CRM
             </label>
-            <label className="flex items-center gap-1 text-xs text-ink-soft">
+            <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               <input type="checkbox" checked={f.choTnCskh} onChange={(e) => set("choTnCskh", e.target.checked)} /> Chờ TN CSKH đóng ca
             </label>
-            <label className="flex items-center gap-1 text-xs text-ink-soft">
+            <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               <input type="checkbox" checked={f.quaHanGiaiTrinh} onChange={(e) => set("quaHanGiaiTrinh", e.target.checked)} /> Quá hạn giải trình
             </label>
-            <label className="flex items-center gap-1 text-xs text-ink-soft">
+            <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               <input type="checkbox" checked={f.caCuaToi} onChange={(e) => set("caCuaToi", e.target.checked)} /> Ca của tôi
             </label>
             <select className={selCls} value={f.nguoiTaoVaiTro} onChange={(e) => set("nguoiTaoVaiTro", e.target.value)}>
@@ -501,7 +502,7 @@ export function KhieuNaiModule({
               <option value="">Mọi thời gian tồn</option>
               {TON_TOI_THIEU_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <label className="flex items-center gap-1 text-xs text-ink-soft">
+            <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               Tháng đóng
               <input type="month" className={selCls} value={f.thangDong} onChange={(e) => set("thangDong", e.target.value)} />
             </label>
@@ -515,7 +516,7 @@ export function KhieuNaiModule({
             onChange={(e) => setQInput(e.target.value)}
             placeholder="Tìm: tên khách · SĐT · ID Lada · mã KN · mã CRM"
           />
-          <Btn type="submit" variant="secondary" size="sm">Tìm</Btn>
+          <Btn type="submit" variant="secondary" size="touch">Tìm</Btn>
           <div className="ml-auto flex items-center gap-2">
             <select className={selCls} value={f.sort} onChange={(e) => set("sort", e.target.value)}>
               {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

@@ -10,10 +10,11 @@ interface ComboboxProps {
   disabled?: boolean;
   creatable?: boolean;
   onCreate?: (value: string) => Promise<void> | void;
+  id?: string;
 }
 
 const BASE_CLS =
-  "w-full rounded-md border border-field-border bg-field-bg px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-2 disabled:text-ink-faint";
+  "w-full rounded-md border border-field-border bg-field-bg px-3 py-2.5 text-base text-ink placeholder:text-ink-faint focus:border-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-2 disabled:text-ink-faint lg:px-2.5 lg:py-1.5 lg:text-sm";
 
 // Combobox điều khiển hoàn toàn bằng bàn phím:
 //  - gõ để lọc; ↑/↓ di chuyển; Enter/Tab chọn mục đang tô sáng rồi cho focus đi tiếp;
@@ -26,6 +27,7 @@ export function Combobox({
   disabled,
   creatable,
   onCreate,
+  id,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -199,6 +201,7 @@ export function Combobox({
     <div ref={rootRef} className="relative">
       <input
         ref={inputRef}
+        id={id}
         type="text"
         role="combobox"
         aria-expanded={open}
@@ -233,7 +236,7 @@ export function Combobox({
             className="z-[200] max-h-56 overflow-y-auto rounded-md border border-line bg-white py-0.5 shadow-lg"
           >
             {rows.length === 0 && (
-              <li className="px-3 py-2 text-sm text-ink-soft">Không tìm thấy kết quả.</li>
+              <li className="px-3 py-2.5 text-base text-ink-soft lg:py-2 lg:text-sm">Không tìm thấy kết quả.</li>
             )}
             {rows.map((r, idx) => (
               <li key={`${r.kind}-${r.value ?? idx}`} role="option" aria-selected={idx === highlight}>
@@ -244,7 +247,7 @@ export function Combobox({
                   onMouseEnter={() => setHighlight(idx)}
                   onClick={() => chooseRow(idx)}
                   disabled={r.kind === "create" && creating}
-                  className={`block w-full px-3 py-1.5 text-left text-sm ${
+                  className={`block w-full px-3 py-2.5 text-left text-base lg:py-1.5 lg:text-sm ${
                     idx === highlight ? "bg-accent-soft text-accent" : "text-ink"
                   } ${r.kind === "clear" ? "text-ink-soft" : ""} ${
                     r.kind === "create" ? "border-t border-line font-medium text-accent" : ""

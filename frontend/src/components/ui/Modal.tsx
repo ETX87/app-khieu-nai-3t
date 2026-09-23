@@ -118,7 +118,7 @@ export function Modal({ open, onClose, title, actions, children, width = "lg", p
                   <button
                     type="button"
                     onClick={onClose}
-                    className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink"
+                    className="rounded p-2.5 text-ink-soft hover:bg-gray-100 hover:text-ink lg:p-1.5"
                     aria-label="Đóng"
                   >
                     ✕

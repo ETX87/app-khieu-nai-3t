@@ -39,11 +39,11 @@ function StatCard({ label, value, tone, onClick }: StatCardDef) {
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      className={`rounded-lg border border-line p-4 text-left ${toneClasses[tone]} ${
+      className={`rounded-lg border border-line p-5 text-left lg:p-4 ${toneClasses[tone]} ${
         onClick ? "transition-shadow hover:shadow-md" : "cursor-default"
       }`}
     >
-      <p className="text-xs font-medium opacity-80">{label}</p>
+      <p className="text-sm font-medium opacity-80 lg:text-xs">{label}</p>
       <p className="mt-1 text-2xl font-bold">{value}</p>
     </button>
   );
@@ -205,7 +205,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
             <button
               key={r.id}
               onClick={() => setDetailId(r.id)}
-              className="flex items-center justify-between gap-3 rounded-md border border-line px-3 py-2 text-left text-sm hover:bg-gray-50"
+              className="flex items-center justify-between gap-3 rounded-md border border-line px-3 py-3 text-left text-base hover:bg-gray-50 lg:py-2 lg:text-sm"
             >
               <span className="min-w-0 flex-1 truncate">
                 <span className="font-mono text-xs text-ink-soft">{r.id}</span> · {r.ten_khach ?? "—"} ·{" "}

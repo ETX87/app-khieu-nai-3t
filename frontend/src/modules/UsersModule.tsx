@@ -9,7 +9,6 @@ import { Select } from "../components/ui/Select";
 import { Input } from "../components/ui/Input";
 import { Table, type TableColumn } from "../components/ui/Table";
 import { Badge } from "../components/ui/Badge";
-import { Tabs } from "../components/ui/Tabs";
 import { useToast } from "../components/ui/Toast";
 
 const VAI_TRO_OPTIONS = [
@@ -35,22 +34,19 @@ const ERR_MSG: Record<string, string> = {
 
 export function UsersModule({ user }: { user: AppUser }) {
   const isAdmin = user.vai_tro === "Admin";
-  const [tab, setTab] = useState<"nguoi-dung" | "etx-nhan-su">("nguoi-dung");
 
   return (
-    <div className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-ink">Người dùng</h2>
-      <Tabs
-        tabs={[
-          { key: "nguoi-dung", label: "Người dùng" },
-          // Du lieu nhan su nhay cam hon danh sach users thuong nen chi Admin thay tab nay.
-          ...(isAdmin ? [{ key: "etx-nhan-su", label: "ETX nhân sự" }] : []),
-        ]}
-        active={tab}
-        onChange={(k) => setTab(k as "nguoi-dung" | "etx-nhan-su")}
-      />
-      {tab === "nguoi-dung" && <NguoiDungTab user={user} />}
-      {tab === "etx-nhan-su" && isAdmin && <EtxNhanSuTab />}
+    <div className="flex flex-col gap-6">
+      <div>
+        <h2 className="mb-3 text-lg font-semibold text-ink">Người dùng</h2>
+        <NguoiDungTab user={user} />
+      </div>
+      {isAdmin && (
+        <div className="border-t border-line pt-6">
+          <h2 className="mb-3 text-lg font-semibold text-ink">ETX nhân sự</h2>
+          <EtxNhanSuTab />
+        </div>
+      )}
     </div>
   );
 }

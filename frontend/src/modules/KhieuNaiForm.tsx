@@ -84,10 +84,6 @@ const REQUIRED: { key: keyof FormState; label: string }[] = [
   { key: "thong_tin_ban_dau", label: "Thông tin ban đầu" },
 ];
 
-// Field bat buoc nam o tab "phai" (Phan loai van de / Noi dung phan anh) tren mobile - con lai
-// (ten_khach) thuoc tab "trai" (Khach hang & San pham). Dung de dieu huong tab khi thieu du lieu.
-const RIGHT_TAB_KEYS = new Set<keyof FormState>(["nhom_van_de", "thong_tin_ban_dau"]);
-
 const CRM_WARNING_MESSAGES: Record<string, string> = {
   DVBH_NOT_FOUND: "Không tìm thấy case trên CRM Karofi",
   DVBH_LOOKUP_FAILED: "Không thể kết nối CRM Karofi lúc này",
@@ -190,12 +186,6 @@ function loadDraft(): DraftShape | null {
   }
 }
 
-type AddrTab = "cu" | "moi";
-const ADDRESS_TABS: { key: AddrTab; label: string }[] = [
-  { key: "cu", label: "Địa chính cũ" },
-  { key: "moi", label: "Địa chính mới" },
-];
-
 const SearchIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
     <circle cx="11" cy="11" r="7" />
@@ -213,10 +203,6 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   const [form, setForm] = useState<FormState>(() => draftRef.current?.form ?? { ...EMPTY });
   const [pendingOpts, setPendingOpts] = useState<PendingOpt[]>(() => draftRef.current?.pendingOpts ?? []);
   const [restored, setRestored] = useState(!!draftRef.current);
-  const [addrTab, setAddrTab] = useState<AddrTab>("cu");
-  // Man hinh tao PA tren mobile qua dai neu de 1 cot - chia 2 tab (giong 2 cot tren desktop), luu
-  // van phai du field bat buoc o CA 2 tab (validation khong doi, chi UX dieu huong khi thieu).
-  const [mobileTab, setMobileTab] = useState<"left" | "right">("left");
   const { showToast } = useToast();
   const qc = useQueryClient();
 
@@ -429,10 +415,6 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   }, [form, pendingOpts, dirty]);
 
   const missing = REQUIRED.filter((r) => form[r.key].trim() === "");
-  const leftMissing = missing.filter((m) => !RIGHT_TAB_KEYS.has(m.key));
-  const rightMissing = missing.filter((m) => RIGHT_TAB_KEYS.has(m.key));
-  const diaCuCount = [form.tinh, form.quan_huyen, form.phuong_xa].filter((v) => v.trim() !== "").length;
-  const diaMoiCount = [form.tinh_moi, form.phuong_xa_moi].filter((v) => v.trim() !== "").length;
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -476,9 +458,11 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (missing.length > 0) {
-      // Tren mobile chi 1 tab hien tai - nhay sang tab chua field con thieu dau tien de nguoi dung
-      // thay ngay, khong phai tu do "Con thieu ..." roi tu tim tab.
-      setMobileTab(RIGHT_TAB_KEYS.has(missing[0].key) ? "right" : "left");
+      // Khong con tab de nhay - cuon toi truong con thieu DAU TIEN roi focus (id gan tren chinh
+      // input/textarea/combobox tuong ung, xem `fld-${key}` o cac Field ben duoi).
+      const el = document.getElementById(`fld-${missing[0].key}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(() => el?.focus(), 350);
       showToast(`Còn thiếu: ${missing.map((m) => m.label).join(", ")}`, "error");
       return;
     }
@@ -556,47 +540,20 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         </div>
       )}
 
-      {/* Mobile (<lg): 2 tab thay vi cuon 1 cot qua dai; desktop (lg+) van hien ca 2 cot song song
-          nhu cu, khong dung tab. Field bat buoc nam ca 2 ben nen bam Luu se tu chuyen sang tab con
-          thieu (xem submit()). */}
-      <div className="mb-2 flex shrink-0 gap-1.5 lg:hidden">
-        <button
-          type="button"
-          onClick={() => setMobileTab("left")}
-          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold ${
-            mobileTab === "left" ? "bg-accent text-white" : "bg-surface-2 text-ink-soft"
-          }`}
-        >
-          Khách hàng &amp; Sản phẩm{leftMissing.length > 0 ? ` (${leftMissing.length})` : ""}
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileTab("right")}
-          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold ${
-            mobileTab === "right" ? "bg-accent text-white" : "bg-surface-2 text-ink-soft"
-          }`}
-        >
-          Vấn đề &amp; Nội dung{rightMissing.length > 0 ? ` (${rightMissing.length})` : ""}
-        </button>
-      </div>
-
-      {/* 2 mảng độc lập: trái = KH + SP, phải = vấn đề + nội dung — mỗi bên cuộn riêng */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* Khong dung tab nua: mobile xep doc ca 2 mang trong 1 luong cuon; desktop (lg+) van chia 2
+          cot song song nhu cu qua grid-cols-1 lg:grid-cols-2 co san. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto lg:grid-cols-2 lg:overflow-visible">
         {/* ── Trái: Tra cứu · Khách hàng/Địa chỉ · Sản phẩm · Nội bộ ─────────── */}
-        <div
-          className={`min-h-0 min-w-0 flex-col gap-3 overflow-y-auto pb-1 pr-1 lg:flex lg:pr-3 ${
-            mobileTab === "left" ? "flex" : "hidden"
-          }`}
-        >
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 pb-1 lg:overflow-y-auto lg:pr-3">
           {/* Tra cứu ID — ô gọn, nút kính lúp */}
           <fieldset className="rounded-lg border border-accent/40 bg-white p-2.5">
             <legend className={legendCls}>Tra cứu nhanh theo ID</legend>
-            <div className="flex flex-nowrap items-end gap-x-2 overflow-x-auto pb-0.5">
-              <div className="w-[92px] shrink-0">
-                <span className="mb-0.5 block text-xs font-medium leading-tight text-ink-soft">ID CRM Karofi</span>
-                <div className="flex gap-0.5">
+            <div className="flex flex-col gap-2.5 lg:flex-row lg:flex-nowrap lg:items-end lg:gap-x-2 lg:gap-y-0 lg:overflow-x-auto lg:pb-0.5">
+              <div className="w-full lg:w-[92px] lg:shrink-0">
+                <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">ID CRM Karofi</span>
+                <div className="flex gap-1.5 lg:gap-0.5">
                   <Input
-                    className="w-[62px] !px-1.5 !py-1 text-xs"
+                    className="lg:w-[62px] lg:!px-1.5 lg:!py-1 lg:!text-xs"
                     value={form.id_crm_karofi}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -611,17 +568,17 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     title="Tra cứu"
                     onClick={() => void runLookup("crm")}
                     disabled={!form.id_crm_karofi.trim() || lookupBusy === "crm"}
-                    className="flex items-center justify-center rounded-md border border-line bg-white px-1 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex shrink-0 items-center justify-center rounded-md border border-line bg-white px-3 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 lg:px-1"
                   >
                     {lookupBusy === "crm" ? "…" : <SearchIcon />}
                   </button>
                 </div>
               </div>
-              <div className="w-[80px] shrink-0">
-                <span className="mb-0.5 block text-xs font-medium leading-tight text-ink-soft">ID Lada</span>
-                <div className="flex gap-0.5">
+              <div className="w-full lg:w-[80px] lg:shrink-0">
+                <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">ID Lada</span>
+                <div className="flex gap-1.5 lg:gap-0.5">
                   <Input
-                    className="w-[62px] !px-1.5 !py-1 text-xs"
+                    className="lg:w-[62px] lg:!px-1.5 lg:!py-1 lg:!text-xs"
                     value={form.id_lada}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -636,17 +593,17 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     title="Tra cứu"
                     onClick={() => void runLookup("lada")}
                     disabled={!form.id_lada.trim() || lookupBusy === "lada"}
-                    className="flex items-center justify-center rounded-md border border-line bg-white px-1 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex shrink-0 items-center justify-center rounded-md border border-line bg-white px-3 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 lg:px-1"
                   >
                     {lookupBusy === "lada" ? "…" : <SearchIcon />}
                   </button>
                 </div>
               </div>
-              <div className="w-[92px] shrink-0">
-                <span className="mb-0.5 block text-xs font-medium leading-tight text-ink-soft">ID Truy xuất</span>
-                <div className="flex gap-0.5">
+              <div className="w-full lg:w-[92px] lg:shrink-0">
+                <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">ID Truy xuất</span>
+                <div className="flex gap-1.5 lg:gap-0.5">
                   <Input
-                    className="w-[62px] !px-1.5 !py-1 text-xs"
+                    className="lg:w-[62px] lg:!px-1.5 lg:!py-1 lg:!text-xs"
                     value={form.id_truy_van}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -661,16 +618,16 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     title="Tra cứu"
                     onClick={() => void runLookup("truy_van")}
                     disabled={!form.id_truy_van.trim() || lookupBusy === "truy_van"}
-                    className="flex items-center justify-center rounded-md border border-line bg-white px-1 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex shrink-0 items-center justify-center rounded-md border border-line bg-white px-3 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 lg:px-1"
                   >
                     {lookupBusy === "truy_van" ? "…" : <SearchIcon />}
                   </button>
                 </div>
               </div>
-              <div className="w-[76px] shrink-0">
-                <span className="mb-0.5 block text-xs font-medium leading-tight text-ink-soft">Nguồn</span>
+              <div className="w-full lg:w-[76px] lg:shrink-0">
+                <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">Nguồn</span>
                 <Select
-                  className="w-[76px] !px-1.5 !py-1 text-xs"
+                  className="lg:w-[76px] lg:!px-1.5 lg:!py-1 lg:!text-xs"
                   options={NGUON_OPTIONS}
                   placeholder="— Chọn —"
                   value={form.nguon}
@@ -678,7 +635,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 />
               </div>
             </div>
-            <p className="mt-1.5 text-[11px] leading-tight text-ink-faint">
+            <p className="mt-1.5 text-xs leading-tight text-ink-faint lg:text-[11px]">
               Nhập ID rồi Enter / bấm kính lúp — tự điền vào các ô còn trống.
             </p>
 
@@ -693,7 +650,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Khách hàng</p>
                 <div className={rowCls}>
                   <Field label="Tên khách hàng *" className={W_MD}>
-                    <Input value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} autoFocus />
+                    <Input id="fld-ten_khach" value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} autoFocus />
                   </Field>
                   <Field label="Số điện thoại" hint="Có thể bổ sung sau" className={W_SM}>
                     <Input value={form.sdt_khach} onChange={(e) => setField("sdt_khach", e.target.value)} inputMode="tel" />
@@ -708,32 +665,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 </div>
               </div>
 
-              <div>
-                <div className="mb-2 flex gap-1 border-b border-line">
-                  {ADDRESS_TABS.map((t) => {
-                    const count = t.key === "cu" ? diaCuCount : diaMoiCount;
-                    const active = addrTab === t.key;
-                    return (
-                      <button
-                        key={t.key}
-                        type="button"
-                        onClick={() => setAddrTab(t.key)}
-                        className={`-mb-px border-b-2 px-2 py-1.5 text-xs ${
-                          active
-                            ? "border-accent font-semibold text-accent"
-                            : count > 0
-                              ? "border-transparent font-semibold text-ink hover:text-accent"
-                              : "border-transparent font-medium text-ink-soft hover:text-ink"
-                        }`}
-                      >
-                        {t.label}
-                        {count > 0 ? ` (${count})` : ""}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {addrTab === "cu" && (
+              <div className="flex flex-col gap-3">
+                <div>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Địa chính cũ</p>
                   <div className={rowCls}>
                     <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới" className={W_SM}>
                       <Combobox
@@ -765,9 +699,10 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                       />
                     </Field>
                   </div>
-                )}
+                </div>
 
-                {addrTab === "moi" && (
+                <div className="border-t border-line pt-3">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Địa chính mới</p>
                   <div className={rowCls}>
                     <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới" className={W_SM}>
                       <Combobox
@@ -792,7 +727,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                       Điền theo địa chính cũ, mới, hoặc cả hai — không bắt buộc.
                     </p>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </fieldset>
@@ -844,11 +779,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         </div>
 
         {/* ── Phải: Phân loại vấn đề · Nội dung phản ánh — cố định, cuộn riêng ── */}
-        <div
-          className={`min-h-0 min-w-0 flex-col gap-3 overflow-y-auto pb-1 pl-1 lg:flex lg:border-l lg:border-line lg:pl-4 ${
-            mobileTab === "right" ? "flex" : "hidden"
-          }`}
-        >
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 pb-1 lg:overflow-y-auto lg:border-l lg:border-line lg:pl-4">
           <fieldset className={fsCls}>
             <legend className={legendCls}>Phân loại vấn đề</legend>
             <div className={rowCls}>
@@ -860,6 +791,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
               </Field>
               <Field label="Nhóm vấn đề *" className={W_MD}>
                 <Combobox
+                  id="fld-nhom_van_de"
                   options={(nhomVanDeOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                   value={form.nhom_van_de}
                   onChange={(v) => { setField("nhom_van_de", v); setField("van_de_dau_vao", ""); }}
@@ -886,7 +818,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
             <legend className={legendCls}>Nội dung phản ánh</legend>
             <div className="flex flex-col gap-2.5">
               <Field label="Thông tin ban đầu *">
-                <Textarea rows={3} value={form.thong_tin_ban_dau} onChange={(e) => setField("thong_tin_ban_dau", e.target.value)} />
+                <Textarea id="fld-thong_tin_ban_dau" rows={3} value={form.thong_tin_ban_dau} onChange={(e) => setField("thong_tin_ban_dau", e.target.value)} />
               </Field>
               <Field label="Ghi chú người tạo">
                 <Textarea rows={3} value={form.ghi_chu_nguoi_tao} onChange={(e) => setField("ghi_chu_nguoi_tao", e.target.value)} />
@@ -970,7 +902,7 @@ function LookupResult({
 }) {
   if (!res.found) {
     return (
-      <div className="mt-3 rounded-md border border-line bg-surface px-3 py-2 text-xs text-ink-soft">
+      <div className="mt-3 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink-soft lg:text-xs">
         {res.source === "lada"
           ? "Không tìm thấy ID Lada này (đã kiểm tra cả lịch sử phản ánh cũ lẫn hệ thống đơn hàng) — nhập thủ công."
           : res.source === "truy_van"
@@ -994,7 +926,7 @@ function LookupResult({
       summary: g.noi_dung ? `${g.ly_do_cham}: ${g.noi_dung}` : g.ly_do_cham,
     }));
     return (
-      <div className="mt-3 rounded-md border border-teal-300 bg-teal-50 px-3 py-2 text-xs text-teal-900">
+      <div className="mt-3 rounded-md border border-teal-300 bg-teal-50 px-3 py-2 text-sm text-teal-900 lg:text-xs">
         <div className="mb-1 flex items-center justify-between gap-2">
           <span className="font-semibold">Tìm thấy trên CRM Karofi</span>
           {hasFill && (
@@ -1002,7 +934,7 @@ function LookupResult({
               type="button"
               onClick={onApplyFill}
               disabled={applied}
-              className={`shrink-0 rounded px-2 py-1 text-[11px] font-semibold ${
+              className={`shrink-0 rounded px-2 py-1 text-xs font-semibold lg:text-[11px] ${
                 applied ? "cursor-default bg-teal-200 text-teal-900" : "bg-teal-600 text-white hover:bg-teal-700"
               }`}
             >
@@ -1010,7 +942,7 @@ function LookupResult({
             </button>
           )}
         </div>
-        <dl className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-0.5 lg:grid-cols-2">
           {p?.khach_hang && <Row k="Khách hàng" v={p.khach_hang} />}
           {p?.ky_thuat_vien && <Row k="Kỹ thuật viên" v={p.ky_thuat_vien} />}
           {p?.khu_vuc && <Row k="Khu vực" v={p.khu_vuc} />}
@@ -1049,7 +981,7 @@ function LookupResult({
   const p = res.preview;
   const idLabel = res.source === "truy_van" ? "ID Truy xuất" : "ID Lada";
   return (
-    <div className="mt-3 rounded-md border border-violet-300 bg-violet-50 px-3 py-2 text-xs text-violet-900">
+    <div className="mt-3 rounded-md border border-violet-300 bg-violet-50 px-3 py-2 text-sm text-violet-900 lg:text-xs">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <span className="font-semibold">
           {p ? "Tìm thấy thông tin đơn hàng" : `${rows.length} phản ánh cũ cùng ${idLabel}`}
@@ -1059,7 +991,7 @@ function LookupResult({
             type="button"
             onClick={onApplyFill}
             disabled={applied}
-            className={`shrink-0 rounded px-2 py-1 text-[11px] font-semibold ${
+            className={`shrink-0 rounded px-2 py-1 text-xs font-semibold lg:text-[11px] ${
               applied ? "cursor-default bg-violet-200 text-violet-900" : "bg-violet-600 text-white hover:bg-violet-700"
             }`}
           >
@@ -1068,7 +1000,7 @@ function LookupResult({
         )}
       </div>
       {p && (
-        <dl className="mb-2 grid grid-cols-1 gap-x-4 gap-y-0.5 border-b border-violet-200 pb-2 sm:grid-cols-2">
+        <dl className="mb-2 grid grid-cols-1 gap-x-4 gap-y-0.5 border-b border-violet-200 pb-2 lg:grid-cols-2">
           {p.khach_hang && <Row k="Khách hàng" v={p.khach_hang} />}
           {p.ky_thuat_vien && <Row k="Kỹ thuật viên" v={p.ky_thuat_vien} />}
           {p.khu_vuc && <Row k="Khu vực" v={p.khu_vuc} />}
@@ -1129,13 +1061,13 @@ function LadaCaseRow({ r }: { r: TraCuuRecent }) {
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
-            className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-800 hover:bg-violet-200"
+            className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-800 hover:bg-violet-200 lg:text-[11px]"
           >
             Log tiến trình ({r.tien_trinh.length}) {open ? "▲" : "▼"}
           </button>
         )}
       </div>
-      <dl className="mt-0.5 grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
+      <dl className="mt-0.5 grid grid-cols-1 gap-x-4 gap-y-0.5 lg:grid-cols-2">
         {r.ten_khach && <Row k="Khách hàng" v={r.ten_khach} />}
         {diaChi && <Row k="Địa chỉ" v={diaChi} />}
         {sanPham && <Row k="Sản phẩm" v={sanPham} />}

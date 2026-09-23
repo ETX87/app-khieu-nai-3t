@@ -38,7 +38,7 @@ export function Drawer({
           <h3 className="truncate text-sm font-semibold text-ink">{title}</h3>
           <div className="flex shrink-0 items-center gap-2">
             {headerExtra}
-            <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-ink-soft hover:bg-gray-100" aria-label="Đóng">
+            <button type="button" onClick={onClose} className="rounded-lg p-2.5 text-ink-soft hover:bg-gray-100 lg:p-1.5" aria-label="Đóng">
               ✕
             </button>
           </div>

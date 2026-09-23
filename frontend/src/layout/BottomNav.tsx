@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { MODULE_LABELS, type ModuleKey } from "./navConfig";
 
-const ICON_PROPS = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+const ICON_PROPS = { width: 25, height: 25, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
 export const NAV_ICONS: Record<ModuleKey, ReactNode> = {
   "trang-chu": (
@@ -56,12 +56,12 @@ export function BottomNav({ modules, active, onSelect, onMore }: BottomNavProps)
   const primary = modules.slice(0, 4);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-30 flex h-[4.5rem] border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
       {primary.map((m) => (
         <button
           key={m}
           onClick={() => onSelect(m)}
-          className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
+          className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium ${
             active === m ? "text-accent" : "text-ink-soft"
           }`}
         >
@@ -69,7 +69,7 @@ export function BottomNav({ modules, active, onSelect, onMore }: BottomNavProps)
           <span className="truncate">{MODULE_LABELS[m]}</span>
         </button>
       ))}
-      <button onClick={onMore} className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-ink-soft">
+      <button onClick={onMore} className="flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-ink-soft">
         {ACCOUNT_ICON}
         <span>Tài khoản</span>
       </button>

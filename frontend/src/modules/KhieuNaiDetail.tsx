@@ -121,8 +121,8 @@ function ReadField({ label, value }: { label: string; value: string | number | n
   const empty = value === null || value === undefined || value === "";
   return (
     <div className="leading-tight">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">{label}</p>
-      <p className={`text-[13px] ${empty ? "text-ink-faint" : "text-ink"}`}>{empty ? "—" : value}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-ink-faint lg:text-[11px]">{label}</p>
+      <p className={`text-base lg:text-[13px] ${empty ? "text-ink-faint" : "text-ink"}`}>{empty ? "—" : value}</p>
     </div>
   );
 }
@@ -166,19 +166,23 @@ function Zone({
   const a = ZONE_ACCENT[accent];
   return (
     <section className={`overflow-hidden rounded-lg border border-l-4 border-line ${a.bar} bg-surface shadow-sm ring-1 ring-inset ${a.ring}`}>
-      <header className={`flex items-center gap-2 border-b px-3 py-1.5 ${a.head}`}>
+      <header className={`flex items-center gap-2 border-b px-3 py-2 lg:py-1.5 ${a.head}`}>
         <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ${a.chip}`}>{icon}</span>
-        <h3 className="text-[13px] font-bold uppercase tracking-wide">{title}</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wide lg:text-[13px]">{title}</h3>
         <div className="ml-auto flex items-center gap-1.5">
           {actions}
           {collapsible && (
-            <button type="button" onClick={() => setOpen((v) => !v)} className="text-xs font-semibold opacity-80 hover:opacity-100">
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="rounded px-2 py-1 text-sm font-semibold opacity-80 hover:bg-black/5 hover:opacity-100 lg:px-0 lg:py-0 lg:text-xs"
+            >
               {open ? "Thu gọn" : "Mở rộng"}
             </button>
           )}
         </div>
       </header>
-      {open && <div className="px-3 py-2.5">{children}</div>}
+      {open && <div className="px-3 py-3 lg:py-2.5">{children}</div>}
     </section>
   );
 }
@@ -202,9 +206,9 @@ function KeyTile({
 }) {
   const empty = !value || value === "";
   return (
-    <div className={`rounded-md px-2.5 py-1 ring-1 ring-inset ${TILE_TONE[tone] ?? TILE_TONE.gray} ${empty ? "opacity-45" : ""}`}>
-      <span className="block text-[10px] font-medium uppercase leading-none tracking-wide opacity-70">{label}</span>
-      <span className={`block leading-tight ${strong ? "text-sm font-semibold" : "text-[13px] font-medium"} ${mono ? "font-mono" : ""}`}>
+    <div className={`rounded-md px-2.5 py-1.5 ring-1 ring-inset lg:py-1 ${TILE_TONE[tone] ?? TILE_TONE.gray} ${empty ? "opacity-45" : ""}`}>
+      <span className="block text-xs font-medium uppercase leading-none tracking-wide opacity-70 lg:text-[10px]">{label}</span>
+      <span className={`block leading-tight ${strong ? "text-base font-semibold lg:text-sm" : "text-base font-medium lg:text-[13px]"} ${mono ? "font-mono" : ""}`}>
         {empty ? "—" : value}
       </span>
     </div>
@@ -594,48 +598,130 @@ export function KhieuNaiDetail({
           </div>
 
           <div className="flex min-w-0 flex-col gap-2">
-            <Tabs tabs={rightTabs} active={rightTab} onChange={(k) => setRightTab(k as RightTabKey)} />
+            {/* Desktop (lg+): giữ nguyên tab như cũ - nhân viên văn phòng không đổi thói quen thao
+                tác (chốt với người dùng 2026-09-22). Mobile: bỏ tab hẳn, xem khối lg:hidden bên dưới. */}
+            <div className="hidden lg:block">
+              <Tabs tabs={rightTabs} active={rightTab} onChange={(k) => setRightTab(k as RightTabKey)} />
 
-            {rightTab === "tien-trinh" && (
+              {rightTab === "tien-trinh" && (
+                <Zone
+                  accent="violet"
+                  icon={ICON.log}
+                  title="Tiến trình & lịch sử"
+                  actions={canThemTienTrinh && <ZoneBtn onClick={() => setEditing("log")}>+ Ghi chú</ZoneBtn>}
+                >
+                  <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem={false} onSaved={invalidate} />
+                </Zone>
+              )}
+
+              {rightTab === "crm" && (
+                <Zone
+                  accent="teal"
+                  icon={ICON.sync}
+                  title="Đồng bộ CRM Karofi"
+                  actions={isCskh && <ZoneBtn onClick={() => setEditing("crm")}>Sửa ID CRM</ZoneBtn>}
+                >
+                  <CrmSection kn={kn} user={user} onSaved={invalidate} forceEditable={false} />
+                </Zone>
+              )}
+
+              {rightTab === "doi-may" && (
+                <Zone
+                  accent="amber"
+                  icon={ICON.swap}
+                  title="Thông tin khác"
+                  actions={canXuLyDoiMay && <ZoneBtn onClick={() => setEditing("doimay")}>Sửa</ZoneBtn>}
+                >
+                  <DoiMaySection kn={kn} editable={false} onSaved={invalidate} />
+                </Zone>
+              )}
+
+              {rightTab === "ket-luan" && (
+                <Zone
+                  accent="rose"
+                  icon={ICON.scale}
+                  title="Kết luận & đánh giá"
+                  actions={
+                    <>
+                      {canDanhGia4Loi && <ZoneBtn onClick={() => setEditing("loi")}>Đánh giá lỗi</ZoneBtn>}
+                      {isQl && <ZoneBtn onClick={() => setEditing("ql")}>Đánh giá QL</ZoneBtn>}
+                    </>
+                  }
+                >
+                  <div className="space-y-2">
+                    <div>
+                      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Nguyên nhân lỗi · điều kiện đóng ca</p>
+                      <TnCskhSection kn={kn} editable={false} onSaved={invalidate} />
+                    </div>
+                    <div className="border-t border-line pt-3">
+                      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Đánh giá QL · điều kiện chốt</p>
+                      <QlSection kn={kn} editable={false} onSaved={invalidate} />
+                    </div>
+                  </div>
+                </Zone>
+              )}
+            </div>
+
+            {/* Mobile (<lg): không dùng tab - xếp dọc cả 4 khối, dùng collapsible sẵn có của Zone
+                (defaultOpen/collapsible) thay vì ẩn/hiện qua lại giữa các tab (2026-09-22). */}
+            <div className="flex flex-col gap-2 lg:hidden">
               <Zone
                 accent="violet"
                 icon={ICON.log}
                 title="Tiến trình & lịch sử"
-                actions={canThemTienTrinh && <ZoneBtn onClick={() => setEditing("log")}>+ Ghi chú</ZoneBtn>}
+                collapsible
+                defaultOpen
+                actions={
+                  <>
+                    {tabCounts["tien-trinh"] > 0 && <ZoneCountBadge n={tabCounts["tien-trinh"]} />}
+                    {canThemTienTrinh && <ZoneBtn onClick={() => setEditing("log")}>+ Ghi chú</ZoneBtn>}
+                  </>
+                }
               >
                 <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem={false} onSaved={invalidate} />
               </Zone>
-            )}
 
-            {rightTab === "crm" && (
               <Zone
                 accent="teal"
                 icon={ICON.sync}
                 title="Đồng bộ CRM Karofi"
-                actions={isCskh && <ZoneBtn onClick={() => setEditing("crm")}>Sửa ID CRM</ZoneBtn>}
+                collapsible
+                defaultOpen={false}
+                actions={
+                  <>
+                    {tabCounts.crm > 0 && <ZoneCountBadge n={tabCounts.crm} />}
+                    {isCskh && <ZoneBtn onClick={() => setEditing("crm")}>Sửa ID CRM</ZoneBtn>}
+                  </>
+                }
               >
                 <CrmSection kn={kn} user={user} onSaved={invalidate} forceEditable={false} />
               </Zone>
-            )}
 
-            {rightTab === "doi-may" && (
               <Zone
                 accent="amber"
                 icon={ICON.swap}
                 title="Thông tin khác"
-                actions={canXuLyDoiMay && <ZoneBtn onClick={() => setEditing("doimay")}>Sửa</ZoneBtn>}
+                collapsible
+                defaultOpen={false}
+                actions={
+                  <>
+                    {tabCounts["doi-may"] > 0 && <ZoneCountBadge n={tabCounts["doi-may"]} />}
+                    {canXuLyDoiMay && <ZoneBtn onClick={() => setEditing("doimay")}>Sửa</ZoneBtn>}
+                  </>
+                }
               >
                 <DoiMaySection kn={kn} editable={false} onSaved={invalidate} />
               </Zone>
-            )}
 
-            {rightTab === "ket-luan" && (
               <Zone
                 accent="rose"
                 icon={ICON.scale}
                 title="Kết luận & đánh giá"
+                collapsible
+                defaultOpen
                 actions={
                   <>
+                    {tabCounts["ket-luan"] > 0 && <ZoneCountBadge n={tabCounts["ket-luan"]} />}
                     {canDanhGia4Loi && <ZoneBtn onClick={() => setEditing("loi")}>Đánh giá lỗi</ZoneBtn>}
                     {isQl && <ZoneBtn onClick={() => setEditing("ql")}>Đánh giá QL</ZoneBtn>}
                   </>
@@ -652,7 +738,7 @@ export function KhieuNaiDetail({
                   </div>
                 </div>
               </Zone>
-            )}
+            </div>
           </div>
         </div>
       </div>
@@ -701,6 +787,15 @@ function ZoneBtn({ onClick, children }: { onClick: () => void; children: ReactNo
     >
       ✎ {children}
     </button>
+  );
+}
+
+// Badge số đếm chuyển từ tab (mobile: 4 khối xếp dọc không còn tab để hiện count).
+function ZoneCountBadge({ n }: { n: number }) {
+  return (
+    <span className="rounded-full border border-black/10 bg-white/95 px-2 py-0.5 text-xs font-semibold shadow-sm">
+      {n}
+    </span>
   );
 }
 
@@ -1109,14 +1204,14 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
     mutation.mutate();
   };
 
-  const groupLabelCls = "mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint";
+  const groupLabelCls = "mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]";
   const groupLabelClsNotFirst = `mt-3 border-t border-line pt-3 ${groupLabelCls}`;
 
   if (!editable) {
     return (
       <>
         <p className={groupLabelCls}>Thông tin khách hàng</p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
           <ReadField label="Phân loại KH" value={kn.phan_loai_kh} />
           <ReadField label="Tên khách hàng" value={kn.ten_khach} />
           <ReadField label="Số điện thoại" value={kn.sdt_khach} />
@@ -1125,7 +1220,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
         </div>
 
         <p className={groupLabelClsNotFirst}>Địa chỉ</p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
           <ReadField label="Tỉnh (cũ)" value={kn.tinh} />
           <ReadField label="Quận/Huyện (cũ)" value={kn.quan_huyen} />
           <ReadField label="Phường/Xã (cũ)" value={kn.phuong_xa} />
@@ -1134,20 +1229,20 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
         </div>
 
         <p className={groupLabelClsNotFirst}>Thông tin nguồn</p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
           <ReadField label="Người báo" value={kn.nguoi_bao} />
           <ReadField label="Nguồn" value={kn.nguon ? (NGUON_LABEL[kn.nguon] ?? kn.nguon) : null} />
           <ReadField label="Sale khu vực" value={kn.sale_khu_vuc} />
         </div>
 
         <p className={groupLabelClsNotFirst}>Thông tin sản phẩm</p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
           <ReadField label="Model" value={kn.model} />
           <ReadField label="Hãng" value={kn.hang} />
         </div>
 
         <p className={groupLabelClsNotFirst}>Thông tin phản ánh</p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
           <ReadField label="Nhóm vấn đề" value={kn.nhom_van_de} />
           <ReadField label="Nhóm yêu cầu" value={kn.nhom_yeu_cau} />
           <ReadField label="Mức độ" value={kn.muc_do} />
@@ -1163,9 +1258,9 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
     );
   }
 
-  const legendCls = "px-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint";
+  const legendCls = "px-1 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]";
   const fieldsetCls = "rounded-lg border border-line bg-white p-2.5";
-  const fieldGridCls = "grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3";
+  const fieldGridCls = "grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3";
 
   return (
     <>
@@ -1453,7 +1548,7 @@ function CrmSection({
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
         <ReadField label="Ngày tiếp nhận CRM" value={kn.ngay_tiep_nhan_crm} />
         <ReadField label="Kết quả CRM" value={kn.ket_qua_crm} />
         <ReadField label="Thông tin xử lý CRM" value={kn.thong_tin_xu_ly_crm} />
@@ -1496,7 +1591,7 @@ function CrmDetailSection({ title, children }: { title: string; children: ReactN
   return (
     <div className="mb-3 border-t border-line pt-2 first:mt-0 first:border-t-0 first:pt-0">
       <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">{title}</p>
-      <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">{children}</div>
+      <div className="grid grid-cols-1 gap-x-4 gap-y-2 lg:grid-cols-2">{children}</div>
     </div>
   );
 }
@@ -1670,7 +1765,7 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
   if (!editable) {
     return (
       <>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
           <ReadField label="Lỗi nhà sản xuất" value={translateDanhGia(kn.loi_nha_san_xuat)} />
           <ReadField label="Lỗi lắp đặt" value={translateDanhGia(kn.loi_lap_dat)} />
           <ReadField label="Lỗi thái độ KTV" value={translateDanhGia(kn.loi_thai_do_ktv)} />
@@ -1776,7 +1871,7 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
   if (!editable) {
     return (
       <>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
           <ReadField label="Đánh giá QL" value={kn.danh_gia_ql} />
           <ReadField label="Giờ xử lý (hệ thống)" value={kn.ql_gio_xu_ly_he_thong ?? gioXuLy} />
           <ReadField label="Ngày hẹn" value={kn.ql_chon_ngay_hen} />
@@ -1790,7 +1885,7 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
 
   return (
     <>
-      <form onSubmit={submit} className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+      <form onSubmit={submit} className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
         <Field label="Đánh giá QL">
           <Select
             options={(danhGiaQlOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
@@ -1870,8 +1965,8 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
   if (!editable) {
     return (
       <>
-        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Đổi máy</p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">Đổi máy</p>
+        <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
           <ReadField label="ID Lada phát sinh" value={kn.id_lada_phat_sinh} />
           <ReadField label="Mã duyệt đổi linh kiện" value={kn.ma_duyet_doi_linh_kien} />
           <ReadField label="Ngày ghi nhận đổi máy" value={kn.ngay_ghi_nhan_doi_may} />
@@ -1883,8 +1978,8 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
           <ReadField label="Giải trình chậm đổi máy" value={kn.giai_trinh_cham_doi_may} />
         </div>
 
-        <p className="mb-1.5 mt-3 border-t border-line pt-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Khác</p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+        <p className="mb-1.5 mt-3 border-t border-line pt-3 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">Khác</p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
           <ReadField label="Bộ phận bàn giao" value={kn.bo_phan_ban_giao} />
           <ReadField label="Cảm cờ" value={camCoLabel(kn.cam_co)} />
         </div>
@@ -1896,8 +1991,8 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
     <>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <fieldset className="rounded-lg border border-line bg-white p-2.5">
-          <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Đổi máy</legend>
-          <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3">
+          <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">Đổi máy</legend>
+          <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3">
             <Field label="ID Lada phát sinh">
               <Input value={form.id_lada_phat_sinh} onChange={(e) => setField("id_lada_phat_sinh", e.target.value)} />
             </Field>
@@ -1921,7 +2016,7 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
             <Field label="Người xác nhận đổi máy">
               <Input value={form.nguoi_xac_nhan_doi_may} onChange={(e) => setField("nguoi_xac_nhan_doi_may", e.target.value)} />
             </Field>
-            <div className="sm:col-span-3">
+            <div className="lg:col-span-3">
               <Field label="Giải trình chậm đổi máy" hint="Báo cáo chậm #2 — lý do chậm riêng của nhánh đổi máy (từ danh mục)">
                 <Combobox
                   options={(lyDoChamOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
@@ -1934,8 +2029,8 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
         </fieldset>
 
         <fieldset className="rounded-lg border border-line bg-white p-2.5">
-          <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Khác</legend>
-          <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-3">
+          <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">Khác</legend>
+          <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
             <Field label="Bộ phận bàn giao">
               <Combobox
                 options={(boPhanBanGiaoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}

@@ -32,7 +32,7 @@ export function KhieuNaiCard({ kn, onClick }: { kn: KhieuNai; onClick: () => voi
       className={`flex w-full flex-col gap-1 rounded-lg px-3 py-2.5 text-left active:bg-gray-50 ${severityBg} ${flagBorder} ${vipGlow}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{kn.ten_khach ?? "—"}</span>
+        <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{kn.ten_khach ?? "—"}</span>
         <StatusBadge trangThai={kn.trang_thai} />
       </div>
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-ink-soft">

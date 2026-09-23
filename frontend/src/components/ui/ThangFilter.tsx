@@ -12,7 +12,7 @@ export function ThangFilter({ value, onChange }: ThangFilterProps) {
       <button
         type="button"
         onClick={() => onChange("")}
-        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+        className={`rounded-md px-3 py-2 text-sm font-medium transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
           value === "" ? "bg-accent text-white" : "border border-line bg-white text-ink-soft hover:bg-gray-50"
         }`}
       >
@@ -22,7 +22,7 @@ export function ThangFilter({ value, onChange }: ThangFilterProps) {
         type="month"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-md border border-line bg-white px-2 py-1 text-xs text-ink focus:border-accent focus:outline-none"
+        className="rounded-md border border-line bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none lg:px-2 lg:py-1 lg:text-xs"
       />
     </div>
   );

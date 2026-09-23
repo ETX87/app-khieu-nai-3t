@@ -38,11 +38,11 @@ function NavButton({
     <button
       onClick={() => onSelect(moduleKey)}
       title={collapsed ? MODULE_LABELS[moduleKey] : undefined}
-      className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${
+      className={`flex w-full items-center gap-2.5 rounded-md px-3 py-3 text-left text-base font-medium transition-colors md:py-2 md:text-sm ${
         collapsed ? "md:justify-center" : ""
       } ${active ? "bg-accent-soft text-accent" : "text-ink hover:bg-gray-100"}`}
     >
-      <span className="shrink-0 [&_svg]:h-[18px] [&_svg]:w-[18px]">{NAV_ICONS[moduleKey]}</span>
+      <span className="shrink-0 [&_svg]:h-[22px] [&_svg]:w-[22px] md:[&_svg]:h-[18px] md:[&_svg]:w-[18px]">{NAV_ICONS[moduleKey]}</span>
       <span className={collapsed ? "md:hidden" : ""}>{MODULE_LABELS[moduleKey]}</span>
     </button>
   );
