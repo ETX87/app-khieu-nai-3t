@@ -51,7 +51,7 @@ function StatCard({ label, value, tone, onClick }: StatCardDef) {
 
 interface HomeProps {
   user: AppUser;
-  onOpenList: (filter: { trang_thai?: string; chua_dong_bo?: boolean; cho_tn_cskh?: boolean; qua_han_giai_trinh?: boolean }) => void;
+  onOpenList: (filter: { trang_thai?: string; chua_dong_bo?: string; cho_tn_cskh?: boolean; qua_han_giai_trinh?: boolean }) => void;
   onOpenModule: (m: "trang-chu" | "khieu-nai" | "settings" | "users") => void;
 }
 
@@ -117,10 +117,15 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
   );
 
   const syncTon = useMutation({
-    mutationFn: () => api.post<{ results: { id: string; ok: boolean }[] }>("/khieu-nai/dong-bo-cac-ca-ton"),
+    mutationFn: () => api.post<{ results: { id: string; ok: boolean; error?: string }[] }>("/khieu-nai/dong-bo-cac-ca-ton"),
     onSuccess: (d) => {
       const okN = d.results.filter((r) => r.ok).length;
-      showToast(`Đồng bộ xong ${okN}/${d.results.length} ca tồn`, okN === d.results.length ? "success" : "info");
+      const saiN = d.results.filter((r) => r.error === "DVBH_NOT_FOUND").length;
+      const loiN = d.results.length - okN - saiN;
+      showToast(
+        `Đã kiểm tra ${d.results.length} ca: ${okN} ID đúng` + (saiN ? `, ${saiN} ID CRM sai` : "") + (loiN ? `, ${loiN} lỗi kết nối` : ""),
+        saiN || loiN ? "info" : "success",
+      );
       statsQuery.refetch();
     },
     onError: () => showToast("Đồng bộ ca tồn thất bại", "error"),
@@ -163,14 +168,15 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
         <ThangFilter value={thang} onChange={setThang} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-9">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-10">
         <StatCard label="Tổng (phạm vi)" value={s?.tong ?? 0} tone="blue" onClick={() => onOpenList({})} />
         <StatCard label="Chờ tiếp nhận" value={s?.cho_tiep_nhan ?? 0} tone="red" onClick={() => onOpenList({ trang_thai: "Cho tiep nhan" })} />
         <StatCard label="Đang xử lý" value={s?.dang_xu_ly ?? 0} tone="amber" onClick={() => onOpenList({ trang_thai: "Dang xu ly" })} />
         <StatCard label="Chờ chốt kết thúc" value={s?.cho_chot_ket_thuc ?? 0} tone="amber" onClick={() => onOpenList({ trang_thai: "Cho chot ket thuc" })} />
         <StatCard label="Đã kết thúc" value={s?.da_ket_thuc ?? 0} tone="green" onClick={() => onOpenList({ trang_thai: "Da ket thuc" })} />
         <StatCard label="Đã hủy" value={s?.huy ?? 0} tone="blue" onClick={() => onOpenList({ trang_thai: "Huy" })} />
-        <StatCard label="Tồn đọng CRM" value={s?.ton_dong_crm ?? 0} tone="red" onClick={() => onOpenList({ chua_dong_bo: true })} />
+        <StatCard label="Chờ đồng bộ CRM" value={s?.ton_cho_dong_bo ?? 0} tone="amber" onClick={() => onOpenList({ chua_dong_bo: "cho" })} />
+        <StatCard label="ID CRM sai" value={s?.ton_crm_sai ?? 0} tone="red" onClick={() => onOpenList({ chua_dong_bo: "sai" })} />
         <StatCard label="Chờ TN CSKH" value={s?.cho_tn_cskh ?? 0} tone="amber" onClick={() => onOpenList({ cho_tn_cskh: true })} />
         <StatCard label="Quá hạn giải trình" value={s?.qua_han_giai_trinh ?? 0} tone="red" onClick={() => onOpenList({ qua_han_giai_trinh: true })} />
       </div>

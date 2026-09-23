@@ -170,6 +170,27 @@ async function tryLookupCrm(env: Env, idCrmKarofi: string): Promise<{ fields: Cr
   }
 }
 
+// Ket qua tra cuu -> cot crm_tra_cuu: 'OK' | 'SAI_ID' (CRM bao khong co case) | null (loi mang/API -
+// khong ket luan duoc ID dung hay sai).
+function crmTraCuuFrom(lookup: { fields: CrmFields | null; warning?: string }): "OK" | "SAI_ID" | null {
+  if (lookup.fields) return "OK";
+  return lookup.warning === "DVBH_NOT_FOUND" ? "SAI_ID" : null;
+}
+
+function crmUpdateStmt(db: D1Database, id: string, f: CrmFields, ts: string): D1PreparedStatement {
+  return db.prepare(
+    `UPDATE khieu_nai SET ngay_tiep_nhan_crm = ?, ket_qua_crm = ?, thong_tin_xu_ly_crm = ?, ngay_ktv_hoan_thanh = ?,
+       thong_tin_giai_trinh_dvbh = ?, giai_trinh_dvbh_json = ?, crm_tra_cuu = 'OK', ngay_thay_doi = ? WHERE id = ?`,
+  ).bind(f.ngay_tiep_nhan_crm, f.ket_qua_crm, f.thong_tin_xu_ly_crm, f.ngay_ktv_hoan_thanh,
+    f.thong_tin_giai_trinh_dvbh, f.giai_trinh_dvbh_json, ts, id);
+}
+
+// Dieu kien "ca ton dong bo CRM": co ID CRM, KTV chua hoan thanh, ca chua dong/huy. Tach tiep theo
+// crm_tra_cuu: 'SAI_ID' = "ID CRM sai", con lai (OK / chua tra cuu duoc) = "Cho dong bo".
+const TON_CRM_SQL = "id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL AND trang_thai NOT IN ('Da ket thuc', 'Huy')";
+const CRM_SAI_SQL = "crm_tra_cuu = 'SAI_ID'";
+const CRM_CHO_SQL = "COALESCE(crm_tra_cuu, '') != 'SAI_ID'";
+
 const SORT_COLUMNS: Record<string, string> = {
   id: "id",
   ngay_tiep_nhan: "ngay_tiep_nhan",
@@ -213,9 +234,10 @@ app.get("/", async (c) => {
   if (nguoiPhuTrach) { conditions.push("nguoi_phu_trach = ?"); binds.push(nguoiPhuTrach); }
   if (tuNgay) { conditions.push("ngay_tiep_nhan >= ?"); binds.push(`${tuNgay} 00:00:00`); }
   if (denNgay) { conditions.push("ngay_tiep_nhan <= ?"); binds.push(`${denNgay} 23:59:59`); }
-  if (chuaDongBo === "1") {
-    conditions.push("id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL AND trang_thai NOT IN ('Da ket thuc', 'Huy')");
-  }
+  // chua_dong_bo: "1" = tat ca ca ton dong bo CRM | "cho" = Cho dong bo (ID dung) | "sai" = ID CRM sai.
+  if (chuaDongBo === "1") conditions.push(TON_CRM_SQL);
+  else if (chuaDongBo === "cho") conditions.push(`${TON_CRM_SQL} AND ${CRM_CHO_SQL}`);
+  else if (chuaDongBo === "sai") conditions.push(`${TON_CRM_SQL} AND ${CRM_SAI_SQL}`);
   const choTnCskh = c.req.query("cho_tn_cskh");
   if (choTnCskh === "1") {
     conditions.push(
@@ -347,8 +369,9 @@ app.get("/stats", async (c) => {
        SUM(CASE WHEN trang_thai = 'Da ket thuc' THEN 1 ELSE 0 END) as da_ket_thuc,
        SUM(CASE WHEN trang_thai = 'Huy' THEN 1 ELSE 0 END) as huy,
        -- Ca da ket thuc/huy khong con "ton" nua du chua dong bo CRM (yeu cau ra soat 2026-09).
-       SUM(CASE WHEN id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL
-                  AND trang_thai NOT IN ('Da ket thuc', 'Huy') THEN 1 ELSE 0 END) as ton_dong_crm,
+       SUM(CASE WHEN ${TON_CRM_SQL} THEN 1 ELSE 0 END) as ton_dong_crm,
+       SUM(CASE WHEN ${TON_CRM_SQL} AND ${CRM_CHO_SQL} THEN 1 ELSE 0 END) as ton_cho_dong_bo,
+       SUM(CASE WHEN ${TON_CRM_SQL} AND ${CRM_SAI_SQL} THEN 1 ELSE 0 END) as ton_crm_sai,
        -- Da danh gia du 4 loi + ket luan (san sang "Dong ca") nhung con "Dang xu ly" cho TN CSKH bam.
        SUM(CASE WHEN trang_thai = 'Dang xu ly'
                   AND loi_nha_san_xuat != 'Chua danh gia' AND loi_lap_dat != 'Chua danh gia'
@@ -368,7 +391,7 @@ app.get("/stats", async (c) => {
      FROM khieu_nai ${where}`,
   ).bind(...binds).first<{
     tong: number; cho_tiep_nhan: number; dang_xu_ly: number; cho_chot_ket_thuc: number; da_ket_thuc: number; huy: number;
-    ton_dong_crm: number; cho_tn_cskh: number; qua_han_giai_trinh: number;
+    ton_dong_crm: number; ton_cho_dong_bo: number; ton_crm_sai: number; cho_tn_cskh: number; qua_han_giai_trinh: number;
   }>();
 
   const { results: theoNhomVanDe } = await c.env.DB.prepare(
@@ -1214,10 +1237,12 @@ app.post("/", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "Q
 
   let crmFields: CrmFields | null = null;
   let crm_sync_warning: string | undefined;
+  let crmTraCuu: "OK" | "SAI_ID" | null = null;
   if (body.id_crm_karofi) {
     const lookup = await tryLookupCrm(c.env, body.id_crm_karofi);
     crmFields = lookup.fields;
     crm_sync_warning = lookup.warning;
+    crmTraCuu = crmTraCuuFrom(lookup);
   }
 
   // Ngay tiep nhan: mac dinh bay gio; neu nguoi tao chon ngay (yyyy-mm-dd) thi giu gio hien tai.
@@ -1255,6 +1280,7 @@ app.post("/", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "Q
     nguoi_phu_trach: autoReceived ? user.email : null,
     ngay_tiep_nhan: ngayTiepNhan,
     ngay_thay_doi: ts,
+    crm_tra_cuu: crmTraCuu,
     ...(crmFields ?? {}),
   };
 
@@ -1363,9 +1389,13 @@ app.patch("/:id", async (c) => {
     if (key === "id_crm_karofi") {
       sets.push("id_crm_karofi = ?");
       binds.push(body.id_crm_karofi ?? null);
-      if (body.id_crm_karofi && body.id_crm_karofi !== cur.id_crm_karofi) {
+      if (!body.id_crm_karofi) {
+        sets.push("crm_tra_cuu = NULL");
+      } else if (body.id_crm_karofi !== cur.id_crm_karofi) {
         const lookup = await tryLookupCrm(c.env, body.id_crm_karofi);
         crm_sync_warning = lookup.warning;
+        sets.push("crm_tra_cuu = ?");
+        binds.push(crmTraCuuFrom(lookup));
         if (lookup.fields) {
           for (const [fk, fv] of Object.entries(lookup.fields)) {
             sets.push(`${fk} = ?`);
@@ -1654,54 +1684,50 @@ app.post("/:id/dong-bo-crm", requireRole("CSKH", "NV Sale", "Tổng đài viên"
   await c.env.DB.prepare("UPDATE khieu_nai SET crm_last_sync_at = ? WHERE id = ?").bind(ts, id).run();
 
   const lookup = await tryLookupCrm(c.env, row.id_crm_karofi);
-  if (!lookup.fields) return c.json({ error: lookup.warning ?? "DVBH_LOOKUP_FAILED" }, 502);
+  if (!lookup.fields) {
+    if (crmTraCuuFrom(lookup) === "SAI_ID") {
+      await c.env.DB.prepare("UPDATE khieu_nai SET crm_tra_cuu = 'SAI_ID' WHERE id = ?").bind(id).run();
+    }
+    return c.json({ error: lookup.warning ?? "DVBH_LOOKUP_FAILED" }, 502);
+  }
 
-  await c.env.DB.prepare(
-    `UPDATE khieu_nai SET ngay_tiep_nhan_crm = ?, ket_qua_crm = ?, thong_tin_xu_ly_crm = ?, ngay_ktv_hoan_thanh = ?, thong_tin_giai_trinh_dvbh = ?, giai_trinh_dvbh_json = ?, ngay_thay_doi = ? WHERE id = ?`,
-  ).bind(
-    lookup.fields.ngay_tiep_nhan_crm,
-    lookup.fields.ket_qua_crm,
-    lookup.fields.thong_tin_xu_ly_crm,
-    lookup.fields.ngay_ktv_hoan_thanh,
-    lookup.fields.thong_tin_giai_trinh_dvbh,
-    lookup.fields.giai_trinh_dvbh_json,
-    ts,
-    id,
-  ).run();
+  await crmUpdateStmt(c.env.DB, id!, lookup.fields, ts).run();
 
   return c.json({ ok: true });
 });
 
+// Moi lan bam dong bo toi da 40 ca: uu tien ca chua tra cuu lan nao / dong bo lau nhat, ca "ID CRM
+// sai" xep sau cung - bam nhieu lan se lan luot quet het, khong bi ket mai 1 nhom ca dau danh sach.
+const DONG_BO_TON_MAX = 40;
+
 app.post("/dong-bo-cac-ca-ton", requireRole("QL", "Admin"), async (c) => {
   const rows = await c.env.DB.prepare(
-    "SELECT id, id_crm_karofi FROM khieu_nai WHERE id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL AND trang_thai NOT IN ('Da ket thuc', 'Huy') LIMIT 50",
-  ).all<{ id: string; id_crm_karofi: string }>();
+    `SELECT id, id_crm_karofi FROM khieu_nai WHERE ${TON_CRM_SQL}
+     ORDER BY (crm_tra_cuu = 'SAI_ID'), crm_last_sync_at IS NOT NULL, crm_last_sync_at ASC LIMIT ?`,
+  ).bind(DONG_BO_TON_MAX).all<{ id: string; id_crm_karofi: string }>();
 
   const results: { id: string; ok: boolean; error?: string }[] = [];
+  const stmts: D1PreparedStatement[] = [];
+  const ts = nowVN();
 
   for (const row of rows.results) {
     const lookup = await tryLookupCrm(c.env, row.id_crm_karofi);
-    const ts = nowVN();
-    await c.env.DB.prepare("UPDATE khieu_nai SET crm_last_sync_at = ? WHERE id = ?").bind(ts, row.id).run();
+    const traCuu = crmTraCuuFrom(lookup);
+    // Loi mang/API (traCuu null) -> giu nguyen crm_tra_cuu cu, chi ghi moc da thu dong bo.
+    stmts.push(
+      c.env.DB.prepare("UPDATE khieu_nai SET crm_last_sync_at = ?, crm_tra_cuu = COALESCE(?, crm_tra_cuu) WHERE id = ?")
+        .bind(ts, traCuu, row.id),
+    );
     if (lookup.fields) {
-      await c.env.DB.prepare(
-        `UPDATE khieu_nai SET ngay_tiep_nhan_crm = ?, ket_qua_crm = ?, thong_tin_xu_ly_crm = ?, ngay_ktv_hoan_thanh = ?, thong_tin_giai_trinh_dvbh = ?, giai_trinh_dvbh_json = ?, ngay_thay_doi = ? WHERE id = ?`,
-      ).bind(
-        lookup.fields.ngay_tiep_nhan_crm,
-        lookup.fields.ket_qua_crm,
-        lookup.fields.thong_tin_xu_ly_crm,
-        lookup.fields.ngay_ktv_hoan_thanh,
-        lookup.fields.thong_tin_giai_trinh_dvbh,
-        lookup.fields.giai_trinh_dvbh_json,
-        ts,
-        row.id,
-      ).run();
+      stmts.push(crmUpdateStmt(c.env.DB, row.id, lookup.fields, ts));
       results.push({ id: row.id, ok: true });
     } else {
       results.push({ id: row.id, ok: false, error: lookup.warning ?? "DVBH_LOOKUP_FAILED" });
     }
     await new Promise((r) => setTimeout(r, 200));
   }
+  // Ghi 1 lan (1 subrequest D1) thay vi 2 cau UPDATE moi ca.
+  if (stmts.length > 0) await c.env.DB.batch(stmts);
 
   return c.json({ results });
 });

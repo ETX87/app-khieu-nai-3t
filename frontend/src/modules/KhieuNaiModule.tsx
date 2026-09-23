@@ -67,7 +67,7 @@ interface Filters {
   nhomVanDe: string;
   tuNgay: string;
   denNgay: string;
-  chuaDongBo: boolean;
+  chuaDongBo: string; // "" | "1" (tat ca ton CRM) | "cho" (cho dong bo) | "sai" (ID CRM sai)
   choTnCskh: boolean;
   quaHanGiaiTrinh: boolean;
   caCuaToi: boolean;
@@ -96,14 +96,19 @@ const TRANG_THAI_QUICK_OPTIONS = [
 
 const EMPTY_FILTERS: Filters = {
   trangThai: "", nguon: "", mucDo: "", nhomVanDe: "", tuNgay: "", denNgay: "",
-  chuaDongBo: false, choTnCskh: false, quaHanGiaiTrinh: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "", thangDong: "",
+  chuaDongBo: "", choTnCskh: false, quaHanGiaiTrinh: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "", thangDong: "",
   q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
 };
 
 function loadFilters(): Filters {
   try {
     const raw = localStorage.getItem(FILTER_KEY);
-    if (raw) return { ...EMPTY_FILTERS, ...JSON.parse(raw) };
+    if (raw) {
+      const saved = { ...EMPTY_FILTERS, ...JSON.parse(raw) };
+      // Ban cu luu chuaDongBo dang boolean.
+      if (typeof saved.chuaDongBo !== "string") saved.chuaDongBo = saved.chuaDongBo ? "1" : "";
+      return saved;
+    }
   } catch { /* ignore */ }
   return EMPTY_FILTERS;
 }
@@ -136,7 +141,9 @@ function chiBao(r: KhieuNai): { text: string; tone: "amber" | "green" | "red" | 
   if (r.trang_thai === "Cho chot ket thuc") return { text: "Sẵn sàng chốt", tone: "green" };
   if (r.trang_thai === "Dang xu ly") {
     if (sanSangDongCa(r)) return { text: "Sẵn sàng đóng ca", tone: "green" };
-    if (r.id_crm_karofi && !r.ngay_ktv_hoan_thanh) return { text: "Chưa đồng bộ CRM", tone: "red" };
+    if (r.id_crm_karofi && !r.ngay_ktv_hoan_thanh) {
+      return r.crm_tra_cuu === "SAI_ID" ? { text: "ID CRM sai", tone: "red" } : { text: "Chờ đồng bộ CRM", tone: "amber" };
+    }
     return { text: "Chờ đánh giá", tone: "amber" };
   }
   return null;
@@ -146,7 +153,7 @@ export function KhieuNaiModule({
   user, initialFilter, openDetailRequest,
 }: {
   user: AppUser;
-  initialFilter?: { trang_thai?: string; chua_dong_bo?: boolean; cho_tn_cskh?: boolean; qua_han_giai_trinh?: boolean } | null;
+  initialFilter?: { trang_thai?: string; chua_dong_bo?: string; cho_tn_cskh?: boolean; qua_han_giai_trinh?: boolean } | null;
   // Mo thang 1 don tu chuong thong bao (App.tsx) - object moi moi lan bam nen luon kich hoat lai
   // duoc ke ca bam trung 1 thong bao 2 lan lien tiep.
   openDetailRequest?: { id: string } | null;
@@ -245,7 +252,7 @@ export function KhieuNaiModule({
         sort: p.sort,
         pageSize: p.pageSize,
         trangThai: initialFilter.trang_thai ?? "",
-        chuaDongBo: initialFilter.chua_dong_bo ?? false,
+        chuaDongBo: initialFilter.chua_dong_bo ?? "",
         choTnCskh: initialFilter.cho_tn_cskh ?? false,
         quaHanGiaiTrinh: initialFilter.qua_han_giai_trinh ?? false,
       }));
@@ -275,7 +282,7 @@ export function KhieuNaiModule({
       if (f.nhomVanDe) p.set("nhom_van_de", f.nhomVanDe);
       if (f.tuNgay) p.set("tu_ngay", f.tuNgay);
       if (f.denNgay) p.set("den_ngay", f.denNgay);
-      if (f.chuaDongBo) p.set("chua_dong_bo", "1");
+      if (f.chuaDongBo) p.set("chua_dong_bo", f.chuaDongBo);
       if (f.choTnCskh) p.set("cho_tn_cskh", "1");
       if (f.quaHanGiaiTrinh) p.set("qua_han_giai_trinh", "1");
       if (f.caCuaToi) p.set("nguoi_phu_trach", user.email);
@@ -416,8 +423,10 @@ export function KhieuNaiModule({
           <span className="text-ink-faint">Không áp dụng</span>
         ) : r.ngay_ktv_hoan_thanh ? (
           <span className="text-green-700">Xong · {fmtVN.date(r.ngay_ktv_hoan_thanh)}</span>
+        ) : r.crm_tra_cuu === "SAI_ID" ? (
+          <span className="font-semibold text-red-600">ID CRM sai</span>
         ) : (
-          <span className="text-amber-600">Chưa</span>
+          <span className="text-amber-600">Chờ đồng bộ</span>
         ),
     },
   ];
@@ -428,8 +437,8 @@ export function KhieuNaiModule({
   const totalPages = Math.max(1, Math.ceil(total / pageSizeN));
 
   const activeFilterCount =
-    [f.trangThai, f.nguon, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.q].filter(Boolean).length +
-    (f.chuaDongBo ? 1 : 0) + (f.choTnCskh ? 1 : 0) + (f.quaHanGiaiTrinh ? 1 : 0) + (f.caCuaToi ? 1 : 0);
+    [f.trangThai, f.nguon, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.chuaDongBo, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.q].filter(Boolean).length +
+    (f.choTnCskh ? 1 : 0) + (f.quaHanGiaiTrinh ? 1 : 0) + (f.caCuaToi ? 1 : 0);
 
   const handleSort = (field: string) => {
     setF((p) => {
@@ -532,9 +541,12 @@ export function KhieuNaiModule({
             <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               đến <input type="date" className={selCls} value={f.denNgay} onChange={(e) => set("denNgay", e.target.value)} />
             </label>
-            <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
-              <input type="checkbox" checked={f.chuaDongBo} onChange={(e) => set("chuaDongBo", e.target.checked)} /> Chưa đồng bộ CRM
-            </label>
+            <select className={selCls} value={f.chuaDongBo} onChange={(e) => set("chuaDongBo", e.target.value)}>
+              <option value="">Mọi tình trạng CRM</option>
+              <option value="1">Tồn đồng bộ CRM (tất cả)</option>
+              <option value="cho">Chờ đồng bộ (ID đúng)</option>
+              <option value="sai">ID CRM sai</option>
+            </select>
             <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               <input type="checkbox" checked={f.choTnCskh} onChange={(e) => set("choTnCskh", e.target.checked)} /> Chờ TN CSKH đóng ca
             </label>

@@ -105,6 +105,7 @@ export interface KhieuNai {
   nguoi_huy: string | null;
   ngay_huy: string | null;
   crm_last_sync_at: string | null;
+  crm_tra_cuu: "OK" | "SAI_ID" | null; // ket qua tra cuu ID CRM gan nhat (null = chua tra cuu duoc)
   created_at: string;
   updated_at: string;
 }
@@ -174,6 +175,8 @@ export interface KhieuNaiStats {
   da_ket_thuc: number;
   huy: number;
   ton_dong_crm: number;
+  ton_cho_dong_bo: number;
+  ton_crm_sai: number;
   cho_tn_cskh: number;
   qua_han_giai_trinh: number;
   theoNhomVanDe: { nhom_van_de: string; so_luong: number }[];

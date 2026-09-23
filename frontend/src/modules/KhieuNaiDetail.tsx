@@ -1486,6 +1486,7 @@ function CrmSection({
     onError: (err) => {
       const code = err instanceof ApiError ? err.code : "ERROR";
       showToast(CRM_WARNING_MESSAGES[code] ?? `Đồng bộ thất bại: ${code}`, "error");
+      if (code === "DVBH_NOT_FOUND") onSaved(); // server da danh dau "ID CRM sai" -> tai lai de hien canh bao
     },
   });
 
@@ -1517,6 +1518,9 @@ function CrmSection({
               </button>
             ) : (
               <p className="text-sm text-ink">—</p>
+            )}
+            {kn.id_crm_karofi && kn.crm_tra_cuu === "SAI_ID" && (
+              <p className="mt-0.5 text-xs font-semibold text-red-600">ID CRM sai — không tìm thấy trên CRM Karofi</p>
             )}
           </Field>
         </div>
