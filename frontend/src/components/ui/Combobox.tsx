@@ -64,8 +64,10 @@ export function Combobox({
     const fq = foldVi(q);
     return options.filter((o) => foldVi(o.label).includes(fq));
   }, [options, q]);
+  // Khop "tuong duong" = giong nhau sau khi bo dau/hoa-thuong ("dak nong" ~ "Đắk Nông") - de go khong
+  // dau van chon dung muc san co, khong tao ra ban trung sai chinh ta.
   const exactMatch = useMemo(
-    () => options.find((o) => o.label.toLowerCase() === q),
+    () => (q === "" ? undefined : options.find((o) => foldVi(o.label.trim()) === foldVi(q))),
     [options, q],
   );
   const canCreateNew = !!creatable && q !== "" && !exactMatch;
@@ -160,7 +162,7 @@ export function Combobox({
       setQuery("");
       return;
     }
-    const exact = options.find((o) => o.label.toLowerCase() === typed.toLowerCase());
+    const exact = options.find((o) => foldVi(o.label.trim()) === foldVi(typed));
     if (exact) {
       onChange(exact.value);
     } else if (creatable) {

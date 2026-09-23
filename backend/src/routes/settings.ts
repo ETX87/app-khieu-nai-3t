@@ -5,6 +5,7 @@ import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
 import { encryptSecret } from "../lib/secretBox";
+import { timTinhChuan } from "../lib/tinhChuan";
 
 const app = new Hono<{ Bindings: Env }>();
 app.use("*", verifySessionMiddleware, loadUser);
@@ -61,6 +62,12 @@ app.post("/options", async (c) => {
   const isUserCreatable = USER_CREATABLE_GROUPS.has(body.nhom);
   const allowed = user.vai_tro === "Admin" || (isUserCreatable && !!user.vai_tro && user.vai_tro !== "Viewer");
   if (!allowed) return c.json({ error: "FORBIDDEN_ROLE" }, 403);
+
+  // Tinh da co trong danh muc (chi khac dau/hoa-thuong, vd "Dak nông" vs "Đắk Nông") -> khong tao trung.
+  if ((body.nhom === "tinh" || body.nhom === "tinh_moi") && typeof body.gia_tri === "string") {
+    const chuan = await timTinhChuan(c.env.DB, body.nhom, body.gia_tri);
+    if (chuan) return c.json({ ok: true, gia_tri: chuan }, 200);
+  }
 
   await c.env.DB.prepare("INSERT OR IGNORE INTO settings_option (nhom, gia_tri, parent, created_by) VALUES (?, ?, ?, ?)")
     .bind(body.nhom, body.gia_tri, body.parent ?? null, user.email)

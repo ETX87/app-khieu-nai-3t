@@ -8,6 +8,7 @@ import { buildThangCondition, isValidThang } from "../lib/thangFilter";
 import { lookupDvbhCase, formatGiaiTrinhHistory } from "../lib/dvbhClient";
 import { uploadPublicFile, deletePublicFile } from "../lib/googleDrive";
 import { lookupOrderByIdLada } from "../lib/center3tClient";
+import { chuanHoaTinh, timTinhChuan } from "../lib/tinhChuan";
 import { notifyRoles } from "../lib/notify";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -424,13 +425,6 @@ const LADA_COMPARE_COLUMNS = [
   "loi_nha_san_xuat", "loi_lap_dat", "loi_thai_do_ktv", "loi_quy_trinh_nskx", "ket_luan_khieu_nai",
 ];
 
-async function optionExists(db: D1Database, nhom: string, giaTri: string): Promise<boolean> {
-  const r = await db.prepare(
-    "SELECT 1 FROM settings_option WHERE nhom = ? AND gia_tri = ? AND active = 1 LIMIT 1",
-  ).bind(nhom, giaTri).first();
-  return !!r;
-}
-
 // Dung chung cho ca 2 nhanh tra cuu noi bo (id_lada VA id_truy_van) - cung 1 kieu du lieu can lay:
 // dien nhanh tu ban ghi cu gan nhat + liet ke lich su "tien trinh" de doi chieu ngay khong can mo
 // tung don. KHONG goi API ngoai o day (xem ghi chu rieng o tung nhanh trong "/tra-cuu").
@@ -552,6 +546,7 @@ app.get("/tra-cuu", async (c) => {
       externalWarning = "CENTER3T_LOOKUP_FAILED";
     }
 
+    if (fill.tinh) fill.tinh = String(await chuanHoaTinh(c.env.DB, "tinh", fill.tinh));
     const found = results.length > 0 || !!preview;
     return c.json({ found, source: "lada", fill, recent, preview, warning: found ? undefined : externalWarning });
   }
@@ -568,10 +563,11 @@ app.get("/tra-cuu", async (c) => {
       // Địa chỉ: DVBH chỉ có tỉnh/quận-huyện (không có phường-xã riêng). Ưu tiên khớp địa chính
       // MỚI (sau sáp nhập 2025) theo tỉnh; không khớp thì điền theo địa chính CŨ.
       const tinhVal = typeof p.tinh === "string" ? p.tinh.trim() : "";
-      if (tinhVal && (await optionExists(c.env.DB, "tinh_moi", tinhVal))) {
-        fill.tinh_moi = tinhVal;
+      const tinhMoiChuan = tinhVal ? await timTinhChuan(c.env.DB, "tinh_moi", tinhVal) : undefined;
+      if (tinhMoiChuan) {
+        fill.tinh_moi = tinhMoiChuan;
       } else {
-        put("tinh", p.tinh);
+        put("tinh", tinhVal ? await chuanHoaTinh(c.env.DB, "tinh", tinhVal) : p.tinh);
         put("quan_huyen", p.quan_huyen);
       }
       const str = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v.trim() : null);
@@ -1436,6 +1432,9 @@ app.post("/:id/phu-trach", requireRole("CSKH", "NV Sale", "Tổng đài viên", 
 app.post("/", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"), async (c) => {
   const user = c.get("user");
   const body = await c.req.json();
+  // Ten tinh viet sai dau ("Dak nông") -> ten chuan trong danh muc ("Đắk Nông").
+  if (body.tinh) body.tinh = await chuanHoaTinh(c.env.DB, "tinh", body.tinh);
+  if (body.tinh_moi) body.tinh_moi = await chuanHoaTinh(c.env.DB, "tinh_moi", body.tinh_moi);
   const ts = nowVN();
   // CSKH/TN CSKH/QL/Admin tu tao phan anh thi coi nhu da tiep nhan luon (ca 3 vai tro nay deu co
   // quyen tu tiep nhan tu 2026-09); rieng NV Sale/Tong dai vien tao ho khach hang -> phai cho
@@ -1560,6 +1559,8 @@ app.patch("/:id", async (c) => {
   }
 
   const bodyKeys = Object.keys(body);
+  if (body.tinh) body.tinh = await chuanHoaTinh(c.env.DB, "tinh", body.tinh);
+  if (body.tinh_moi) body.tinh_moi = await chuanHoaTinh(c.env.DB, "tinh_moi", body.tinh_moi);
   const disallowed = bodyKeys.filter((k) => !allowed.has(k));
   if (disallowed.length > 0) return c.json({ error: "FORBIDDEN_FIELD", fields: disallowed }, 403);
   if (bodyKeys.length === 0) return c.json({ error: "NO_FIELDS" }, 400);
