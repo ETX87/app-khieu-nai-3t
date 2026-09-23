@@ -6,3 +6,8 @@ dist/
 
 # Chua token bi mat cua he "center.dichvu3t.com" o dang plaintext - khong duoc commit.
 api_document_staff.md
+
+# File bi mat o goc repo (khoa API, thong tin ho so nhan su) - KHONG BAO GIO duoc commit/push.
+KHOA-API-Thai3T*.txt
+hrApi*.js
+.claude/settings.local.json
