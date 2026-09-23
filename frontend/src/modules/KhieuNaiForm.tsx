@@ -544,7 +544,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
           cot song song nhu cu qua grid-cols-1 lg:grid-cols-2 co san. */}
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto lg:grid-cols-2 lg:overflow-visible">
         {/* ── Trái: Tra cứu · Khách hàng/Địa chỉ · Sản phẩm · Nội bộ ─────────── */}
-        <div className="flex min-h-0 min-w-0 flex-col gap-3 pb-1 lg:overflow-y-auto lg:pr-3">
+        {/* min-h-0 CHI o lg: - tren mobile 2 nua cung 1 luoi cao co dinh, min-h-0 cho phep luoi ep
+            hang thap hon noi dung -> noi dung tran de len nua kia (loi 1.052). */}
+        <div className="flex min-w-0 flex-col gap-3 pb-1 lg:min-h-0 lg:overflow-y-auto lg:pr-3">
           {/* Tra cứu ID — ô gọn, nút kính lúp */}
           <fieldset className="rounded-lg border border-accent/40 bg-white p-2.5">
             <legend className={legendCls}>Tra cứu nhanh theo ID</legend>
@@ -779,7 +781,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         </div>
 
         {/* ── Phải: Phân loại vấn đề · Nội dung phản ánh — cố định, cuộn riêng ── */}
-        <div className="flex min-h-0 min-w-0 flex-col gap-3 pb-1 lg:overflow-y-auto lg:border-l lg:border-line lg:pl-4">
+        <div className="flex min-w-0 flex-col gap-3 pb-1 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-line lg:pl-4">
           <fieldset className={fsCls}>
             <legend className={legendCls}>Phân loại vấn đề</legend>
             <div className={rowCls}>
