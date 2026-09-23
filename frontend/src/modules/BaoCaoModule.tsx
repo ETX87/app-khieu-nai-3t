@@ -114,6 +114,7 @@ interface TheoNguoiTnRow extends TheoNguoiTnSo {
 }
 interface TheoNguoiTnReport {
   tong_ca_moi: number;
+  ton_cu_chua_tn: number;
   tong: TheoNguoiTnSo;
   rows: TheoNguoiTnRow[];
 }
@@ -472,8 +473,12 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         <div className="mt-5 border-t border-line pt-4">
           <h4 className="mb-1 text-sm font-semibold text-ink">Theo người tiếp nhận</h4>
           <p className="mb-3 text-xs text-ink-soft">
-            Cùng khoảng ngày và bộ lọc ở trên. Chỉ hiện người có tiếp nhận ca trong khoảng. Tỷ lệ = tổng tiếp nhận ÷ tổng ca mở mới
-            (mọi nguồn){theoNguoiTnQuery.data ? <> = <b className="text-ink">{theoNguoiTnQuery.data.tong_ca_moi}</b> ca</> : null}.
+            Cùng khoảng ngày và bộ lọc ở trên. Chỉ hiện người có tiếp nhận ca trong khoảng. Tỷ lệ = tổng tiếp nhận ÷ (ca mở mới
+            mọi nguồn + ca tồn cũ chưa tiếp nhận đầu kỳ)
+            {theoNguoiTnQuery.data ? (
+              <> = <b className="text-ink">{theoNguoiTnQuery.data.tong_ca_moi}</b> + <b className="text-ink">{theoNguoiTnQuery.data.ton_cu_chua_tn}</b> ={" "}
+                <b className="text-ink">{theoNguoiTnQuery.data.tong_ca_moi + theoNguoiTnQuery.data.ton_cu_chua_tn}</b> ca</>
+            ) : null}.
             TB giờ TN chỉ tính ca tiếp nhận từ nguồn khác (ca tự mở được nhận ngay).
           </p>
           {theoNguoiTnQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
