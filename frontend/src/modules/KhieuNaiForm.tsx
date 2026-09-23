@@ -524,10 +524,10 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   // Nen trang (item: giu mac dinh trang cho khoi nhap lieu, khong to mau nen khoi).
   const fsCls = "rounded-lg border border-line bg-white p-3";
   const rowCls = "flex flex-wrap items-start gap-x-3 gap-y-2.5";
-  // Khổ ô nhập gọn: đủ đọc giá trị, không kéo dài chiếm diện tích như trước.
-  const W_XS = "block w-24"; // Phân loại KH
-  const W_SM = "block w-36"; // SĐT, Tỉnh/Huyện/Xã, Mức độ, Nhóm yêu cầu, Người báo
-  const W_MD = "block w-56"; // Tên khách hàng, Nhóm vấn đề, Vấn đề đầu vào, Hãng, Model, Sale khu vực
+  // Mobile: moi o rong het hang (o hep cat chu, vd "Ba Ria - Vung Tau"); desktop (lg:) kho gon nhu cu.
+  const W_XS = "block w-full lg:w-24"; // Phân loại KH
+  const W_SM = "block w-full lg:w-36"; // SĐT, Tỉnh/Huyện/Xã, Mức độ, Nhóm yêu cầu, Người báo
+  const W_MD = "block w-full lg:w-56"; // Tên khách hàng, Nhóm vấn đề, Vấn đề đầu vào, Hãng, Model, Sale khu vực
 
   return (
     <form ref={formElRef} onSubmit={submit} onKeyDown={onFormKeyDown} className="flex h-full min-h-0 flex-col">

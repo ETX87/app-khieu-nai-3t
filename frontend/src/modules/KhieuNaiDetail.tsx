@@ -1492,7 +1492,7 @@ function CrmSection({
   return (
     <>
       <div className="mb-2.5 flex flex-wrap items-end gap-2">
-        <div className="w-36">
+        <div className="w-full lg:w-36">
           <Field label="ID CRM Karofi">
             {editable ? (
               <div className="flex flex-col gap-0.5">

@@ -216,12 +216,12 @@ function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
       actions={<span className="text-xs text-ink-soft">{rows.length} mục</span>}
     >
       <form onSubmit={submit} className="mb-3 flex flex-wrap items-end gap-2">
-        <div className="w-64">
+        <div className="w-full lg:w-64">
           <label className="mb-1 block text-xs font-medium text-ink-soft">Giá trị mới</label>
           <Input value={giaTri} onChange={(e) => setGiaTri(e.target.value)} placeholder="Nhập giá trị..." />
         </div>
         {nhom === "van_de_dau_vao" && (
-          <div className="w-56">
+          <div className="w-full lg:w-56">
             <label className="mb-1 block text-xs font-medium text-ink-soft">Thuộc nhóm vấn đề</label>
             <Select
               options={(nhomVanDeOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
