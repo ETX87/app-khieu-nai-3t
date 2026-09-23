@@ -93,9 +93,14 @@ export function Modal({ open, onClose, title, actions, children, width = "lg", p
   //  - không truyền `title` → bare, nội dung con tự dựng header + vùng cuộn (màn Chi tiết KN).
   //  - có `title` → thanh tiêu đề + ✕ mặc định + vùng cuộn (màn Tạo KN).
   if (width === "full") {
+    // Co `title` (man Tao KN): tren mobile chiem tron man hinh (chua cho tai tho/thanh cu chi vi
+    // viewport-fit=cover), desktop (lg:) giu popup 95% nhu cu.
+    const fullscreenMobile = title !== undefined;
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4"
+        className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 ${
+          fullscreenMobile ? "lg:p-4" : "p-2 sm:p-4"
+        }`}
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
@@ -105,7 +110,11 @@ export function Modal({ open, onClose, title, actions, children, width = "lg", p
           role="dialog"
           aria-modal="true"
           tabIndex={-1}
-          className={`flex h-[95vh] w-[97vw] max-w-[1700px] flex-col overflow-hidden rounded-lg shadow-2xl outline-none transition-colors duration-300 ${panelClassName}`}
+          className={`flex max-w-[1700px] flex-col overflow-hidden shadow-2xl outline-none transition-colors duration-300 ${
+            fullscreenMobile
+              ? "h-[100dvh] w-full pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] lg:h-[95vh] lg:w-[97vw] lg:rounded-lg lg:pb-0 lg:pt-0"
+              : "h-[95vh] w-[97vw] rounded-lg"
+          } ${panelClassName}`}
         >
           {title === undefined ? (
             children
