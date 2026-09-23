@@ -276,8 +276,9 @@ app.get("/", async (c) => {
     binds.push(`${thangDong}-01 00:00:00`, `${thangDong}-01 00:00:00`, `${thangDong}-01 00:00:00`, `${thangDong}-01 00:00:00`);
   }
   if (q) {
-    conditions.push("(ten_khach LIKE ? OR id_lada LIKE ? OR id LIKE ? OR id_crm_karofi LIKE ? OR sdt_khach LIKE ?)");
-    binds.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
+    const cols = ["ten_khach", "id_lada", "id", "id_crm_karofi", "sdt_khach", "id_truy_van"];
+    conditions.push(`(${cols.map((col) => `${col} LIKE ?`).join(" OR ")})`);
+    binds.push(...cols.map(() => `%${q.trim()}%`));
   }
   const nguoiTaoVaiTro = c.req.query("nguoi_tao_vai_tro");
   if (nguoiTaoVaiTro) {

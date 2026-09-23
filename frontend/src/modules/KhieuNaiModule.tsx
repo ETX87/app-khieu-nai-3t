@@ -576,7 +576,7 @@ export function KhieuNaiModule({
             className="max-w-xs"
             value={qInput}
             onChange={(e) => setQInput(e.target.value)}
-            placeholder="Tìm: tên khách · SĐT · ID Lada · mã KN · mã CRM"
+            placeholder="Tìm: tên khách · SĐT · ID Lada · ID Truy xuất · mã KN · mã CRM"
           />
           <Btn type="submit" variant="secondary" size="touch">Tìm</Btn>
           <div className="ml-auto flex items-center gap-2">
