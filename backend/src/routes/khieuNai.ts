@@ -937,29 +937,26 @@ function addDaysISO(dateStr: string, days: number): string {
 
 interface TheoNgaySlRow { ngay: string; sl: number; tb_ngay: number | null }
 
-// "Bao cao theo ngay": 1 dong/ngay trong khoang [tu_ngay, den_ngay], cac chi so "phat sinh trong
-// ngay" (1,4,5,6,7) tinh tu khieu_nai (+ khieu_nai_lich_su cho rieng "tiep nhan") - re va dung cho
-// BAT KY ngay nao (qua khu/hien tai) vi chi doc phan du lieu cua dung khoang ngay duoc chon, khong
-// phu thuoc tong lich su. Rieng cac chi so "ton dong" (2,3,9,10) la SO LIEU TAI 1 THOI DIEM, chi
-// lay duoc CHINH XAC cho qua khu khi KHONG loc gi (dung bao_cao_ngay_snapshot, chup 1 lan/ngay -
-// snapshot khong tach duoc theo bo loc) - khi co loc, 4 chi so nay tra ve null cho ngay qua khu (rieng
-// "hom nay" luon tinh song, kem theo loc, vi chi la 1 truy van dem theo trang_thai hien tai).
-app.get("/bao-cao/theo-ngay", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Tham so chung cua khoi "Bao cao theo ngay" (bang theo ngay + bang theo nguoi tiep nhan): khoang
+// ngay (mac dinh hom nay, toi da BAO_CAO_NGAY_MAX_DAYS) + 6 bo loc. fEmpty/fK = dieu kien loc tren
+// bang khieu_nai khong/co alias "k.".
+function parseNgayVaLoc(q: (k: string) => string | undefined) {
   const todayVN = nowVN().slice(0, 10);
-  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-  let tuNgay = c.req.query("tu_ngay");
-  let denNgay = c.req.query("den_ngay");
+  let tuNgay = q("tu_ngay");
+  let denNgay = q("den_ngay");
   if (!tuNgay || !DATE_RE.test(tuNgay)) tuNgay = todayVN;
   if (!denNgay || !DATE_RE.test(denNgay)) denNgay = tuNgay;
   if (denNgay < tuNgay) { const t = tuNgay; tuNgay = denNgay; denNgay = t; }
   if (addDaysISO(tuNgay, BAO_CAO_NGAY_MAX_DAYS - 1) < denNgay) denNgay = addDaysISO(tuNgay, BAO_CAO_NGAY_MAX_DAYS - 1);
 
-  const nguoiTiepNhan = c.req.query("nguoi_tiep_nhan");
-  const nguoiTao = c.req.query("nguoi_tao");
-  const nguon = c.req.query("nguon");
-  const nhomYeuCau = c.req.query("nhom_yeu_cau");
-  const mucDo = c.req.query("muc_do");
-  const phanLoaiKh = c.req.query("phan_loai_kh");
+  const nguoiTiepNhan = q("nguoi_tiep_nhan");
+  const nguoiTao = q("nguoi_tao");
+  const nguon = q("nguon");
+  const nhomYeuCau = q("nhom_yeu_cau");
+  const mucDo = q("muc_do");
+  const phanLoaiKh = q("phan_loai_kh");
   const hasFilter = !!(nguoiTiepNhan || nguoiTao || nguon || nhomYeuCau || mucDo || phanLoaiKh);
 
   const buildFilterConds = (prefix: string) => {
@@ -973,8 +970,21 @@ app.get("/bao-cao/theo-ngay", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
     if (phanLoaiKh) { conds.push(`${prefix}phan_loai_kh = ?`); binds.push(phanLoaiKh); }
     return { sql: conds.length ? ` AND ${conds.join(" AND ")}` : "", binds };
   };
-  const fEmpty = buildFilterConds("");
-  const fK = buildFilterConds("k.");
+  return { todayVN, tuNgay, denNgay, hasFilter, fEmpty: buildFilterConds(""), fK: buildFilterConds("k.") };
+}
+
+const gio1 = (days: number | null | undefined) => (days == null ? null : Math.round(days * 24 * 10) / 10);
+const tyLe1 = (tu: number, mau: number) => (mau > 0 ? Math.round((tu / mau) * 1000) / 10 : null);
+
+// "Bao cao theo ngay": 1 dong/ngay trong khoang [tu_ngay, den_ngay], cac chi so "phat sinh trong
+// ngay" (1,4,5,6,7) tinh tu khieu_nai (+ khieu_nai_lich_su cho rieng "tiep nhan") - re va dung cho
+// BAT KY ngay nao (qua khu/hien tai) vi chi doc phan du lieu cua dung khoang ngay duoc chon, khong
+// phu thuoc tong lich su. Rieng cac chi so "ton dong" (2,3,9,10) la SO LIEU TAI 1 THOI DIEM, chi
+// lay duoc CHINH XAC cho qua khu khi KHONG loc gi (dung bao_cao_ngay_snapshot, chup 1 lan/ngay -
+// snapshot khong tach duoc theo bo loc) - khi co loc, 4 chi so nay tra ve null cho ngay qua khu (rieng
+// "hom nay" luon tinh song, kem theo loc, vi chi la 1 truy van dem theo trang_thai hien tai).
+app.get("/bao-cao/theo-ngay", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
+  const { todayVN, tuNgay, denNgay, hasFilter, fEmpty, fK } = parseNgayVaLoc((k) => c.req.query(k));
 
   const rangeStart = `${tuNgay} 00:00:00`;
   const rangeEndBind = `${denNgay} 00:00:00`; // dung datetime(?, '+1 day') lam moc tren (loai tru)
@@ -1084,6 +1094,180 @@ app.get("/bao-cao/theo-ngay", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
   }
 
   return c.json({ tu_ngay: tuNgay, den_ngay: denNgay, co_loc: hasFilter, rows });
+});
+
+// Bao cao theo NGUOI TIEP NHAN trong khoang ngay (cung bo loc voi bang theo ngay). Chi hien nguoi
+// thuc su co tiep nhan ca trong khoang + 1 dong tong toan he thong. "Tu mo" = ca nguoi do tu tao va
+// nhan luon (CSKH/TN CSKH/QL/Admin tao, khong qua nut Tiep nhan). "Tu nguon khac" = bam "Tiep nhan"
+// ca do NV Sale/Tong dai vien tao (lich su hanh_dong='tiep_nhan'). Ty le = tong tiep nhan / tong ca
+// mo moi trong khoang (moi nguon). TB gio tiep nhan chi tinh ca tu nguon khac (ca tu mo = 0 gio,
+// tinh vao se keo trung binh xuong sai thuc te).
+app.get("/bao-cao/theo-nguoi-tiep-nhan", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
+  const { tuNgay, denNgay, hasFilter, fEmpty, fK } = parseNgayVaLoc((k) => c.req.query(k));
+  const rangeStart = `${tuNgay} 00:00:00`;
+  const rangeEndBind = `${denNgay} 00:00:00`;
+
+  const [moiQ, nguonKhacQ, tuMoQ] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT COUNT(*) as n FROM khieu_nai WHERE ngay_tiep_nhan >= ? AND ngay_tiep_nhan < datetime(?, '+1 day')${fEmpty.sql}`,
+    ).bind(rangeStart, rangeEndBind, ...fEmpty.binds).first<{ n: number }>(),
+    c.env.DB.prepare(
+      `SELECT l.nguoi as email, u.ten as ten, COUNT(*) as sl,
+              AVG(julianday(l.thoi_diem) - julianday(k.ngay_tiep_nhan)) as tb_ngay
+       FROM khieu_nai_lich_su l JOIN khieu_nai k ON k.id = l.khieu_nai_id LEFT JOIN users u ON u.email = l.nguoi
+       WHERE l.hanh_dong = 'tiep_nhan' AND l.thoi_diem >= ? AND l.thoi_diem < datetime(?, '+1 day')${fK.sql}
+       GROUP BY l.nguoi`,
+    ).bind(rangeStart, rangeEndBind, ...fK.binds).all<{ email: string; ten: string | null; sl: number; tb_ngay: number | null }>(),
+    c.env.DB.prepare(
+      `SELECT k.cskh_tiep_nhan as email, u.ten as ten, COUNT(*) as sl
+       FROM khieu_nai k LEFT JOIN users u ON u.email = k.cskh_tiep_nhan
+       WHERE k.trang_thai != 'Cho tiep nhan' AND k.cskh_tiep_nhan IS NOT NULL
+         AND k.id NOT IN (SELECT khieu_nai_id FROM khieu_nai_lich_su WHERE hanh_dong = 'tiep_nhan')
+         AND k.ngay_tiep_nhan >= ? AND k.ngay_tiep_nhan < datetime(?, '+1 day')${fK.sql}
+       GROUP BY k.cskh_tiep_nhan`,
+    ).bind(rangeStart, rangeEndBind, ...fK.binds).all<{ email: string; ten: string | null; sl: number }>(),
+  ]);
+
+  const tongCaMoi = moiQ?.n ?? 0;
+  const byEmail = new Map<string, { email: string; ten: string | null; tu_mo: number; tu_nguon_khac: number; tb_ngay: number | null }>();
+  const get = (email: string, ten: string | null) => {
+    let r = byEmail.get(email);
+    if (!r) { r = { email, ten, tu_mo: 0, tu_nguon_khac: 0, tb_ngay: null }; byEmail.set(email, r); }
+    return r;
+  };
+  for (const r of tuMoQ.results) get(r.email, r.ten).tu_mo = r.sl;
+  for (const r of nguonKhacQ.results) { const x = get(r.email, r.ten); x.tu_nguon_khac = r.sl; x.tb_ngay = r.tb_ngay; }
+
+  const shape = (x: { tu_mo: number; tu_nguon_khac: number; tb_ngay: number | null }) => {
+    const tong = x.tu_mo + x.tu_nguon_khac;
+    return { tu_mo: x.tu_mo, tu_nguon_khac: x.tu_nguon_khac, tong_tiep_nhan: tong, ty_le: tyLe1(tong, tongCaMoi), tb_gio_tiep_nhan: gio1(x.tb_ngay) };
+  };
+  const rows = [...byEmail.values()]
+    .map((x) => ({ email: x.email, ten: x.ten, ...shape(x) }))
+    .sort((a, b) => b.tong_tiep_nhan - a.tong_tiep_nhan || (a.ten ?? a.email).localeCompare(b.ten ?? b.email, "vi"));
+
+  // Dong tong: TB gio = trung binh co trong so theo so ca tu nguon khac cua tung nguoi.
+  let slKhac = 0, tongNgay = 0;
+  for (const x of byEmail.values()) if (x.tb_ngay != null) { slKhac += x.tu_nguon_khac; tongNgay += x.tb_ngay * x.tu_nguon_khac; }
+  const tong = shape({
+    tu_mo: rows.reduce((s, r) => s + r.tu_mo, 0),
+    tu_nguon_khac: rows.reduce((s, r) => s + r.tu_nguon_khac, 0),
+    tb_ngay: slKhac > 0 ? tongNgay / slKhac : null,
+  });
+
+  return c.json({ tu_ngay: tuNgay, den_ngay: denNgay, co_loc: hasFilter, tong_ca_moi: tongCaMoi, tong, rows });
+});
+
+// Toc do xu ly toan he thong theo ky (ngay/tuan/thang) x 4 moc, tuy chon phan loai theo nguoi tiep
+// nhan / nguon / tinh. Moi moc tinh tu luc MO CA (ngay_tiep_nhan) toi luc moc do xay ra, va xep vao ky
+// theo NGAY XAY RA moc do (giong cot "TB gio XL" cua bang theo ngay):
+//   tn = Tiep nhan (lich su 'tiep_nhan'; bo qua ca tu mo vi = 0 gio)
+//   vp = Chot vi pham (lan danh gia loi cuoi cung, chi ca da danh gia du 4 loi + ket luan)
+//   ql = Danh gia QL (lan dau nhap danh gia QL; ca cu truoc khi co nhat ky -> ngay_ql_danh_gia)
+//   kt = Chot ket thuc (ngay_ket_thuc)
+// Ca Huy khong tinh.
+const TOC_DO_KY = { ngay: 92, tuan: 371, thang: 731 } as const; // so ngay toi da cua khoang theo tung ky
+type TocDoKy = keyof typeof TOC_DO_KY;
+const TOC_DO_PHAN_LOAI: Record<string, string> = {
+  nguoi_tiep_nhan: "COALESCE(k.cskh_tiep_nhan, '')",
+  nguon: "COALESCE(k.nguon, '')",
+  tinh: "COALESCE(NULLIF(k.tinh_moi, ''), NULLIF(k.tinh, ''), '')",
+};
+const TOC_DO_MOC = ["tn", "vp", "ql", "kt"] as const;
+type TocDoMoc = (typeof TOC_DO_MOC)[number];
+
+app.get("/bao-cao/toc-do-xu-ly", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"), async (c) => {
+  const todayVN = nowVN().slice(0, 10);
+  const kyRaw = c.req.query("ky") ?? "thang";
+  const ky: TocDoKy = kyRaw === "ngay" || kyRaw === "tuan" ? kyRaw : "thang";
+  const phanLoaiRaw = c.req.query("phan_loai") ?? "";
+  const phanLoai = phanLoaiRaw in TOC_DO_PHAN_LOAI ? phanLoaiRaw : "";
+  let tuNgay = c.req.query("tu_ngay");
+  let denNgay = c.req.query("den_ngay");
+  if (!denNgay || !DATE_RE.test(denNgay)) denNgay = todayVN;
+  if (!tuNgay || !DATE_RE.test(tuNgay)) tuNgay = addDaysISO(denNgay, -(TOC_DO_KY[ky] - 1));
+  if (denNgay < tuNgay) { const t = tuNgay; tuNgay = denNgay; denNgay = t; }
+  if (addDaysISO(tuNgay, TOC_DO_KY[ky] - 1) < denNgay) tuNgay = addDaysISO(denNgay, -(TOC_DO_KY[ky] - 1));
+
+  const kyExpr = (col: string) =>
+    ky === "ngay" ? `substr(${col}, 1, 10)` : ky === "tuan" ? `date(${col}, '-6 days', 'weekday 1')` : `substr(${col}, 1, 7)`;
+  const grpExpr = phanLoai ? TOC_DO_PHAN_LOAI[phanLoai] : "''";
+  const rangeStart = `${tuNgay} 00:00:00`;
+  const rangeEndBind = `${denNgay} 00:00:00`;
+  const trongKhoang = (col: string) => `${col} >= ?1 AND ${col} < datetime(?2, '+1 day')`;
+  const mocSql = (moc: TocDoMoc, col: string) =>
+    `SELECT '${moc}' as moc, ${kyExpr(col)} as ky, grp, COUNT(*) as sl, AVG(julianday(${col}) - julianday(t0)) as tb_ngay
+     FROM m WHERE ${trongKhoang(col)} GROUP BY 2, 3`;
+
+  const sql = `
+    WITH m AS (
+      SELECT k.ngay_tiep_nhan as t0, ${grpExpr} as grp,
+        (SELECT MIN(l.thoi_diem) FROM khieu_nai_lich_su l WHERE l.khieu_nai_id = k.id AND l.hanh_dong = 'tiep_nhan') as t_tn,
+        CASE WHEN k.loi_nha_san_xuat != 'Chua danh gia' AND k.loi_lap_dat != 'Chua danh gia'
+               AND k.loi_thai_do_ktv != 'Chua danh gia' AND k.loi_quy_trinh_nskx != 'Chua danh gia'
+               AND COALESCE(k.ket_luan_khieu_nai, 'Chua danh gia') != 'Chua danh gia'
+             THEN (SELECT MAX(l.thoi_diem) FROM khieu_nai_lich_su l WHERE l.khieu_nai_id = k.id AND l.hanh_dong = 'danh_gia_loi')
+        END as t_vp,
+        COALESCE((SELECT MIN(l.thoi_diem) FROM khieu_nai_lich_su l WHERE l.khieu_nai_id = k.id AND l.hanh_dong = 'danh_gia_ql'),
+                 k.ngay_ql_danh_gia) as t_ql,
+        CASE WHEN k.trang_thai = 'Da ket thuc' THEN k.ngay_ket_thuc END as t_kt
+      FROM khieu_nai k
+      WHERE k.trang_thai != 'Huy' AND k.ngay_tiep_nhan < datetime(?2, '+1 day')
+        AND (k.trang_thai != 'Da ket thuc' OR k.ngay_ket_thuc >= ?1)
+    )
+    ${mocSql("tn", "t_tn")}
+    UNION ALL ${mocSql("vp", "t_vp")}
+    UNION ALL ${mocSql("ql", "t_ql")}
+    UNION ALL ${mocSql("kt", "t_kt")}`;
+
+  const [aggQ, usersQ] = await Promise.all([
+    c.env.DB.prepare(sql).bind(rangeStart, rangeEndBind)
+      .all<{ moc: TocDoMoc; ky: string; grp: string; sl: number; tb_ngay: number | null }>(),
+    phanLoai === "nguoi_tiep_nhan"
+      ? c.env.DB.prepare("SELECT email, ten FROM users").all<{ email: string; ten: string | null }>()
+      : Promise.resolve({ results: [] as { email: string; ten: string | null }[] }),
+  ]);
+  const tenMap = new Map(usersQ.results.map((u) => [u.email, u.ten]));
+
+  type Cell = { sl: number; tb_gio: number | null };
+  type Acc = Record<TocDoMoc, { sl: number; tong: number }>;
+  const newAcc = (): Acc => ({ tn: { sl: 0, tong: 0 }, vp: { sl: 0, tong: 0 }, ql: { sl: 0, tong: 0 }, kt: { sl: 0, tong: 0 } });
+  const add = (a: Acc, moc: TocDoMoc, sl: number, tbNgay: number | null) => {
+    if (tbNgay == null) return;
+    a[moc].sl += sl; a[moc].tong += tbNgay * sl;
+  };
+  const out = (a: Acc): Record<TocDoMoc, Cell> => {
+    const r = {} as Record<TocDoMoc, Cell>;
+    for (const m of TOC_DO_MOC) r[m] = { sl: a[m].sl, tb_gio: a[m].sl > 0 ? gio1(a[m].tong / a[m].sl) : null };
+    return r;
+  };
+
+  const kyMap = new Map<string, { tong: Acc; nhom: Map<string, Acc> }>();
+  const toanKy = newAcc();
+  for (const r of aggQ.results) {
+    let k = kyMap.get(r.ky);
+    if (!k) { k = { tong: newAcc(), nhom: new Map() }; kyMap.set(r.ky, k); }
+    add(k.tong, r.moc, r.sl, r.tb_ngay);
+    add(toanKy, r.moc, r.sl, r.tb_ngay);
+    if (phanLoai) {
+      let g = k.nhom.get(r.grp);
+      if (!g) { g = newAcc(); k.nhom.set(r.grp, g); }
+      add(g, r.moc, r.sl, r.tb_ngay);
+    }
+  }
+
+  const nhan = (grp: string) => (phanLoai === "nguoi_tiep_nhan" ? (grp ? tenMap.get(grp) || grp : "(Chưa có người tiếp nhận)") : grp || "(Chưa có)");
+  const rows = [...kyMap.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([kyKey, v]) => ({
+      ky: kyKey,
+      ...out(v.tong),
+      nhom: [...v.nhom.entries()]
+        .map(([grp, acc]) => ({ key: grp, nhan: nhan(grp), ...out(acc) }))
+        .sort((a, b) => (b.kt.sl + b.tn.sl) - (a.kt.sl + a.tn.sl) || a.nhan.localeCompare(b.nhan, "vi")),
+    }));
+
+  return c.json({ tu_ngay: tuNgay, den_ngay: denNgay, ky, phan_loai: phanLoai, tong: out(toanKy), rows });
 });
 
 interface RelatedSeed {
