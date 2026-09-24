@@ -15,6 +15,7 @@ import { useToast } from "../components/ui/Toast";
 import { Timeline, type TimelineEvent } from "../components/ui/Timeline";
 import { Tabs, type TabItem } from "../components/ui/Tabs";
 import { NGUON_OPTIONS, NGUON_LABEL } from "./KhieuNaiForm";
+import { CRM_SAI_SAU_GIO, laChoCrmMoi, laIdCrmSai } from "../lib/crm";
 import {
   DINH_KEM_ERROR_MESSAGES, DINH_KEM_MAX_ANH, DINH_KEM_MAX_VIDEO, VIDEO_MAX_BYTES, VIDEO_MAX_DURATION_S,
   compressImage, driveViewUrl, readVideoDuration,
@@ -1524,8 +1525,13 @@ function CrmSection({
             ) : (
               <p className="text-sm text-ink">—</p>
             )}
-            {kn.id_crm_karofi && kn.crm_tra_cuu === "SAI_ID" && (
+            {kn.id_crm_karofi && laIdCrmSai(kn) && (
               <p className="mt-0.5 text-xs font-semibold text-red-600">ID CRM sai — không tìm thấy trên CRM Karofi</p>
+            )}
+            {kn.id_crm_karofi && laChoCrmMoi(kn) && (
+              <p className="mt-0.5 text-xs text-amber-700">
+                Đang chờ đồng bộ — CRM chưa có case này (ca mới tạo, sau {CRM_SAI_SAU_GIO} giờ vẫn không có mới báo ID sai)
+              </p>
             )}
           </Field>
         </div>

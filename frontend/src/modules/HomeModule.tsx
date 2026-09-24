@@ -123,7 +123,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
       const saiN = d.results.filter((r) => r.error === "DVBH_NOT_FOUND").length;
       const loiN = d.results.length - okN - saiN;
       showToast(
-        `Đã kiểm tra ${d.results.length} ca: ${okN} ID đúng` + (saiN ? `, ${saiN} ID CRM sai` : "") + (loiN ? `, ${loiN} lỗi kết nối` : ""),
+        `Đã kiểm tra ${d.results.length} ca: ${okN} ID đúng` + (saiN ? `, ${saiN} chưa tìm thấy trên CRM` : "") + (loiN ? `, ${loiN} lỗi kết nối` : ""),
         saiN || loiN ? "info" : "success",
       );
       statsQuery.refetch();

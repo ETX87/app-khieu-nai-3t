@@ -17,6 +17,7 @@ import { KhieuNaiForm, type KhieuNaiFormHandle, type KhieuNaiFormHeaderState, NG
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
 import { KhieuNaiCard } from "./KhieuNaiCard";
 import { FilterSelect } from "../components/ui/FilterSelect";
+import { laIdCrmSai } from "../lib/crm";
 
 const STATUS_OPTIONS = [
   { value: "Cho tiep nhan", label: "Chờ tiếp nhận" },
@@ -149,7 +150,7 @@ function chiBao(r: KhieuNai): { text: string; tone: "amber" | "green" | "red" | 
   if (r.trang_thai === "Dang xu ly") {
     if (sanSangDongCa(r)) return { text: "Sẵn sàng đóng ca", tone: "green" };
     if (r.id_crm_karofi && !r.ngay_ktv_hoan_thanh) {
-      return r.crm_tra_cuu === "SAI_ID" ? { text: "ID CRM sai", tone: "red" } : { text: "Chờ đồng bộ CRM", tone: "amber" };
+      return laIdCrmSai(r) ? { text: "ID CRM sai", tone: "red" } : { text: "Chờ đồng bộ CRM", tone: "amber" };
     }
     return { text: "Chờ đánh giá", tone: "amber" };
   }
@@ -430,7 +431,7 @@ export function KhieuNaiModule({
           <span className="text-ink-faint">Không áp dụng</span>
         ) : r.ngay_ktv_hoan_thanh ? (
           <span className="text-green-700">Xong · {fmtVN.date(r.ngay_ktv_hoan_thanh)}</span>
-        ) : r.crm_tra_cuu === "SAI_ID" ? (
+        ) : laIdCrmSai(r) ? (
           <span className="font-semibold text-red-600">ID CRM sai</span>
         ) : (
           <span className="text-amber-600">Chờ đồng bộ</span>

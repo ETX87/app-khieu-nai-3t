@@ -191,11 +191,15 @@ function crmUpdateStmt(db: D1Database, id: string, f: CrmFields, ts: string): D1
     f.thong_tin_giai_trinh_dvbh, f.giai_trinh_dvbh_json, ts, id);
 }
 
-// Dieu kien "ca ton dong bo CRM": co ID CRM, KTV chua hoan thanh, ca chua dong/huy. Tach tiep theo
-// crm_tra_cuu: 'SAI_ID' = "ID CRM sai", con lai (OK / chua tra cuu duoc) = "Cho dong bo".
+// Dieu kien "ca ton dong bo CRM": co ID CRM, KTV chua hoan thanh, ca chua dong/huy. Tach tiep:
+// "ID CRM sai" = tra cuu bao khong tim thay (crm_tra_cuu 'SAI_ID') VA ca da tao qua CRM_SAI_SAU_GIO gio
+// (CRM co the chua kip co case ngay luc tao phan anh); con lai = "Cho dong bo". created_at = gio VN
+// luc tao that (khong dung ngay_tiep_nhan vi nguoi tao duoc chon lui ngay). Khop frontend/src/lib/crm.ts.
+const CRM_SAI_SAU_GIO = 4;
 const TON_CRM_SQL = "id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL AND trang_thai NOT IN ('Da ket thuc', 'Huy')";
-const CRM_SAI_SQL = "crm_tra_cuu = 'SAI_ID'";
-const CRM_CHO_SQL = "COALESCE(crm_tra_cuu, '') != 'SAI_ID'";
+const CRM_SAI_SQL =
+  `(COALESCE(crm_tra_cuu, '') = 'SAI_ID' AND created_at <= datetime('now', '+7 hours', '-${CRM_SAI_SAU_GIO} hours'))`;
+const CRM_CHO_SQL = `NOT ${CRM_SAI_SQL}`;
 
 const SORT_COLUMNS: Record<string, string> = {
   id: "id",
@@ -1913,7 +1917,7 @@ const DONG_BO_TON_MAX = 40;
 app.post("/dong-bo-cac-ca-ton", requireRole("QL", "Admin"), async (c) => {
   const rows = await c.env.DB.prepare(
     `SELECT id, id_crm_karofi FROM khieu_nai WHERE ${TON_CRM_SQL}
-     ORDER BY (crm_tra_cuu = 'SAI_ID'), crm_last_sync_at IS NOT NULL, crm_last_sync_at ASC LIMIT ?`,
+     ORDER BY ${CRM_SAI_SQL}, crm_last_sync_at IS NOT NULL, crm_last_sync_at ASC LIMIT ?`,
   ).bind(DONG_BO_TON_MAX).all<{ id: string; id_crm_karofi: string }>();
 
   const results: { id: string; ok: boolean; error?: string }[] = [];
