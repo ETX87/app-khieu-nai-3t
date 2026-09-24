@@ -12,8 +12,8 @@ export function ThangFilter({ value, onChange }: ThangFilterProps) {
       <button
         type="button"
         onClick={() => onChange("")}
-        className={`rounded-md px-3 py-2 text-sm font-medium transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
-          value === "" ? "bg-accent text-white" : "border border-line bg-white text-ink-soft hover:bg-gray-50"
+        className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
+          value === "" ? "bg-accent text-white" : "bg-surface-2 text-ink-soft ring-1 ring-inset ring-line hover:bg-accent-soft hover:text-accent-ink"
         }`}
       >
         Tháng hiện tại
@@ -22,7 +22,7 @@ export function ThangFilter({ value, onChange }: ThangFilterProps) {
         type="month"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-md border border-line bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none lg:px-2 lg:py-1 lg:text-xs"
+        className="rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/15 lg:px-2 lg:py-1 lg:text-xs"
       />
     </div>
   );

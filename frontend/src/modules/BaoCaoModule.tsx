@@ -214,7 +214,7 @@ function SlaBar({ b, max }: { b: SlaBucket; max: number }) {
         <span>{b.label}</span>
         <span className="font-medium text-ink">{total}</span>
       </div>
-      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-brand-50">
         <div className="h-2.5 bg-green-500" style={{ width: `${donePct}%` }} title={`Đã kết thúc: ${b.da_ket_thuc}`} />
         <div className="h-2.5 bg-amber-400" style={{ width: `${openPct}%` }} title={`Đang xử lý: ${b.dang_xu_ly}`} />
       </div>
@@ -371,13 +371,13 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
   const maxNhom = Math.max(1, ...(sla?.theo_nhom_van_de.map((n) => n.so_ca) ?? [1]));
 
   const selCls =
-    "rounded-md border border-line bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none lg:px-2 lg:py-1 lg:text-xs";
+    "rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/15 lg:px-2 lg:py-1 lg:text-xs";
 
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold text-ink">Báo cáo</h2>
+          <h2 className="text-xl font-bold text-ink lg:text-[21px]">Báo cáo</h2>
           <p className="text-xs text-ink-soft">
             SLA + Chốt lỗi + Trùng lặp/tái phát: ca đang tồn (mọi lúc) + ca đóng/hủy/tiếp nhận trong{" "}
             <b className="text-ink">
@@ -400,7 +400,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
           <button
             type="button"
             onClick={() => { setNgayTu(todayISO); setNgayDen(todayISO); }}
-            className="rounded-md border border-line bg-white px-3 py-2 text-sm font-medium text-ink-soft hover:bg-gray-50 lg:px-2 lg:py-1 lg:text-xs"
+            className="rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-ink-soft hover:bg-surface-2 lg:px-2 lg:py-1 lg:text-xs"
           >
             Hôm nay
           </button>
@@ -435,7 +435,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
             <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[980px] border-collapse text-xs">
               <thead>
-                <tr className="border-b border-line text-left font-semibold uppercase tracking-wide text-ink-soft">
+                <tr className="border-b border-line bg-surface-2 text-left font-semibold text-ink-soft">
                   <th className="whitespace-nowrap px-2 py-1.5">Ngày</th>
                   <th className="whitespace-nowrap px-2 py-1.5">Ca mới</th>
                   <th className="whitespace-nowrap px-2 py-1.5">Tồn cũ chưa TN</th>
@@ -490,7 +490,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[720px] border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-line text-left font-semibold uppercase tracking-wide text-ink-soft">
+                    <tr className="border-b border-line bg-surface-2 text-left font-semibold text-ink-soft">
                       <th className="whitespace-nowrap px-2 py-1.5">Người tiếp nhận</th>
                       <th className="whitespace-nowrap px-2 py-1.5">Tự mở mới</th>
                       <th className="whitespace-nowrap px-2 py-1.5">Nguồn khác</th>
@@ -548,7 +548,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-sm lg:text-xs">
               <thead>
-                <tr className="border-b border-line text-left font-semibold uppercase tracking-wide text-ink-soft">
+                <tr className="border-b border-line bg-surface-2 text-left font-semibold text-ink-soft">
                   <th className="sticky left-0 whitespace-nowrap bg-white px-2 py-1.5">Kỳ</th>
                   {TOC_DO_MOC_COLS.map((c) => (
                     <th key={c.key} className="whitespace-nowrap px-2 py-1.5" title={c.hint}>TB {c.label}</th>
@@ -631,7 +631,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                         <span className="truncate">{n.nhom_van_de}</span>
                         <span className="font-medium text-ink">{n.so_ca} ca · {n.so_ngay_trung_binh} ngày TB</span>
                       </div>
-                      <div className="h-1.5 w-full rounded-full bg-gray-100">
+                      <div className="h-1.5 w-full rounded-full bg-brand-50">
                         <div className="h-1.5 rounded-full bg-accent" style={{ width: `${(n.so_ca / maxNhom) * 100}%` }} />
                       </div>
                     </div>
@@ -698,7 +698,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         )}
         <div className="flex flex-col gap-3">
           {trungLapQuery.data?.groups.map((g) => (
-            <div key={[...g.id_truy_van_ids, ...g.lada_ids].join("+")} className="rounded-md border border-line p-2.5">
+            <div key={[...g.id_truy_van_ids, ...g.lada_ids].join("+")} className="rounded-lg border border-line p-2.5">
               <div className="mb-1.5 flex flex-wrap items-center gap-2">
                 {g.id_truy_van_ids.length > 0 && (
                   <span className="font-mono text-sm text-ink-soft lg:text-xs">
@@ -722,7 +722,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                   <button
                     key={it.id}
                     onClick={() => setDetailId(it.id)}
-                    className="flex items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-gray-50 lg:py-1 lg:text-xs"
+                    className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-sm hover:bg-surface-2 lg:py-1 lg:text-xs"
                   >
                     <span className="min-w-0 flex-1 truncate">
                       <span className="font-mono text-ink-soft">{it.id}</span> · {it.ten_khach ?? "—"} ·{" "}

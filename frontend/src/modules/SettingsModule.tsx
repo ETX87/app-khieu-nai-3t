@@ -75,7 +75,7 @@ function GoogleDriveCard() {
       </p>
       {statusQuery.isLoading && <p className="text-sm text-ink-soft">Đang tải...</p>}
       {s?.connected ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm">
           <div>
             <p className="font-medium text-green-800">Đã kết nối: {s.google_email}</p>
             <p className="text-xs text-ink-soft">
@@ -88,7 +88,7 @@ function GoogleDriveCard() {
         </div>
       ) : (
         !statusQuery.isLoading && (
-          <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
             <p className="text-amber-800">Chưa kết nối — chức năng đính kèm ảnh/video sẽ báo lỗi cho đến khi kết nối.</p>
             <Btn size="sm" onClick={() => { window.location.href = "/api/settings/google-drive/authorize"; }}>
               Kết nối Google Drive
@@ -105,7 +105,7 @@ export function SettingsModule() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-ink">Cấu hình danh mục</h2>
+      <h2 className="text-xl font-bold text-ink lg:text-[21px]">Cấu hình danh mục</h2>
 
       <GoogleDriveCard />
 
@@ -118,8 +118,8 @@ export function SettingsModule() {
                 <button
                   key={t.key}
                   onClick={() => setTab(t.key)}
-                  className={`block w-full rounded-md px-2 py-1.5 text-left text-sm font-medium ${
-                    tab === t.key ? "bg-accent-soft text-accent" : "text-ink-soft hover:bg-gray-100 hover:text-ink"
+                  className={`block w-full rounded-lg px-2 py-1.5 text-left text-sm font-medium ${
+                    tab === t.key ? "bg-accent-soft text-accent" : "text-ink-soft hover:bg-accent-soft hover:text-ink"
                   }`}
                 >
                   {t.label}
@@ -247,7 +247,7 @@ function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
       {listQuery.data && (
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-line text-left text-xs font-semibold uppercase text-ink-soft">
+            <tr className="border-b border-line bg-surface-2 text-left text-xs font-semibold text-ink-soft">
               <th className="px-2 py-2">Giá trị</th>
               {nhom === "van_de_dau_vao" && <th className="px-2 py-2">Thuộc nhóm</th>}
               <th className="px-2 py-2">Trạng thái</th>

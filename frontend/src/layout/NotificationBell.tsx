@@ -43,7 +43,8 @@ const TABS: { key: Tab; label: string }[] = [
 // dung dung pattern da kiem thu ben linh-kien-app (xem NotificationBell.tsx cua app do).
 // 3 the Tong/Chua doc/Da doc + cuon vo han 10 dong/lan (giong Facebook) thay vi tai het 1 lan
 // (2026-09-21) - tranh doc/render toan bo lich su thong bao moi lan mo chuong.
-export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) => void }) {
+// onDark: đặt trên nền gradient tím của sidebar -> nút chuông dùng màu trắng.
+export function NotificationBell({ onOpenDetail, onDark }: { onOpenDetail: (id: string) => void; onDark?: boolean }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("unread");
   const queryClient = useQueryClient();
@@ -141,11 +142,11 @@ export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) 
         type="button"
         onClick={() => setOpen(true)}
         title="Thông báo"
-        className="relative flex h-9 w-9 items-center justify-center rounded-full text-lg text-ink-soft hover:bg-gray-100"
+        className={`relative flex h-9 w-9 items-center justify-center rounded-full text-lg ${onDark ? "bg-white/10 hover:bg-white/20" : "text-ink-soft hover:bg-accent-soft"}`}
       >
         🔔
         {unread > 0 && (
-          <span className="absolute right-0 top-0 min-w-[16px] rounded-full bg-red-600 px-[3px] text-center text-[9px] font-bold leading-[16px] text-white">
+          <span className="absolute right-0 top-0 min-w-[16px] rounded-full bg-red-500 px-[3px] text-center text-[9px] font-bold leading-[16px] text-white ring-2 ring-white">
             {unread > 99 ? "99+" : unread}
           </span>
         )}
@@ -185,8 +186,8 @@ export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) 
               key={t.key}
               type="button"
               onClick={() => setTab(t.key)}
-              className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${
-                tab === t.key ? "bg-accent text-white" : "text-ink-soft hover:bg-gray-100"
+              className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors ${
+                tab === t.key ? "bg-accent text-white" : "text-ink-soft hover:bg-accent-soft"
               }`}
             >
               {t.label}
@@ -210,7 +211,7 @@ export function NotificationBell({ onOpenDetail }: { onOpenDetail: (id: string) 
                 key={row.id}
                 type="button"
                 onClick={() => handleRowClick(row)}
-                className={`rounded-lg border px-3 py-2.5 text-left text-xs transition-colors hover:bg-gray-50 ${
+                className={`rounded-lg border px-3 py-2.5 text-left text-xs transition-colors hover:bg-surface-2 ${
                   row.da_doc ? "border-line bg-surface" : "border-accent/40 bg-accent-soft/40 font-medium"
                 }`}
               >

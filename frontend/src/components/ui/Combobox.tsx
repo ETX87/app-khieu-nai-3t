@@ -21,7 +21,7 @@ export function foldVi(s: string): string {
 }
 
 const BASE_CLS =
-  "w-full rounded-md border border-field-border bg-field-bg px-3 py-2.5 text-base text-ink placeholder:text-ink-faint focus:border-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-2 disabled:text-ink-faint lg:px-2.5 lg:py-1.5 lg:text-sm";
+  "w-full rounded-lg border border-field-border bg-field-bg px-3 py-2.5 text-base text-ink placeholder:text-ink-faint focus:border-accent focus:bg-white focus:outline-none focus:ring-[3px] focus:ring-accent/15 disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-2 disabled:text-ink-faint lg:px-2.5 lg:py-1.5 lg:text-sm";
 
 // Combobox điều khiển hoàn toàn bằng bàn phím:
 //  - gõ để lọc; ↑/↓ di chuyển; Enter/Tab chọn mục đang tô sáng rồi cho focus đi tiếp;
@@ -245,7 +245,7 @@ export function Combobox({
             id={listboxId}
             role="listbox"
             style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width }}
-            className="z-[200] max-h-56 overflow-y-auto rounded-md border border-line bg-white py-0.5 shadow-lg"
+            className="z-[200] max-h-56 overflow-y-auto rounded-lg border border-line bg-surface py-1 shadow-pop"
           >
             {rows.length === 0 && (
               <li className="px-3 py-2.5 text-base text-ink-soft lg:py-2 lg:text-sm">Không tìm thấy kết quả.</li>

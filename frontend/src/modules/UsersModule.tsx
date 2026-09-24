@@ -93,7 +93,7 @@ export function UsersModule({ user }: { user: AppUser }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-ink">Người dùng</h2>
+      <h2 className="text-xl font-bold text-ink lg:text-[21px]">Người dùng</h2>
       <Tabs
         tabs={[
           { key: "nguoi-dung", label: "Người dùng", count: pendingCount.data },
@@ -435,7 +435,7 @@ function EditUserDialog({
         </label>
 
         {needConfirm && (
-          <div className="mb-3 rounded-md bg-amber-50 p-3 text-xs text-amber-800 ring-1 ring-inset ring-amber-300">
+          <div className="mb-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 ring-1 ring-inset ring-amber-300">
             <p className="mb-2 font-medium">
               {promotingAdmin && "Bạn đang nâng người này lên quyền Admin. "}
               {locking && "Bạn đang khoá tài khoản này. "}

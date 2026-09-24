@@ -56,21 +56,23 @@ export function BottomNav({ modules, active, onSelect, onMore }: BottomNavProps)
   const primary = modules.slice(0, 4);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex h-[4.5rem] border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-30 flex h-[4.5rem] border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(15,23,42,0.06)] backdrop-blur md:hidden">
       {primary.map((m) => (
         <button
           key={m}
           onClick={() => onSelect(m)}
-          className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium ${
-            active === m ? "text-accent" : "text-ink-soft"
+          className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-xs ${
+            active === m ? "font-bold text-accent" : "font-medium text-ink-soft"
           }`}
         >
-          {NAV_ICONS[m]}
+          <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${active === m ? "bg-accent-soft" : ""}`}>
+            {NAV_ICONS[m]}
+          </span>
           <span className="truncate">{MODULE_LABELS[m]}</span>
         </button>
       ))}
       <button onClick={onMore} className="flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-ink-soft">
-        {ACCOUNT_ICON}
+        <span className="flex h-8 w-14 items-center justify-center">{ACCOUNT_ICON}</span>
         <span>Tài khoản</span>
       </button>
     </nav>

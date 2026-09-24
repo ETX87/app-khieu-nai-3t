@@ -370,7 +370,7 @@ export function KhieuNaiModule({
       sortKey: "id",
       render: (r) => (
         <div className="leading-tight">
-          <div className="font-mono text-xs text-ink">{r.id}</div>
+          <div className="font-mono text-xs font-semibold text-link">{r.id}</div>
           <div className="text-xs text-ink-soft">{[r.model, r.id_lada].filter(Boolean).join(" · ") || "—"}</div>
         </div>
       ),
@@ -458,12 +458,12 @@ export function KhieuNaiModule({
   };
 
   const selCls =
-    "rounded-md border border-line bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none lg:px-2 lg:py-1 lg:text-xs";
+    "rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/15 lg:px-2 lg:py-1 lg:text-xs";
 
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-ink">Phản ánh</h2>
+        <h2 className="text-xl font-bold text-ink lg:text-[21px]">Phản ánh</h2>
         {canCreate && (
           <Btn variant="primary" onClick={() => setCreateOpen(true)}>+ Tạo phản ánh mới</Btn>
         )}
@@ -474,7 +474,7 @@ export function KhieuNaiModule({
           <button
             type="button"
             onClick={() => setFiltersOpen((o) => !o)}
-            className="flex items-center gap-1.5 rounded-md border border-line bg-white px-3 py-2 text-sm font-medium text-ink hover:bg-gray-50 lg:px-2.5 lg:py-1 lg:text-xs"
+            className="flex items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-semibold text-ink-body hover:bg-accent-soft hover:text-accent-ink lg:px-2.5 lg:py-1 lg:text-xs"
           >
             Bộ lọc
             {activeFilterCount > 0 && (
@@ -484,28 +484,28 @@ export function KhieuNaiModule({
             )}
             <span className="text-xs text-ink-soft lg:text-[10px]">{filtersOpen ? "▲" : "▼"}</span>
           </button>
-          <div className="flex items-center gap-0.5 rounded-md border border-line bg-white p-0.5">
+          <div className="flex items-center gap-0.5 rounded-xl bg-surface-2 p-1 ring-1 ring-inset ring-line">
             {NGUON_QUICK_OPTIONS.map((o) => (
               <button
                 key={o.value}
                 type="button"
                 onClick={() => set("nguon", o.value)}
-                className={`rounded px-3 py-2 text-sm font-medium transition-colors lg:px-2 lg:py-1 lg:text-xs ${
-                  f.nguon === o.value ? "bg-accent text-white" : "text-ink-soft hover:bg-gray-50"
+                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
+                  f.nguon === o.value ? "bg-accent text-white shadow-brand" : "text-ink-soft hover:bg-surface hover:text-accent-ink"
                 }`}
               >
                 {o.label}
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap items-center gap-0.5 rounded-md border border-line bg-white p-0.5">
+          <div className="flex flex-wrap items-center gap-0.5 rounded-xl bg-surface-2 p-1 ring-1 ring-inset ring-line">
             {TRANG_THAI_QUICK_OPTIONS.map((o) => (
               <button
                 key={o.value}
                 type="button"
                 onClick={() => set("trangThai", o.value)}
-                className={`flex items-center gap-1 rounded px-3 py-2 text-sm font-medium transition-colors lg:px-2 lg:py-1 lg:text-xs ${
-                  f.trangThai === o.value ? "bg-accent text-white" : "text-ink-soft hover:bg-gray-50"
+                className={`flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
+                  f.trangThai === o.value ? "bg-accent text-white shadow-brand" : "text-ink-soft hover:bg-surface hover:text-accent-ink"
                 }`}
               >
                 {o.label}
@@ -513,7 +513,7 @@ export function KhieuNaiModule({
                   <span
                     title="Số ca trong phạm vi tháng hiện tại (giống Trang chủ) - có thể khác số ca thực tế hiển thị nếu đang lọc theo khoảng ngày/tháng khác"
                     className={`rounded-full px-1.5 py-0.5 text-xs font-semibold leading-none lg:text-[10px] ${
-                      f.trangThai === o.value ? "bg-white/25 text-white" : "bg-gray-100 text-ink-soft"
+                      f.trangThai === o.value ? "bg-white/25 text-white" : "bg-surface text-ink-soft"
                     }`}
                   >
                     {TRANG_THAI_QUICK_COUNT[o.value]}
@@ -582,7 +582,7 @@ export function KhieuNaiModule({
         </form>
 
         {canBulkChot && selectedIds.size > 0 && (
-          <div className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-3 rounded-md border border-accent/30 bg-accent-soft px-3 py-2 text-sm shadow-sm">
+          <div className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-accent/30 bg-accent-soft px-3 py-2 text-sm shadow-card">
             <span className="font-medium text-ink">Đã chọn {selectedIds.size} ca</span>
             <Btn size="touch" variant="primary" disabled={bulkDongCa.isPending} onClick={() => setConfirmDongCa(true)}>
               {bulkDongCa.isPending ? "Đang đóng ca..." : `Đóng ca (${selectedIds.size})`}
@@ -599,7 +599,7 @@ export function KhieuNaiModule({
           <>
             <div className="flex flex-col gap-2 md:hidden">
               {eligibleOnPage.length > 0 && (
-                <label className="flex items-center gap-3 rounded-md border border-line bg-white px-3 py-3 text-sm font-medium text-ink">
+                <label className="flex items-center gap-3 rounded-lg border border-line bg-white px-3 py-3 text-sm font-medium text-ink">
                   {pageCheckbox}
                   Chọn tất cả ca đủ điều kiện đóng ca ({eligibleOnPage.length})
                 </label>

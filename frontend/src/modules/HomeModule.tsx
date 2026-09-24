@@ -20,31 +20,61 @@ interface ListResponse {
   total: number;
 }
 
+// Thẻ KPI pastel theo DESIGN_SYSTEM.md 6.1: nền gradient nhạt + icon tròn nền đậm góc trái +
+// watermark mờ góc phải + tên chỉ số + số liệu lớn. Mỗi tone = 1 nhóm nghiệp vụ (bảng 2.4).
+type KpiTone = "brand" | "blue" | "cyan" | "amber" | "green" | "red" | "slate";
+
+const KPI_TONES: Record<KpiTone, { card: string; icon: string; value: string }> = {
+  brand: { card: "from-brand-50 to-brand-100", icon: "bg-brand-600", value: "text-brand-800" },
+  blue: { card: "from-[#EEF5FE] to-[#DCEBFD]", icon: "bg-blue-500", value: "text-blue-800" },
+  cyan: { card: "from-[#E6F9FB] to-[#D2F3F7]", icon: "bg-cyan-500", value: "text-cyan-800" },
+  amber: { card: "from-[#FFF9E7] to-[#FEF0C7]", icon: "bg-amber-500", value: "text-amber-800" },
+  green: { card: "from-[#EAFBF1] to-[#D4F5E2]", icon: "bg-emerald-500", value: "text-emerald-800" },
+  red: { card: "from-[#FEF1F1] to-[#FDE0E0]", icon: "bg-red-500", value: "text-red-700" },
+  slate: { card: "from-[#F4F5F8] to-[#E8EAF0]", icon: "bg-slate-500", value: "text-slate-700" },
+};
+
+const KPI_ICON_PROPS = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+const KPI_ICONS = {
+  tong: <svg {...KPI_ICON_PROPS}><path d="M4 5h16v11H8l-4 4V5Z" /><path d="M8 9h8M8 12.5h5" /></svg>,
+  inbox: <svg {...KPI_ICON_PROPS}><path d="M4 13h4l1.5 3h5L16 13h4" /><path d="M5.5 5h13L21 13v6H3v-6l2.5-8Z" /></svg>,
+  dangXuLy: <svg {...KPI_ICON_PROPS}><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 4v5h-5" /></svg>,
+  choChot: <svg {...KPI_ICON_PROPS}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>,
+  xong: <svg {...KPI_ICON_PROPS}><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></svg>,
+  huy: <svg {...KPI_ICON_PROPS}><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6M15 9l-6 6" /></svg>,
+  dongBo: <svg {...KPI_ICON_PROPS}><path d="M4 12a8 8 0 0 1 14-5.3L20 9" /><path d="M20 4v5h-5M20 12a8 8 0 0 1-14 5.3L4 15" /><path d="M4 20v-5h5" /></svg>,
+  canhBao: <svg {...KPI_ICON_PROPS}><path d="M12 3 2 20h20L12 3Z" /><path d="M12 10v4M12 17h.01" /></svg>,
+  nguoi: <svg {...KPI_ICON_PROPS}><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" /></svg>,
+  quaHan: <svg {...KPI_ICON_PROPS}><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 1.5M9 2h6" /></svg>,
+};
+
 interface StatCardDef {
   label: string;
   value: number;
-  tone: "blue" | "amber" | "green" | "red";
+  tone: KpiTone;
+  icon: keyof typeof KPI_ICONS;
   onClick?: () => void;
 }
 
-function StatCard({ label, value, tone, onClick }: StatCardDef) {
-  const toneClasses: Record<StatCardDef["tone"], string> = {
-    blue: "bg-blue-50 text-blue-700",
-    amber: "bg-amber-50 text-amber-700",
-    green: "bg-green-50 text-green-700",
-    red: "bg-red-50 text-red-700",
-  };
+function StatCard({ label, value, tone, icon, onClick }: StatCardDef) {
+  const t = KPI_TONES[tone];
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      className={`rounded-lg border border-line p-5 text-left lg:p-4 ${toneClasses[tone]} ${
-        onClick ? "transition-shadow hover:shadow-md" : "cursor-default"
+      className={`relative overflow-hidden rounded-[14px] border border-white/70 bg-gradient-to-br p-4 text-left shadow-card ${t.card} ${
+        onClick ? "transition hover:-translate-y-0.5 hover:shadow-pop" : "cursor-default"
       }`}
     >
-      <p className="text-sm font-medium opacity-80 lg:text-xs">{label}</p>
-      <p className="mt-1 text-2xl font-bold">{value}</p>
+      <span className={`flex h-10 w-10 items-center justify-center rounded-full text-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] lg:h-[38px] lg:w-[38px] ${t.icon}`}>
+        {KPI_ICONS[icon]}
+      </span>
+      <span className={`pointer-events-none absolute -bottom-2 -right-2 opacity-[0.12] [&_svg]:h-[54px] [&_svg]:w-[54px] ${t.value}`}>
+        {KPI_ICONS[icon]}
+      </span>
+      <p className="mt-3 text-sm font-semibold leading-tight text-ink-body lg:text-xs">{label}</p>
+      <p className={`mt-1 text-[28px] font-extrabold leading-none ${t.value}`}>{value}</p>
     </button>
   );
 }
@@ -132,7 +162,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
   });
 
   const columns: TableColumn<KhieuNai>[] = [
-    { key: "id", header: "Mã KN", render: (r) => <span className="font-mono text-xs">{r.id}</span> },
+    { key: "id", header: "Mã KN", render: (r) => <span className="font-mono text-xs font-semibold text-link">{r.id}</span> },
     { key: "ten_khach", header: "Khách hàng", render: (r) => r.ten_khach ?? "—" },
     { key: "van_de_dau_vao", header: "Vấn đề", render: (r) => r.van_de_dau_vao ?? "—" },
     { key: "ngay_tiep_nhan", header: "Tiếp nhận", render: (r) => r.ngay_tiep_nhan },
@@ -144,8 +174,9 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 rounded-xl bg-gradient-to-br from-accent to-accent-dark px-6 py-6 text-white sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 relative overflow-hidden rounded-[14px] bg-hero px-6 py-6 text-white shadow-brand sm:flex-row sm:items-center sm:justify-between">
+        <span className="pointer-events-none absolute -right-6 -top-10 select-none text-[140px] font-extrabold leading-none text-white/10">3T</span>
+        <div className="relative">
           <h2 className="text-xl font-bold">Hệ thống ghi nhận phản ánh</h2>
           <p className="mt-1 text-sm text-white/80">Kết nối KTV hiện trường - CSKH - Xử lý nhanh chóng - Hiệu quả</p>
         </div>
@@ -153,7 +184,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="shrink-0 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-accent shadow-sm transition-shadow hover:shadow-md"
+            className="relative shrink-0 rounded-lg bg-white px-4 py-2.5 text-sm font-bold text-accent shadow-pop transition hover:-translate-y-0.5"
           >
             + Tạo phản ánh mới
           </button>
@@ -168,17 +199,17 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
         <ThangFilter value={thang} onChange={setThang} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-10">
-        <StatCard label="Tổng (phạm vi)" value={s?.tong ?? 0} tone="blue" onClick={() => onOpenList({})} />
-        <StatCard label="Chờ tiếp nhận" value={s?.cho_tiep_nhan ?? 0} tone="red" onClick={() => onOpenList({ trang_thai: "Cho tiep nhan" })} />
-        <StatCard label="Đang xử lý" value={s?.dang_xu_ly ?? 0} tone="amber" onClick={() => onOpenList({ trang_thai: "Dang xu ly" })} />
-        <StatCard label="Chờ chốt kết thúc" value={s?.cho_chot_ket_thuc ?? 0} tone="amber" onClick={() => onOpenList({ trang_thai: "Cho chot ket thuc" })} />
-        <StatCard label="Đã kết thúc" value={s?.da_ket_thuc ?? 0} tone="green" onClick={() => onOpenList({ trang_thai: "Da ket thuc" })} />
-        <StatCard label="Đã hủy" value={s?.huy ?? 0} tone="blue" onClick={() => onOpenList({ trang_thai: "Huy" })} />
-        <StatCard label="Chờ đồng bộ CRM" value={s?.ton_cho_dong_bo ?? 0} tone="amber" onClick={() => onOpenList({ chua_dong_bo: "cho" })} />
-        <StatCard label="ID CRM sai" value={s?.ton_crm_sai ?? 0} tone="red" onClick={() => onOpenList({ chua_dong_bo: "sai" })} />
-        <StatCard label="Chờ TN CSKH" value={s?.cho_tn_cskh ?? 0} tone="amber" onClick={() => onOpenList({ cho_tn_cskh: true })} />
-        <StatCard label="Quá hạn giải trình" value={s?.qua_han_giai_trinh ?? 0} tone="red" onClick={() => onOpenList({ qua_han_giai_trinh: true })} />
+      <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-10">
+        <StatCard label="Tổng (phạm vi)" value={s?.tong ?? 0} tone="brand" icon="tong" onClick={() => onOpenList({})} />
+        <StatCard label="Chờ tiếp nhận" value={s?.cho_tiep_nhan ?? 0} tone="red" icon="inbox" onClick={() => onOpenList({ trang_thai: "Cho tiep nhan" })} />
+        <StatCard label="Đang xử lý" value={s?.dang_xu_ly ?? 0} tone="blue" icon="dangXuLy" onClick={() => onOpenList({ trang_thai: "Dang xu ly" })} />
+        <StatCard label="Chờ chốt kết thúc" value={s?.cho_chot_ket_thuc ?? 0} tone="amber" icon="choChot" onClick={() => onOpenList({ trang_thai: "Cho chot ket thuc" })} />
+        <StatCard label="Đã kết thúc" value={s?.da_ket_thuc ?? 0} tone="green" icon="xong" onClick={() => onOpenList({ trang_thai: "Da ket thuc" })} />
+        <StatCard label="Đã hủy" value={s?.huy ?? 0} tone="slate" icon="huy" onClick={() => onOpenList({ trang_thai: "Huy" })} />
+        <StatCard label="Chờ đồng bộ CRM" value={s?.ton_cho_dong_bo ?? 0} tone="cyan" icon="dongBo" onClick={() => onOpenList({ chua_dong_bo: "cho" })} />
+        <StatCard label="ID CRM sai" value={s?.ton_crm_sai ?? 0} tone="red" icon="canhBao" onClick={() => onOpenList({ chua_dong_bo: "sai" })} />
+        <StatCard label="Chờ TN CSKH" value={s?.cho_tn_cskh ?? 0} tone="brand" icon="nguoi" onClick={() => onOpenList({ cho_tn_cskh: true })} />
+        <StatCard label="Quá hạn giải trình" value={s?.qua_han_giai_trinh ?? 0} tone="red" icon="quaHan" onClick={() => onOpenList({ qua_han_giai_trinh: true })} />
       </div>
 
       {user.vai_tro === "Admin" && (pendingUsersQuery.data ?? 0) > 0 && (
@@ -211,7 +242,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
             <button
               key={r.id}
               onClick={() => setDetailId(r.id)}
-              className="flex items-center justify-between gap-3 rounded-md border border-line px-3 py-3 text-left text-base hover:bg-gray-50 lg:py-2 lg:text-sm"
+              className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-3 text-left text-base transition-colors hover:border-brand-200 hover:bg-accent-soft/60 lg:py-2 lg:text-sm"
             >
               <span className="min-w-0 flex-1 truncate">
                 <span className="font-mono text-xs text-ink-soft">{r.id}</span> · {r.ten_khach ?? "—"} ·{" "}
@@ -259,9 +290,9 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
                   <span className="truncate">{row.nhom_van_de}</span>
                   <span className="font-medium text-ink">{row.so_luong}</span>
                 </div>
-                <div className="h-1.5 w-full rounded-full bg-gray-100">
+                <div className="h-1.5 w-full rounded-full bg-brand-50">
                   <div
-                    className="h-1.5 rounded-full bg-accent"
+                    className="h-1.5 rounded-full bg-gradient-to-r from-brand-600 to-brand-400"
                     style={{ width: `${(row.so_luong / maxNhom) * 100}%` }}
                   />
                 </div>

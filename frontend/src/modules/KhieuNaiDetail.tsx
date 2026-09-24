@@ -168,7 +168,7 @@ function Zone({
   const [open, setOpen] = useState(defaultOpen);
   const a = ZONE_ACCENT[accent];
   return (
-    <section className={`overflow-hidden rounded-lg border border-l-4 border-line ${a.bar} bg-surface shadow-sm ring-1 ring-inset ${a.ring}`}>
+    <section className={`overflow-hidden rounded-lg border border-l-4 border-line ${a.bar} bg-surface shadow-card ring-1 ring-inset ${a.ring}`}>
       <header className={`flex items-center gap-2 border-b px-3 py-2 lg:py-1.5 ${a.head}`}>
         <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ${a.chip}`}>{icon}</span>
         <h3 className="text-sm font-bold uppercase tracking-wide lg:text-[13px]">{title}</h3>
@@ -191,7 +191,7 @@ function Zone({
 }
 
 const TILE_TONE: Record<string, string> = {
-  gray: "bg-gray-50 text-ink ring-gray-200",
+  gray: "bg-surface-2 text-ink ring-line",
   blue: "bg-blue-50 text-blue-800 ring-blue-200",
   violet: "bg-violet-50 text-violet-800 ring-violet-200",
   amber: "bg-amber-50 text-amber-900 ring-amber-200",
@@ -209,7 +209,7 @@ function KeyTile({
 }) {
   const empty = !value || value === "";
   return (
-    <div className={`rounded-md px-2.5 py-1.5 ring-1 ring-inset lg:py-1 ${TILE_TONE[tone] ?? TILE_TONE.gray} ${empty ? "opacity-45" : ""}`}>
+    <div className={`rounded-lg px-2.5 py-1.5 ring-1 ring-inset lg:py-1 ${TILE_TONE[tone] ?? TILE_TONE.gray} ${empty ? "opacity-45" : ""}`}>
       <span className="block text-xs font-medium uppercase leading-none tracking-wide opacity-70 lg:text-[10px]">{label}</span>
       <span className={`block leading-tight ${strong ? "text-base font-semibold lg:text-sm" : "text-base font-medium lg:text-[13px]"} ${mono ? "font-mono" : ""}`}>
         {empty ? "—" : value}
@@ -239,12 +239,12 @@ function NextStepChip({ kn }: { kn: KhieuNai }) {
   } else if (kn.trang_thai === "Cho tiep nhan") {
     text = "Bước kế: CSKH tiếp nhận"; cls = "bg-red-100 text-red-800";
   }
-  return <span className={`rounded-md px-2 py-1 text-xs font-semibold ${cls}`}>{text}</span>;
+  return <span className={`rounded-lg px-2 py-1 text-xs font-semibold ${cls}`}>{text}</span>;
 }
 
 function FlagBadge({ value }: { value: string | null | undefined }) {
-  if (value === "Co do") return <span className="rounded-md bg-red-600 px-2 py-0.5 text-xs font-bold text-white">⚑ CỜ ĐỎ</span>;
-  if (value === "Co vang") return <span className="rounded-md bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">⚑ CỜ VÀNG</span>;
+  if (value === "Co do") return <span className="rounded-lg bg-red-600 px-2 py-0.5 text-xs font-bold text-white">⚑ CỜ ĐỎ</span>;
+  if (value === "Co vang") return <span className="rounded-lg bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">⚑ CỜ VÀNG</span>;
   return null;
 }
 
@@ -261,7 +261,7 @@ function CamCoButtons({ kn, canEdit, onSaved }: { kn: KhieuNai; canEdit: boolean
   const cur = kn.cam_co ?? "Khong co";
   if (!canEdit) return <FlagBadge value={cur} />;
 
-  const base = "rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset transition-colors disabled:opacity-50";
+  const base = "rounded-lg px-2 py-0.5 text-xs font-semibold ring-1 ring-inset transition-colors disabled:opacity-50";
   return (
     <span className="flex items-center gap-1">
       <span className="text-xs font-medium text-ink-soft">Cắm cờ:</span>
@@ -286,7 +286,7 @@ function CamCoButtons({ kn, canEdit, onSaved }: { kn: KhieuNai; canEdit: boolean
           type="button"
           disabled={m.isPending}
           onClick={() => m.mutate("Khong co")}
-          className={`${base} bg-white text-ink-soft ring-line hover:bg-gray-50`}
+          className={`${base} bg-white text-ink-soft ring-line hover:bg-surface-2`}
         >
           Bỏ cờ
         </button>
@@ -335,7 +335,7 @@ function WarningBell({ warnings }: { warnings: WarnItem[] }) {
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-40 mt-1 w-[22rem] max-w-[90vw] overflow-hidden rounded-md border border-line bg-white shadow-lg">
+          <div className="absolute right-0 top-full z-40 mt-1 w-[22rem] max-w-[90vw] overflow-hidden rounded-lg border border-line bg-white shadow-lg">
             {warnings.map((w, i) => (
               <div key={i} className={`px-3 py-2 text-xs ${i > 0 ? "border-t border-line" : ""} ${WARN_BG[w.tone]}`}>
                 {w.content}
@@ -545,7 +545,7 @@ export function KhieuNaiDetail({
           <button
             type="button"
             onClick={copyId}
-            className="rounded border border-line px-2 py-0.5 font-mono text-xs text-ink-soft hover:bg-gray-50"
+            className="rounded border border-line px-2 py-0.5 font-mono text-xs text-ink-soft hover:bg-surface-2"
             title="Sao chép mã đơn — gửi cho người cần xem"
           >
             {kn.id} ⧉
@@ -566,7 +566,7 @@ export function KhieuNaiDetail({
               type="button"
               onClick={onClose}
               aria-label="Đóng"
-              className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink"
+              className="rounded p-1 text-ink-soft hover:bg-accent-soft hover:text-ink"
             >
               ✕
             </button>
@@ -788,7 +788,7 @@ function ZoneBtn({ onClick, children }: { onClick: () => void; children: ReactNo
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md border border-black/10 bg-white/95 px-2 py-0.5 text-xs font-semibold shadow-sm hover:bg-white"
+      className="rounded-lg border border-black/10 bg-white/95 px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-white"
     >
       ✎ {children}
     </button>
@@ -798,7 +798,7 @@ function ZoneBtn({ onClick, children }: { onClick: () => void; children: ReactNo
 // Badge số đếm chuyển từ tab (mobile: 4 khối xếp dọc không còn tab để hiện count).
 function ZoneCountBadge({ n }: { n: number }) {
   return (
-    <span className="rounded-full border border-black/10 bg-white/95 px-2 py-0.5 text-xs font-semibold shadow-sm">
+    <span className="rounded-full border border-black/10 bg-white/95 px-2 py-0.5 text-xs font-semibold shadow-card">
       {n}
     </span>
   );
@@ -907,7 +907,7 @@ function DinhKemSection({
             Ảnh ({anhItems.length}/{DINH_KEM_MAX_ANH})
           </p>
           {canEdit && anhItems.length < DINH_KEM_MAX_ANH && (
-            <label className="cursor-pointer rounded-md border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-sm hover:bg-gray-50">
+            <label className="cursor-pointer rounded-lg border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-surface-2">
               + Thêm ảnh
               <input type="file" accept="image/*" multiple className="hidden" disabled={busy} onChange={handleAnhChange} />
             </label>
@@ -916,7 +916,7 @@ function DinhKemSection({
         {anhItems.length > 0 ? (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
             {anhItems.map((item) => (
-              <div key={item.id} className="group relative aspect-square overflow-hidden rounded-md border border-line bg-gray-50">
+              <div key={item.id} className="group relative aspect-square overflow-hidden rounded-lg border border-line bg-surface-2">
                 <a href={item.url} target="_blank" rel="noreferrer">
                   <img src={item.url} alt={item.ten_file ?? ""} className="h-full w-full object-cover" />
                 </a>
@@ -944,7 +944,7 @@ function DinhKemSection({
             Video ({videoItems.length}/{DINH_KEM_MAX_VIDEO})
           </p>
           {canEdit && videoItems.length < DINH_KEM_MAX_VIDEO && (
-            <label className="cursor-pointer rounded-md border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-sm hover:bg-gray-50">
+            <label className="cursor-pointer rounded-lg border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-surface-2">
               + Thêm video
               <input type="file" accept="video/*" multiple className="hidden" disabled={busy} onChange={handleVideoChange} />
             </label>
@@ -953,7 +953,7 @@ function DinhKemSection({
         {videoItems.length > 0 ? (
           <div className="space-y-1.5">
             {videoItems.map((item) => (
-              <div key={item.id} className="flex items-center gap-2 rounded-md border border-line bg-gray-50 px-2 py-1.5">
+              <div key={item.id} className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-2 py-1.5">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-green-600 text-white">{ICON.media}</span>
                 <a
                   href={driveViewUrl(item.drive_file_id)}
@@ -990,8 +990,8 @@ function DinhKemSection({
 // lai, hoac cung 1 case CRM tach nhieu phan anh).
 function RelatedList({ items, onNavigate }: { items: RelatedItem[]; onNavigate?: (id: string) => void }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-l-4 border-line border-l-gray-400 bg-surface shadow-sm">
-      <header className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-1.5">
+    <section className="overflow-hidden rounded-lg border border-l-4 border-line border-l-gray-400 bg-surface shadow-card">
+      <header className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-1.5">
         <h3 className="text-[13px] font-bold uppercase tracking-wide text-ink-soft">Đơn liên quan ({items.length})</h3>
       </header>
       <div className="flex flex-col divide-y divide-line px-1 py-1">
@@ -1001,7 +1001,7 @@ function RelatedList({ items, onNavigate }: { items: RelatedItem[]; onNavigate?:
             type="button"
             disabled={!onNavigate}
             onClick={() => onNavigate?.(it.id)}
-            className={`flex items-center justify-between gap-2 px-2 py-1.5 text-left text-xs ${onNavigate ? "hover:bg-gray-50" : ""}`}
+            className={`flex items-center justify-between gap-2 px-2 py-1.5 text-left text-xs ${onNavigate ? "hover:bg-surface-2" : ""}`}
           >
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate font-mono text-ink-soft">{it.id}</span>
@@ -1039,7 +1039,7 @@ function EditDialog({ title, onClose, children }: { title: string; onClose: () =
       <div className="w-full max-w-3xl rounded-lg bg-surface shadow-2xl">
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <h3 className="text-sm font-semibold text-ink">{title}</h3>
-          <button type="button" onClick={onClose} aria-label="Đóng" className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink">
+          <button type="button" onClick={onClose} aria-label="Đóng" className="rounded p-1 text-ink-soft hover:bg-accent-soft hover:text-ink">
             ✕
           </button>
         </div>
@@ -1109,7 +1109,7 @@ function MoLaiButton({ id, onDone, onError }: { id: string; onDone: () => void; 
   return (
     <button
       type="button"
-      className="rounded border border-line bg-white px-2 py-1 text-xs font-medium text-ink hover:bg-gray-50"
+      className="rounded border border-line bg-white px-2 py-1 text-xs font-medium text-ink hover:bg-surface-2"
       onClick={() => {
         const ly_do = window.prompt("Lý do mở lại ca (bắt buộc):");
         if (ly_do && ly_do.trim()) m.mutate(ly_do.trim());
@@ -1508,7 +1508,7 @@ function CrmSection({
                   <button
                     type="button"
                     onClick={() => setShowCaseDetail(true)}
-                    className="self-start text-[11px] font-semibold text-teal-700 underline hover:text-teal-900"
+                    className="self-start text-[11px] font-semibold text-link underline hover:text-sky-800"
                   >
                     Xem chi tiết ĐVBH
                   </button>
@@ -1518,7 +1518,7 @@ function CrmSection({
               <button
                 type="button"
                 onClick={() => setShowCaseDetail(true)}
-                className="text-sm font-semibold text-teal-700 underline hover:text-teal-900"
+                className="text-sm font-semibold text-link underline hover:text-sky-800"
               >
                 {kn.id_crm_karofi}
               </button>
@@ -1719,7 +1719,7 @@ function CrmCaseDetailModal({ idCrm, onClose }: { idCrm: string; onClose: () => 
           )}
           {p?.link_crm && (
             <p className="mt-2 border-t border-line pt-2">
-              <a href={p.link_crm} target="_blank" rel="noreferrer" className="font-medium text-teal-700 underline">
+              <a href={p.link_crm} target="_blank" rel="noreferrer" className="font-semibold text-link underline">
                 Xem trên CRM ↗
               </a>
             </p>
@@ -1812,7 +1812,7 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 // Chi 3 lua chon co dinh -> nut bam thay vi dropdown, xep tung dong tu tren xuong de bam nhanh.
 function DanhGiaRow({ label, value, onChange }: { label: string; value: DanhGia3; onChange: (v: DanhGia3) => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border border-line px-2.5 py-1.5">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line px-2.5 py-1.5">
       <span className="min-w-[150px] flex-1 text-sm font-medium text-ink">{label}</span>
       <div className="flex gap-1">
         {DANH_GIA_OPTIONS.map((o) => {
@@ -1822,13 +1822,13 @@ function DanhGiaRow({ label, value, onChange }: { label: string; value: DanhGia3
               ? active ? "bg-red-600 text-white ring-red-600" : "bg-white text-red-700 ring-red-300 hover:bg-red-50"
               : o.value === "Khong"
                 ? active ? "bg-green-600 text-white ring-green-600" : "bg-white text-green-700 ring-green-300 hover:bg-green-50"
-                : active ? "bg-gray-500 text-white ring-gray-500" : "bg-white text-ink-soft ring-line hover:bg-gray-50";
+                : active ? "bg-gray-500 text-white ring-gray-500" : "bg-white text-ink-soft ring-line hover:bg-surface-2";
           return (
             <button
               key={o.value}
               type="button"
               onClick={() => onChange(o.value as DanhGia3)}
-              className={`rounded-md px-2.5 py-1 text-xs font-semibold ring-1 ring-inset transition-colors ${cls}`}
+              className={`rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ring-inset transition-colors ${cls}`}
             >
               {o.label}
             </button>
@@ -1911,7 +1911,7 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
         </Field>
         <div>
           <p className="mb-1 text-xs font-medium text-ink-soft">Giờ xử lý (hệ thống)</p>
-          <p className="rounded-md border border-line bg-gray-50 px-2.5 py-1.5 text-sm text-ink">{gioXuLy}</p>
+          <p className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-sm text-ink">{gioXuLy}</p>
           <p className="mt-1 text-xs text-ink-soft">Tự tính từ ngày tiếp nhận đến khi kết thúc.</p>
         </div>
         <Field label="Ngày hẹn">

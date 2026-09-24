@@ -66,11 +66,11 @@ function MainApp({ user }: { user: AppUser }) {
         onOpenDetail={openDetail}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3 md:hidden">
-          <img src="/icon-192.png" alt="3T" className="h-7 w-7 shrink-0 rounded-lg" />
-          <span className="text-sm font-bold text-ink">3T</span>
+        <header className="sticky top-0 z-20 flex items-center gap-3 bg-sidebar px-4 py-3 text-white shadow-brand md:hidden">
+          <img src="/icon-192.png" alt="3T" className="h-8 w-8 shrink-0 rounded-lg ring-1 ring-white/30" />
+          <span className="text-base font-bold">Phản ánh 3T</span>
           <div className="ml-auto">
-            <NotificationBell onOpenDetail={openDetail} />
+            <NotificationBell onOpenDetail={openDetail} onDark />
           </div>
         </header>
         <main className="min-w-0 flex-1 overflow-y-auto p-4 pb-20 sm:p-6 md:pb-6">

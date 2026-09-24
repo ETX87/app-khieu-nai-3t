@@ -18,7 +18,7 @@ const DOT_CLASSES: Record<TimelineTone, string> = {
 };
 const BORDER_CLASSES: Record<TimelineTone, string> = {
   blue: "border-blue-200", violet: "border-violet-200", teal: "border-teal-200",
-  amber: "border-amber-200", green: "border-green-200", red: "border-red-200", gray: "border-gray-200",
+  amber: "border-amber-200", green: "border-green-200", red: "border-red-200", gray: "border-line",
 };
 
 // Học theo giao diện timeline "GT tồn" bên hệ dvbh (CaseDetail.tsx): mỗi mốc = chấm màu + badge

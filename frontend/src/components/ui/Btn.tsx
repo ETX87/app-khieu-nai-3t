@@ -8,10 +8,10 @@ interface BtnProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANT_CLASSES: Record<Variant, string> = {
-  primary: "bg-accent text-white hover:bg-accent-dark disabled:opacity-40",
-  secondary: "bg-white text-ink border border-line hover:bg-gray-50 disabled:text-gray-400",
+  primary: "bg-accent text-white shadow-brand hover:bg-accent-dark disabled:opacity-40 disabled:shadow-none",
+  secondary: "bg-surface text-ink-body border border-line-strong hover:border-brand-300 hover:bg-accent-soft hover:text-accent-ink disabled:text-ink-faint disabled:hover:border-line-strong disabled:hover:bg-surface",
   danger: "bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300",
-  ghost: "bg-transparent text-ink hover:bg-gray-100 disabled:text-gray-300",
+  ghost: "bg-transparent text-ink-body hover:bg-accent-soft hover:text-accent-ink disabled:text-ink-faint",
 };
 
 // "touch" (2026-09-22): nut hanh dong chinh tren mobile (Luu/Tiep nhan/Sua...) - cao ~48-50px du
@@ -28,7 +28,7 @@ export function Btn({ variant = "secondary", size = "md", className = "", ...res
   const sizeClasses = SIZE_CLASSES[size];
   return (
     <button
-      className={`inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors disabled:cursor-not-allowed ${sizeClasses} ${VARIANT_CLASSES[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/25 disabled:cursor-not-allowed ${sizeClasses} ${VARIANT_CLASSES[variant]} ${className}`}
       {...rest}
     />
   );

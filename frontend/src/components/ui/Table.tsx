@@ -26,16 +26,16 @@ export function Table<T>({
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b border-line text-left text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          <tr className="border-b border-line bg-surface-2 text-left text-xs font-semibold text-ink-soft">
             {columns.map((col) => {
               const active = onSort && col.sortKey && sort?.field === col.sortKey;
               return (
-                <th key={col.key} className={`whitespace-nowrap px-3 py-2 ${col.className ?? ""}`}>
+                <th key={col.key} className={`whitespace-nowrap px-3 py-2.5 ${col.className ?? ""}`}>
                   {onSort && col.sortKey ? (
                     <button
                       type="button"
                       onClick={() => onSort(col.sortKey!)}
-                      className={`flex items-center gap-1 hover:text-ink ${active ? "text-ink" : ""}`}
+                      className={`flex items-center gap-1 hover:text-accent ${active ? "text-accent" : ""}`}
                     >
                       {col.header}
                       <span className="text-[10px]">{active ? (sort!.dir === "asc" ? "▲" : "▼") : "⇅"}</span>
@@ -60,10 +60,10 @@ export function Table<T>({
             <tr
               key={rowKey(row)}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
-              className={`border-b border-line last:border-0 ${onRowClick ? "cursor-pointer" : ""} ${rowClassName ? rowClassName(row) : onRowClick ? "hover:bg-gray-50" : ""}`}
+              className={`border-b border-line last:border-0 ${onRowClick ? "cursor-pointer" : ""} ${rowClassName ? rowClassName(row) : onRowClick ? "hover:bg-accent-soft/60" : ""}`}
             >
               {columns.map((col) => (
-                <td key={col.key} className={`px-3 py-2 align-middle ${col.className ?? ""}`}>
+                <td key={col.key} className={`px-3 py-2 align-middle text-ink-body ${col.className ?? ""}`}>
                   {col.render(row)}
                 </td>
               ))}

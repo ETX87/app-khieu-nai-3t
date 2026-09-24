@@ -112,8 +112,8 @@ export function Modal({ open, onClose, title, actions, children, width = "lg", p
           tabIndex={-1}
           className={`flex max-w-[1700px] flex-col overflow-hidden shadow-2xl outline-none transition-colors duration-300 ${
             fullscreenMobile
-              ? "h-[100dvh] w-full pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] lg:h-[95vh] lg:w-[97vw] lg:rounded-lg lg:pb-0 lg:pt-0"
-              : "h-[95vh] w-[97vw] rounded-lg"
+              ? "h-[100dvh] w-full pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] lg:h-[95vh] lg:w-[97vw] lg:rounded-xl lg:pb-0 lg:pt-0"
+              : "h-[95vh] w-[97vw] rounded-xl"
           } ${panelClassName}`}
         >
           {title === undefined ? (
@@ -121,13 +121,13 @@ export function Modal({ open, onClose, title, actions, children, width = "lg", p
           ) : (
             <>
               <div className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-3.5">
-                <h2 className="text-base font-semibold text-ink">{title}</h2>
+                <h2 className="text-base font-bold text-ink">{title}</h2>
                 <div className="ml-auto flex items-center gap-3">
                   {actions}
                   <button
                     type="button"
                     onClick={onClose}
-                    className="rounded p-2.5 text-ink-soft hover:bg-gray-100 hover:text-ink lg:p-1.5"
+                    className="rounded-lg p-2.5 text-ink-soft hover:bg-accent-soft hover:text-accent-ink lg:p-1.5"
                     aria-label="Đóng"
                   >
                     ✕
@@ -154,20 +154,20 @@ export function Modal({ open, onClose, title, actions, children, width = "lg", p
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
-        className={`w-full ${WIDTH_CLASSES[width]} rounded-lg shadow-xl outline-none transition-colors duration-300 ${panelClassName}`}
+        className={`w-full ${WIDTH_CLASSES[width]} rounded-xl shadow-xl outline-none transition-colors duration-300 ${panelClassName}`}
       >
         {title === undefined ? (
           <div className="max-h-[85vh] overflow-y-auto">{children}</div>
         ) : (
           <>
             <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
-              <h2 className="text-base font-semibold text-ink">{title}</h2>
+              <h2 className="text-base font-bold text-ink">{title}</h2>
               <div className="ml-auto flex items-center gap-3">
                 {actions}
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded p-1 text-ink-soft hover:bg-gray-100 hover:text-ink"
+                  className="rounded-lg p-1 text-ink-soft hover:bg-accent-soft hover:text-accent-ink"
                   aria-label="Đóng"
                 >
                   ✕

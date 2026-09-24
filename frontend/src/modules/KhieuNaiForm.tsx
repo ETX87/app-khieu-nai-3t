@@ -532,7 +532,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   return (
     <form ref={formElRef} onSubmit={submit} onKeyDown={onFormKeyDown} className="flex h-full min-h-0 flex-col">
       {restored && (
-        <div className="mb-2 flex shrink-0 items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-300">
+        <div className="mb-2 flex shrink-0 items-center justify-between rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-300">
           <span>Đã khôi phục nội dung nhập dở lần trước.</span>
           <button type="button" onClick={clearDraft} className="font-medium underline">
             Xoá &amp; nhập mới
@@ -570,7 +570,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     title="Tra cứu"
                     onClick={() => void runLookup("crm")}
                     disabled={!form.id_crm_karofi.trim() || lookupBusy === "crm"}
-                    className="flex shrink-0 items-center justify-center rounded-md border border-line bg-white px-3 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 lg:px-1"
+                    className="flex shrink-0 items-center justify-center rounded-lg border border-line bg-white px-3 text-ink-soft hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 lg:px-1"
                   >
                     {lookupBusy === "crm" ? "…" : <SearchIcon />}
                   </button>
@@ -595,7 +595,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     title="Tra cứu"
                     onClick={() => void runLookup("lada")}
                     disabled={!form.id_lada.trim() || lookupBusy === "lada"}
-                    className="flex shrink-0 items-center justify-center rounded-md border border-line bg-white px-3 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 lg:px-1"
+                    className="flex shrink-0 items-center justify-center rounded-lg border border-line bg-white px-3 text-ink-soft hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 lg:px-1"
                   >
                     {lookupBusy === "lada" ? "…" : <SearchIcon />}
                   </button>
@@ -620,7 +620,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     title="Tra cứu"
                     onClick={() => void runLookup("truy_van")}
                     disabled={!form.id_truy_van.trim() || lookupBusy === "truy_van"}
-                    className="flex shrink-0 items-center justify-center rounded-md border border-line bg-white px-3 text-ink-soft hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 lg:px-1"
+                    className="flex shrink-0 items-center justify-center rounded-lg border border-line bg-white px-3 text-ink-soft hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 lg:px-1"
                   >
                     {lookupBusy === "truy_van" ? "…" : <SearchIcon />}
                   </button>
@@ -835,7 +835,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 <div className="mb-1.5 flex items-center justify-between">
                   <span className="text-xs text-ink-soft">Ảnh ({pendingAnh.length}/{DINH_KEM_MAX_ANH})</span>
                   {pendingAnh.length < DINH_KEM_MAX_ANH && (
-                    <label className="cursor-pointer rounded-md border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-sm hover:bg-gray-50">
+                    <label className="cursor-pointer rounded-lg border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-surface-2">
                       + Thêm ảnh
                       <input type="file" accept="image/*" multiple className="hidden" onChange={handleAnhChange} />
                     </label>
@@ -844,7 +844,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 {pendingAnh.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                     {pendingAnh.map((p, idx) => (
-                      <div key={p.previewUrl} className="group relative aspect-square overflow-hidden rounded-md border border-line bg-gray-50">
+                      <div key={p.previewUrl} className="group relative aspect-square overflow-hidden rounded-lg border border-line bg-surface-2">
                         <img src={p.previewUrl} alt={p.file.name} className="h-full w-full object-cover" />
                         <button
                           type="button"
@@ -863,7 +863,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 <div className="mb-1.5 flex items-center justify-between">
                   <span className="text-xs text-ink-soft">Video ({pendingVideo.length}/{DINH_KEM_MAX_VIDEO})</span>
                   {pendingVideo.length < DINH_KEM_MAX_VIDEO && (
-                    <label className="cursor-pointer rounded-md border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-sm hover:bg-gray-50">
+                    <label className="cursor-pointer rounded-lg border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-surface-2">
                       + Thêm video
                       <input type="file" accept="video/*" multiple className="hidden" onChange={handleVideoChange} />
                     </label>
@@ -872,7 +872,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 {pendingVideo.length > 0 && (
                   <div className="space-y-1.5">
                     {pendingVideo.map((file, idx) => (
-                      <div key={`${file.name}-${idx}`} className="flex items-center gap-2 rounded-md border border-line bg-gray-50 px-2 py-1.5">
+                      <div key={`${file.name}-${idx}`} className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-2 py-1.5">
                         <span className="flex-1 truncate text-[13px]">{file.name}</span>
                         <button
                           type="button"
@@ -904,7 +904,7 @@ function LookupResult({
 }) {
   if (!res.found) {
     return (
-      <div className="mt-3 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink-soft lg:text-xs">
+      <div className="mt-3 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink-soft lg:text-xs">
         {res.source === "lada"
           ? "Không tìm thấy ID Lada này (đã kiểm tra cả lịch sử phản ánh cũ lẫn hệ thống đơn hàng) — nhập thủ công."
           : res.source === "truy_van"
@@ -928,7 +928,7 @@ function LookupResult({
       summary: g.noi_dung ? `${g.ly_do_cham}: ${g.noi_dung}` : g.ly_do_cham,
     }));
     return (
-      <div className="mt-3 rounded-md border border-teal-300 bg-teal-50 px-3 py-2 text-sm text-teal-900 lg:text-xs">
+      <div className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm text-teal-900 lg:text-xs">
         <div className="mb-1 flex items-center justify-between gap-2">
           <span className="font-semibold">Tìm thấy trên CRM Karofi</span>
           {hasFill && (
@@ -983,7 +983,7 @@ function LookupResult({
   const p = res.preview;
   const idLabel = res.source === "truy_van" ? "ID Truy xuất" : "ID Lada";
   return (
-    <div className="mt-3 rounded-md border border-violet-300 bg-violet-50 px-3 py-2 text-sm text-violet-900 lg:text-xs">
+    <div className="mt-3 rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-sm text-violet-900 lg:text-xs">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <span className="font-semibold">
           {p ? "Tìm thấy thông tin đơn hàng" : `${rows.length} phản ánh cũ cùng ${idLabel}`}
