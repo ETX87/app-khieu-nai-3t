@@ -231,7 +231,14 @@ Desktop (md+)                                         Mobile (< md)
 - Modal `rounded-xl` (full-screen trên mobile), tiêu đề 16px bold; nút đóng vùng chạm ≥ 40px trên mobile, hover `accent-soft`.
 - Overlay `bg-black/40–50`.
 
-### 6.9. Thông báo (Toast)
+### 6.9. Form dài trên mobile (mẫu: `KhieuNaiForm.tsx`)
+- Mỗi nhóm trường là 1 thẻ `rounded-xl p-4 shadow-card`, tiêu đề có **số thứ tự** trong chấm tròn `brand-50` để người nhập biết mình đang ở bước nào; desktop (`lg:`) trả về khung gọn + nhãn chữ HOA nhỏ.
+- Nút Hủy / Lưu nằm ở **thanh cố định đáy màn hình** (`Btn size="touch"`, nút chính rộng gấp đôi), kèm dòng "Còn thiếu: …". Bấm Lưu khi còn thiếu → cuộn tới và focus ô thiếu đầu tiên.
+- Chọn ảnh/video: **ô bấm lớn** (≥ 100px cao, viền nét đứt `brand-300`, nền `accent-soft`, icon + chữ + đếm "n/max"); không dùng nút chữ nhỏ.
+- **Không dựa vào hover** để hiện nút trên mobile (vd nút ✕ xoá ảnh luôn hiện, ≥ 32px); chỉ ẩn-chờ-hover từ `lg:` trở lên.
+- Nút tra cứu cạnh ô nhập: vuông ≥ 48px, nền `accent-soft`, icon `accent`.
+
+### 6.10. Thông báo (Toast)
 - `rounded-lg shadow-pop font-medium`; info nền `ink`, success `green-600`, error `red-600`.
 
 ---

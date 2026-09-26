@@ -656,7 +656,7 @@ export function KhieuNaiModule({
         width="full"
         panelClassName={createHeader.panelClassName}
         actions={
-          <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-3 lg:flex">
             {createHeader.pendingCount > 0 && (
               <span className="hidden text-[11px] text-ink-soft sm:inline">
                 {createHeader.pendingCount} lựa chọn mới sẽ được lưu khi bấm Tạo

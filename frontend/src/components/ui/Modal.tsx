@@ -134,7 +134,7 @@ export function Modal({ open, onClose, title, actions, children, width = "lg", p
                   </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+              <div className="flex-1 overflow-y-auto px-3 py-3 lg:px-5 lg:py-4">{children}</div>
             </>
           )}
         </div>

@@ -8,6 +8,7 @@ import type { KhieuNai, SettingsNhom } from "../api/types";
 import { useSettingsOptions } from "../api/useSettingsOptions";
 import { Field, Input, Textarea } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
+import { Btn } from "../components/ui/Btn";
 import { Combobox } from "../components/ui/Combobox";
 import { useToast } from "../components/ui/Toast";
 import { fmtVN, translateDanhGia } from "../lib/formatVN";
@@ -520,9 +521,13 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
     setRestored(false);
   };
 
-  const legendCls = "mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft";
-  // Nen trang (item: giu mac dinh trang cho khoi nhap lieu, khong to mau nen khoi).
-  const fsCls = "rounded-lg border border-line bg-white p-3";
+  // Nen trang (item: giu mac dinh trang cho khoi nhap lieu, khong to mau nen khoi). Mobile: the bo
+  // goc 12px + bong nhe theo DESIGN_SYSTEM.md; desktop (lg:) giu khung gon nhu cu.
+  const fsCls = "rounded-xl border border-line bg-surface p-4 shadow-card lg:rounded-lg lg:p-3 lg:shadow-none";
+  const subCls = "text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]";
+  const searchBtnCls =
+    "flex min-w-[48px] shrink-0 items-center justify-center rounded-lg border border-brand-200 bg-accent-soft px-3 text-accent-ink hover:bg-brand-100 " +
+    "disabled:cursor-not-allowed disabled:opacity-50 lg:min-w-0 lg:border-line lg:bg-white lg:px-1 lg:text-ink-soft lg:hover:bg-surface-2";
   const rowCls = "flex flex-wrap items-start gap-x-3 gap-y-2.5";
   // Mobile: moi o rong het hang (o hep cat chu, vd "Ba Ria - Vung Tau"); desktop (lg:) kho gon nhu cu.
   const W_XS = "block w-full lg:w-24"; // Phân loại KH
@@ -548,8 +553,8 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
             hang thap hon noi dung -> noi dung tran de len nua kia (loi 1.052). */}
         <div className="flex min-w-0 flex-col gap-3 pb-1 lg:min-h-0 lg:overflow-y-auto lg:pr-3">
           {/* Tra cứu ID — ô gọn, nút kính lúp */}
-          <fieldset className="rounded-lg border border-accent/40 bg-white p-2.5">
-            <legend className={legendCls}>Tra cứu nhanh theo ID</legend>
+          <fieldset className="rounded-xl border border-brand-200 bg-surface p-4 shadow-card lg:rounded-lg lg:border-accent/40 lg:p-2.5 lg:shadow-none">
+            <SectionHead n={1} title="Tra cứu nhanh theo ID" />
             <div className="flex flex-col gap-2.5 lg:flex-row lg:flex-nowrap lg:items-end lg:gap-x-2 lg:gap-y-0 lg:overflow-x-auto lg:pb-0.5">
               <div className="w-full lg:w-[92px] lg:shrink-0">
                 <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">ID CRM Karofi</span>
@@ -570,7 +575,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     title="Tra cứu"
                     onClick={() => void runLookup("crm")}
                     disabled={!form.id_crm_karofi.trim() || lookupBusy === "crm"}
-                    className="flex shrink-0 items-center justify-center rounded-lg border border-line bg-white px-3 text-ink-soft hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 lg:px-1"
+                    className={searchBtnCls}
                   >
                     {lookupBusy === "crm" ? "…" : <SearchIcon />}
                   </button>
@@ -595,7 +600,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     title="Tra cứu"
                     onClick={() => void runLookup("lada")}
                     disabled={!form.id_lada.trim() || lookupBusy === "lada"}
-                    className="flex shrink-0 items-center justify-center rounded-lg border border-line bg-white px-3 text-ink-soft hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 lg:px-1"
+                    className={searchBtnCls}
                   >
                     {lookupBusy === "lada" ? "…" : <SearchIcon />}
                   </button>
@@ -620,7 +625,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     title="Tra cứu"
                     onClick={() => void runLookup("truy_van")}
                     disabled={!form.id_truy_van.trim() || lookupBusy === "truy_van"}
-                    className="flex shrink-0 items-center justify-center rounded-lg border border-line bg-white px-3 text-ink-soft hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 lg:px-1"
+                    className={searchBtnCls}
                   >
                     {lookupBusy === "truy_van" ? "…" : <SearchIcon />}
                   </button>
@@ -646,10 +651,10 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
 
           {/* Khách hàng (luôn hiện, trái) + Địa chính (tab, phải) */}
           <fieldset className={fsCls}>
-            <legend className={legendCls}>Thông tin khách hàng &amp; địa chỉ</legend>
+            <SectionHead n={2} title="Thông tin khách hàng & địa chỉ" />
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Khách hàng</p>
+                <p className={`mb-2 ${subCls}`}>Khách hàng</p>
                 <div className={rowCls}>
                   <Field label="Tên khách hàng *" className={W_MD}>
                     <Input id="fld-ten_khach" value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} autoFocus />
@@ -669,7 +674,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
 
               <div className="flex flex-col gap-3">
                 <div>
-                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Địa chính cũ</p>
+                  <p className={`mb-1.5 ${subCls}`}>Địa chính cũ</p>
                   <div className={rowCls}>
                     <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới" className={W_SM}>
                       <Combobox
@@ -704,7 +709,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 </div>
 
                 <div className="border-t border-line pt-3">
-                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Địa chính mới</p>
+                  <p className={`mb-1.5 ${subCls}`}>Địa chính mới</p>
                   <div className={rowCls}>
                     <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới" className={W_SM}>
                       <Combobox
@@ -725,7 +730,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                         onCreate={(v) => addPending("phuong_xa_moi", v, form.tinh_moi)}
                       />
                     </Field>
-                    <p className="mb-1 w-full text-[11px] leading-tight text-ink-faint">
+                    <p className="mb-1 w-full text-xs leading-tight text-ink-faint lg:text-[11px]">
                       Điền theo địa chính cũ, mới, hoặc cả hai — không bắt buộc.
                     </p>
                   </div>
@@ -735,7 +740,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
           </fieldset>
 
           <fieldset className={fsCls}>
-            <legend className={legendCls}>Sản phẩm</legend>
+            <SectionHead n={3} title="Sản phẩm" />
             <div className={rowCls}>
               <Field label="Hãng" hint="Gõ để tìm / thêm mới" className={W_MD}>
                 <Combobox
@@ -759,7 +764,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
           </fieldset>
 
           <fieldset className={fsCls}>
-            <legend className={legendCls}>Nội bộ</legend>
+            <SectionHead n={4} title="Nội bộ" />
             <div className={rowCls}>
               <Field label="Sale khu vực" hint="Gõ để tìm / thêm mới" className={W_MD}>
                 <Combobox
@@ -774,7 +779,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 <Input value={form.nguoi_bao} onChange={(e) => setField("nguoi_bao", e.target.value)} />
               </Field>
             </div>
-            <p className="mt-2 text-[11px] leading-tight text-ink-soft">
+            <p className="mt-2 text-xs leading-tight text-ink-soft lg:text-[11px]">
               Ngày tiếp nhận &amp; các dữ liệu CRM khác được hệ thống tự đồng bộ, không cần nhập.
             </p>
           </fieldset>
@@ -783,7 +788,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         {/* ── Phải: Phân loại vấn đề · Nội dung phản ánh — cố định, cuộn riêng ── */}
         <div className="flex min-w-0 flex-col gap-3 pb-1 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-line lg:pl-4">
           <fieldset className={fsCls}>
-            <legend className={legendCls}>Phân loại vấn đề</legend>
+            <SectionHead n={5} title="Phân loại vấn đề" />
             <div className={rowCls}>
               <Field label="Nhóm yêu cầu" className={W_SM}>
                 <Combobox
@@ -817,7 +822,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
           </fieldset>
 
           <fieldset className={fsCls}>
-            <legend className={legendCls}>Nội dung phản ánh</legend>
+            <SectionHead n={6} title="Nội dung phản ánh" />
             <div className="flex flex-col gap-2.5">
               <Field label="Thông tin ban đầu *">
                 <Textarea id="fld-thong_tin_ban_dau" rows={3} value={form.thong_tin_ban_dau} onChange={(e) => setField("thong_tin_ban_dau", e.target.value)} />
@@ -829,13 +834,19 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
           </fieldset>
 
           <fieldset className={fsCls}>
-            <legend className={legendCls}>Ảnh / video đính kèm</legend>
+            <SectionHead n={7} title="Ảnh / video đính kèm" />
             <div className="space-y-3">
-              <div>
+              {/* Mobile: 2 o bam lon (camera / thu vien) thay cho nut chu nho - nguoi dung lon tuoi. */}
+              <div className="grid grid-cols-2 gap-2.5 lg:hidden">
+                <MediaPicker kind="anh" count={pendingAnh.length} max={DINH_KEM_MAX_ANH} accept="image/*" onChange={handleAnhChange} />
+                <MediaPicker kind="video" count={pendingVideo.length} max={DINH_KEM_MAX_VIDEO} accept="video/*" onChange={handleVideoChange} />
+              </div>
+
+              <div className={pendingAnh.length > 0 ? "" : "hidden lg:block"}>
                 <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-xs text-ink-soft">Ảnh ({pendingAnh.length}/{DINH_KEM_MAX_ANH})</span>
+                  <span className="text-sm font-semibold text-ink-body lg:text-xs lg:font-normal lg:text-ink-soft">Ảnh ({pendingAnh.length}/{DINH_KEM_MAX_ANH})</span>
                   {pendingAnh.length < DINH_KEM_MAX_ANH && (
-                    <label className="cursor-pointer rounded-lg border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-surface-2">
+                    <label className="hidden cursor-pointer rounded-lg border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-surface-2 lg:inline-block">
                       + Thêm ảnh
                       <input type="file" accept="image/*" multiple className="hidden" onChange={handleAnhChange} />
                     </label>
@@ -846,10 +857,12 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                     {pendingAnh.map((p, idx) => (
                       <div key={p.previewUrl} className="group relative aspect-square overflow-hidden rounded-lg border border-line bg-surface-2">
                         <img src={p.previewUrl} alt={p.file.name} className="h-full w-full object-cover" />
+                        {/* Mobile khong co hover -> nut xoa luon hien, du lon de cham. */}
                         <button
                           type="button"
                           onClick={() => removeAnh(idx)}
-                          className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white opacity-0 group-hover:opacity-100"
+                          aria-label="Xoá ảnh"
+                          className="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-sm text-white lg:h-5 lg:w-5 lg:text-xs lg:opacity-0 lg:group-hover:opacity-100"
                         >
                           ✕
                         </button>
@@ -859,11 +872,11 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 )}
               </div>
 
-              <div>
+              <div className={pendingVideo.length > 0 ? "" : "hidden lg:block"}>
                 <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-xs text-ink-soft">Video ({pendingVideo.length}/{DINH_KEM_MAX_VIDEO})</span>
+                  <span className="text-sm font-semibold text-ink-body lg:text-xs lg:font-normal lg:text-ink-soft">Video ({pendingVideo.length}/{DINH_KEM_MAX_VIDEO})</span>
                   {pendingVideo.length < DINH_KEM_MAX_VIDEO && (
-                    <label className="cursor-pointer rounded-lg border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-surface-2">
+                    <label className="hidden cursor-pointer rounded-lg border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-surface-2 lg:inline-block">
                       + Thêm video
                       <input type="file" accept="video/*" multiple className="hidden" onChange={handleVideoChange} />
                     </label>
@@ -872,12 +885,13 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 {pendingVideo.length > 0 && (
                   <div className="space-y-1.5">
                     {pendingVideo.map((file, idx) => (
-                      <div key={`${file.name}-${idx}`} className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-2 py-1.5">
-                        <span className="flex-1 truncate text-[13px]">{file.name}</span>
+                      <div key={`${file.name}-${idx}`} className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2 lg:px-2 lg:py-1.5">
+                        <span className="shrink-0 text-accent lg:hidden"><VideoIcon /></span>
+                        <span className="flex-1 truncate text-sm lg:text-[13px]">{file.name}</span>
                         <button
                           type="button"
                           onClick={() => removeVideo(idx)}
-                          className="rounded px-1.5 py-0.5 text-xs text-red-600 hover:bg-red-50"
+                          className="rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 lg:rounded lg:px-1.5 lg:py-0.5 lg:text-xs lg:font-normal"
                         >
                           Xoá
                         </button>
@@ -886,14 +900,77 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                   </div>
                 )}
               </div>
-              <p className="text-[11px] text-ink-faint">Ảnh được tự động nén trước khi gửi; video chỉ giới hạn dung lượng (≤80MB) và thời lượng (≤60s), không nén.</p>
+              <p className="text-xs text-ink-faint lg:text-[11px]">Ảnh được tự động nén trước khi gửi; video chỉ giới hạn dung lượng (≤80MB) và thời lượng (≤60s), không nén.</p>
             </div>
           </fieldset>
+        </div>
+      </div>
+
+      {/* Mobile: thanh nut co dinh day man hinh (nut Huy/Tao tren thanh tieu de qua nho va xa tay).
+          Bam Tao khi con thieu -> cuon toi o thieu dau tien (xem submit). Desktop dung nut o tieu de. */}
+      <div className="-mx-3 -mb-3 mt-3 flex shrink-0 flex-col gap-2 border-t border-line bg-surface px-3 pb-3 pt-2.5 shadow-[0_-4px_16px_rgba(15,23,42,0.06)] lg:hidden">
+        {missing.length > 0 ? (
+          <p className="text-sm text-amber-700">Còn thiếu: <b>{missing.map((m) => m.label).join(", ")}</b></p>
+        ) : pendingOpts.length > 0 ? (
+          <p className="text-xs text-ink-soft">{pendingOpts.length} lựa chọn mới sẽ được lưu khi bấm Tạo</p>
+        ) : null}
+        <div className="grid grid-cols-[1fr_2fr] gap-2">
+          <Btn type="button" variant="secondary" size="touch" onClick={cancel}>Hủy</Btn>
+          <Btn type="submit" variant="primary" size="touch" disabled={mutation.isPending}>
+            {mutation.isPending ? "Đang tạo..." : "Tạo phản ánh"}
+          </Btn>
         </div>
       </div>
     </form>
   );
 });
+
+// Tieu de tung khoi: mobile co so thu tu trong cham tron tim + chu dam de de theo doi tien do
+// nhap; desktop tra ve nhan chu HOA nho nhu cu.
+function SectionHead({ n, title }: { n: number; title: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5 lg:mb-1.5 lg:gap-0">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700 lg:hidden">{n}</span>
+      <span className="text-base font-bold text-ink lg:text-xs lg:font-semibold lg:uppercase lg:tracking-wide lg:text-ink-soft">{title}</span>
+    </div>
+  );
+}
+
+const MEDIA_ICON_PROPS = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+const CameraIcon = () => (
+  <svg width={28} height={28} {...MEDIA_ICON_PROPS}><path d="M4 8h3l2-3h6l2 3h3v11H4Z" /><circle cx="12" cy="13" r="3.5" /></svg>
+);
+const VideoIcon = ({ size = 22 }: { size?: number }) => (
+  <svg width={size} height={size} {...MEDIA_ICON_PROPS}><rect x="3" y="6" width="13" height="12" rx="2" /><path d="m16 10 5-3v10l-5-3" /></svg>
+);
+
+// O bam lon chon anh/video tren mobile (mo camera hoac thu vien cua dien thoai).
+function MediaPicker({
+  kind, count, max, accept, onChange,
+}: {
+  kind: "anh" | "video";
+  count: number;
+  max: number;
+  accept: string;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  const full = count >= max;
+  const body = (
+    <>
+      <span className={full ? "text-ink-faint" : "text-accent"}>{kind === "anh" ? <CameraIcon /> : <VideoIcon size={28} />}</span>
+      <span className="text-base font-bold">{kind === "anh" ? "Thêm ảnh" : "Thêm video"}</span>
+      <span className="text-xs font-medium text-ink-soft">{full ? "Đã đủ " : ""}{count}/{max} {kind === "anh" ? "ảnh" : "video"}</span>
+    </>
+  );
+  const cls = "flex min-h-[104px] flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-2 py-3 text-center";
+  if (full) return <div className={`${cls} border-line bg-surface-2 text-ink-faint`}>{body}</div>;
+  return (
+    <label className={`${cls} cursor-pointer border-brand-300 bg-accent-soft text-accent-ink transition-colors active:bg-brand-100`}>
+      {body}
+      <input type="file" accept={accept} multiple className="hidden" onChange={onChange} />
+    </label>
+  );
+}
 
 function LookupResult({
   res, onApplyFill, applied,
