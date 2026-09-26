@@ -236,6 +236,56 @@ Desktop (md+)                                         Mobile (< md)
 
 ---
 
+## 8. BIỂU ĐỒ & BÁO CÁO
+
+Bộ biểu đồ SVG tự viết ở `frontend/src/components/charts/Charts.tsx` (không dùng thư viện ngoài): `LineChart` (xu hướng, có chế độ `compact` = sparkline), `StackedColumns` (cột chồng), `Donut` (cơ cấu), `InlineStackedBar` (thanh chồng nhỏ trong bảng/thẻ), `Legend`. Thẻ số liệu dùng `KpiCard` (`components/ui/KpiCard.tsx`).
+
+### 8.1. Màu dữ liệu (thứ tự CỐ ĐỊNH, không xoay vòng)
+
+| Slot | Token | Hex | Ví dụ dùng |
+| :--- | :--- | :--- | :--- |
+| 1 | `--series-1` | `#6D32E8` tím thương hiệu | Ca mới, Tự mở mới, Lỗi NSX, TB tiếp nhận |
+| 2 | `--series-2` | `#0EA5B7` ngọc | Đã tiếp nhận, Nguồn khác, Lỗi lắp đặt, TB chốt vi phạm |
+| 3 | `--series-3` | `#F08C2E` cam | Đã đóng, Tồn cũ, Lỗi thái độ KTV, TB đánh giá QL |
+| 4 | `--series-4` | `#E0529C` hồng | Lỗi quy trình NSKX, TB chốt kết thúc |
+| Trạng thái tốt | `--status-good` | `#16A34A` | Đã kết thúc (SLA) |
+| Trạng thái cảnh báo | `--status-warn` | `#F59E0B` | Đang xử lý (SLA) |
+
+- Đã chạy bộ kiểm tra màu (mù màu/độ tương phản): các cặp liền kề ΔE ≥ 17. Ngọc và cam dưới 3:1 trên nền trắng → **bắt buộc** có chú giải + số liệu/tooltip đi kèm (đã có).
+- Tối đa 4 series trong 1 biểu đồ; nhiều hơn → gộp "Khác" hoặc tách biểu đồ nhỏ.
+- Chữ/số **không** tô màu series; màu chỉ nằm ở chấm/đường/cột.
+- Màu mức lỗi trong danh sách xếp hạng: đỏ `red-500` (≥ 50% ca có lỗi), vàng `amber-400` (dưới 50%), xám khi 0.
+- Tỷ lệ tiếp nhận (`TyLePill`): xanh ≥ 90%, cam ≥ 60%, đỏ dưới 60%.
+
+### 8.2. Quy cách nét
+
+- Đường 2px bo tròn; vùng dưới đường (series chính) phủ màu 10%.
+- Cột rộng tối đa 28px, bo 4px ở đầu dữ liệu, khe 2px màu nền giữa các mảnh chồng; tổng ghi trên đầu cột.
+- Vành khuyên dày 24px, khe 3px giữa các mảnh, giữa vòng là tổng hoặc mảnh đang trỏ.
+- Lưới 1px `--line`, nhãn trục 11px `ink-faint`; số đếm → mốc trục là số nguyên.
+- Hover/chạm luôn có tooltip (đường: đường dóng dọc + chấm; cột/vành khuyên: theo từng mảnh).
+- Luôn có chú giải khi ≥ 2 series.
+
+### 8.3. Chọn dạng hiển thị
+
+| Dữ liệu | Dạng |
+| :--- | :--- |
+| 1 con số chính (tổng, tỷ lệ, TB) | `KpiCard` / ô số liệu nhỏ, không vẽ biểu đồ |
+| Diễn biến theo ngày/tuần/tháng | `LineChart` (≥ 2 mốc thời gian; 1 mốc thì chỉ hiện số) |
+| Nhiều mốc khác đơn vị/độ lớn | Các sparkline nhỏ riêng từng mốc (không dồn chung 1 trục) |
+| Phân phối theo khoảng có thứ tự | `StackedColumns` |
+| Cơ cấu ≤ 4 phần | `Donut` + bảng chú giải có số và % |
+| Xếp hạng theo nhóm | Danh sách có số thứ tự + thanh ngang |
+| So sánh cơ cấu giữa các dòng bảng | `InlineStackedBar` trong cột bảng |
+
+### 8.4. Mobile
+
+- Bảng nhiều cột → thẻ dọc; danh sách dài chỉ hiện 5 mục mới nhất + "Xem thêm".
+- Bộ lọc phụ gom vào nút "Bộ lọc (n)"; bảng chi tiết phụ ẩn sau nút "Xem bảng chi tiết".
+- Thẻ KPI lưới 2 cột; ô sparkline 2×2.
+
+---
+
 ## 7. CHECKLIST KHI LÀM MÀN HÌNH / TÍNH NĂNG MỚI
 
 1. Dùng component trong `components/ui/*` trước; chỉ viết class riêng khi không có component phù hợp.
@@ -244,4 +294,5 @@ Desktop (md+)                                         Mobile (< md)
 4. Kích thước theo §3.2: to trên mobile, `lg:` về gọn trên desktop.
 5. Có bảng → có phương án thẻ cho mobile.
 6. Trạng thái dùng `StatusBadge` / `Badge` với tone ở §2.5, không tự chế màu.
-7. Kiểm tra cả 375px (mobile) và desktop trước khi commit.
+7. Biểu đồ theo §8: màu series cố định, có chú giải + tooltip, không dùng 2 trục Y.
+8. Kiểm tra cả 375px (mobile) và desktop trước khi commit.

@@ -38,6 +38,14 @@
   --field-bg: #f8f7fd;
   --field-border: #c3bdd8;
 
+  /* Mau bieu do (DESIGN_SYSTEM.md §8) - thu tu CO DINH, da chay validator mu mau (lien ke ΔE >= 17). */
+  --series-1: #6d32e8; /* tim thuong hieu */
+  --series-2: #0ea5b7; /* ngoc */
+  --series-3: #f08c2e; /* cam */
+  --series-4: #e0529c; /* hong */
+  --status-good: #16a34a;
+  --status-warn: #f59e0b;
+
   --sidebar-gradient: linear-gradient(180deg, #5b21db 0%, #4f1cc4 45%, #431aa6 80%, #5a2ad0 100%);
 }
 
