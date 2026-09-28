@@ -1910,19 +1910,37 @@ app.post("/:id/dong-bo-crm", requireRole("CSKH", "NV Sale", "Tổng đài viên"
   return c.json({ ok: true });
 });
 
-// Moi lan bam dong bo toi da 40 ca: uu tien ca chua tra cuu lan nao / dong bo lau nhat, ca "ID CRM
-// sai" xep sau cung - bam nhieu lan se lan luot quet het, khong bi ket mai 1 nhom ca dau danh sach.
+// Dong bo hang loat ca ton CRM, chia LUOT: moi request toi da DONG_BO_TON_MAX ca (gioi han subrequest
+// + thoi gian cua 1 lan goi Worker); frontend goi lai lien tiep den khi con_lai = 0. Uu tien ca chua
+// tra cuu lan nao / dong bo lau nhat, ca "ID CRM sai" xep sau cung.
+// Bo qua ca vua dong bo trong DONG_BO_CACH_GIAY giay gan nhat (tranh day API lap lai 1 ca trong thoi
+// gian ngan, ke ca khi 2 nguoi cung bam). `bat_dau` (moc cua luot dau, server tra ve) giup cac luot
+// sau trong CUNG 1 lan bam khong quet lai ca da xu ly o luot truoc ke ca khi ca dot chay qua 1 phut.
 const DONG_BO_TON_MAX = 40;
+const DONG_BO_CACH_GIAY = 60;
+const VN_TS_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
 
-app.post("/dong-bo-cac-ca-ton", requireRole("QL", "Admin"), async (c) => {
-  const rows = await c.env.DB.prepare(
-    `SELECT id, id_crm_karofi FROM khieu_nai WHERE ${TON_CRM_SQL}
-     ORDER BY ${CRM_SAI_SQL}, crm_last_sync_at IS NOT NULL, crm_last_sync_at ASC LIMIT ?`,
-  ).bind(DONG_BO_TON_MAX).all<{ id: string; id_crm_karofi: string }>();
+app.post("/dong-bo-cac-ca-ton", requireRole("CSKH", "TN CSKH", "QL", "Admin"), async (c) => {
+  const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+  const ts = nowVN();
+  const batDau = typeof body.bat_dau === "string" && VN_TS_RE.test(body.bat_dau) ? body.bat_dau : ts;
+  const motPhutTruoc = new Date(Date.now() + 7 * 60 * 60 * 1000 - DONG_BO_CACH_GIAY * 1000).toISOString().slice(0, 19).replace("T", " ");
+  const moc = batDau < motPhutTruoc ? batDau : motPhutTruoc;
+  const chuaDongBoGanDay = "(crm_last_sync_at IS NULL OR crm_last_sync_at < ?1)";
+
+  const [dem, rows] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT COUNT(*) AS tong, COALESCE(SUM(CASE WHEN ${chuaDongBoGanDay} THEN 1 ELSE 0 END), 0) AS can
+       FROM khieu_nai WHERE ${TON_CRM_SQL}`,
+    ).bind(moc).first<{ tong: number; can: number }>(),
+    c.env.DB.prepare(
+      `SELECT id, id_crm_karofi FROM khieu_nai WHERE ${TON_CRM_SQL} AND ${chuaDongBoGanDay}
+       ORDER BY ${CRM_SAI_SQL}, crm_last_sync_at IS NOT NULL, crm_last_sync_at ASC LIMIT ?2`,
+    ).bind(moc, DONG_BO_TON_MAX).all<{ id: string; id_crm_karofi: string }>(),
+  ]);
 
   const results: { id: string; ok: boolean; error?: string }[] = [];
   const stmts: D1PreparedStatement[] = [];
-  const ts = nowVN();
 
   for (const row of rows.results) {
     const lookup = await tryLookupCrm(c.env, row.id_crm_karofi);
@@ -1943,7 +1961,14 @@ app.post("/dong-bo-cac-ca-ton", requireRole("QL", "Admin"), async (c) => {
   // Ghi 1 lan (1 subrequest D1) thay vi 2 cau UPDATE moi ca.
   if (stmts.length > 0) await c.env.DB.batch(stmts);
 
-  return c.json({ results });
+  const can = dem?.can ?? 0;
+  return c.json({
+    results,
+    bat_dau: batDau,
+    con_lai: Math.max(0, can - results.length),
+    // Ca ton bi bo qua vi vua dong bo trong 1 phut gan nhat (hoac o luot truoc cua chinh lan bam nay).
+    bo_qua_gan_day: Math.max(0, (dem?.tong ?? 0) - can),
+  });
 });
 
 app.post("/:id/tien-trinh", requireRole("CSKH", "TN CSKH", "QL", "Admin"), async (c) => {

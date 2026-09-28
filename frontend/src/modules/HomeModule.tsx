@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { KhieuNai, KhieuNaiStats } from "../api/types";
 import { Card } from "../components/ui/Card";
@@ -88,20 +88,53 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
       : true,
   );
 
-  const syncTon = useMutation({
-    mutationFn: () => api.post<{ results: { id: string; ok: boolean; error?: string }[] }>("/khieu-nai/dong-bo-cac-ca-ton"),
-    onSuccess: (d) => {
-      const okN = d.results.filter((r) => r.ok).length;
-      const saiN = d.results.filter((r) => r.error === "DVBH_NOT_FOUND").length;
-      const loiN = d.results.length - okN - saiN;
-      showToast(
-        `Đã kiểm tra ${d.results.length} ca: ${okN} ID đúng` + (saiN ? `, ${saiN} chưa tìm thấy trên CRM` : "") + (loiN ? `, ${loiN} lỗi kết nối` : ""),
-        saiN || loiN ? "info" : "success",
-      );
+  // Dong bo hang loat ca ton CRM, tu chia nhieu luot (moi luot backend xu ly toi da 40 ca) den khi
+  // het ca can dong bo. Ca vua dong bo trong 1 phut gan nhat duoc backend bo qua.
+  const [dongBo, setDongBo] = useState<{ luot: number; xong: number; tong: number } | null>(null);
+  const coTheDongBoTon = ["CSKH", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "");
+  const chayDongBoTon = async () => {
+    type Resp = { results: { id: string; ok: boolean; error?: string }[]; bat_dau: string; con_lai: number; bo_qua_gan_day: number };
+    let batDau: string | undefined;
+    let luot = 0, xong = 0, tong = 0, okN = 0, saiN = 0, loiN = 0, boQua = 0;
+    setDongBo({ luot: 1, xong: 0, tong: 0 });
+    try {
+      for (;;) {
+        luot++;
+        const d: Resp = await api.post<Resp>("/khieu-nai/dong-bo-cac-ca-ton", batDau ? { bat_dau: batDau } : {});
+        if (luot === 1) {
+          boQua = d.bo_qua_gan_day;
+          tong = d.results.length + d.con_lai;
+        }
+        batDau = d.bat_dau;
+        xong += d.results.length;
+        for (const r of d.results) {
+          if (r.ok) okN++;
+          else if (r.error === "DVBH_NOT_FOUND") saiN++;
+          else loiN++;
+        }
+        setDongBo({ luot: luot + 1, xong, tong: Math.max(tong, xong) });
+        // Chan vong lap vo han phong khi du lieu doi lien tuc (toi da 50 luot = 2000 ca).
+        if (d.con_lai <= 0 || d.results.length === 0 || luot >= 50) break;
+      }
+      if (xong === 0) {
+        showToast(boQua > 0 ? `Không có ca cần đồng bộ — ${boQua} ca vừa được đồng bộ trong 1 phút gần đây` : "Không có ca tồn nào cần đồng bộ", "info");
+      } else {
+        showToast(
+          `Đã đồng bộ ${xong} ca (${luot} lượt): ${okN} ID đúng` +
+            (saiN ? `, ${saiN} chưa tìm thấy trên CRM` : "") +
+            (loiN ? `, ${loiN} lỗi kết nối` : "") +
+            (boQua ? ` · bỏ qua ${boQua} ca vừa đồng bộ <1 phút` : ""),
+          saiN || loiN ? "info" : "success",
+        );
+      }
+    } catch {
+      showToast(xong > 0 ? `Đồng bộ dừng giữa chừng sau ${xong} ca — bấm lại để tiếp tục` : "Đồng bộ ca tồn thất bại", "error");
+    } finally {
+      setDongBo(null);
       statsQuery.refetch();
-    },
-    onError: () => showToast("Đồng bộ ca tồn thất bại", "error"),
-  });
+      myQuery.refetch();
+    }
+  };
 
   const columns: TableColumn<KhieuNai>[] = [
     { key: "id", header: "Mã KN", render: (r) => <span className="font-mono text-xs font-semibold text-link">{r.id}</span> },
@@ -168,9 +201,23 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
       <Card
         title={`Việc của tôi — ${myTitle}`}
         actions={
-          (user.vai_tro === "QL" || user.vai_tro === "Admin") ? (
-            <Btn size="sm" variant="secondary" disabled={syncTon.isPending} onClick={() => syncTon.mutate()}>
-              {syncTon.isPending ? "Đang đồng bộ..." : `Đồng bộ ${s?.ton_dong_crm ?? 0} ca tồn CRM`}
+          coTheDongBoTon ? (
+            <Btn
+              size="sm"
+              variant="secondary"
+              disabled={!!dongBo || (s?.ton_dong_crm ?? 0) === 0}
+              onClick={() => void chayDongBoTon()}
+              className="relative overflow-hidden"
+              title="Tự chia nhiều lượt (40 ca/lượt); bỏ qua ca vừa đồng bộ trong 1 phút gần đây"
+            >
+              {dongBo && dongBo.tong > 0 && (
+                <span className="absolute inset-y-0 left-0 bg-brand-100 transition-[width]" style={{ width: `${(dongBo.xong / dongBo.tong) * 100}%` }} />
+              )}
+              <span className="relative">
+                {dongBo
+                  ? `Đang đồng bộ lượt ${dongBo.luot}${dongBo.tong ? ` · ${dongBo.xong}/${dongBo.tong} ca` : "..."}`
+                  : `Đồng bộ ${s?.ton_dong_crm ?? 0} ca tồn CRM`}
+              </span>
             </Btn>
           ) : undefined
         }
