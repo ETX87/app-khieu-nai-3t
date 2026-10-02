@@ -419,9 +419,13 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
   // luong ca/ngay tang -> doi sang loc theo thang (2026-09-21): tai phat cach nhau qua 1 thang se
   // khong con duoc gop nhom, doi lay chi phi doc D1 chac chan theo khoi luong 1 thang.
   const [thang, setThang] = useState("");
+  const [locNguonThang, setLocNguonThang] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const thangQs = thang ? `?thang=${thang}` : "";
+  const thangQsParams = new URLSearchParams();
+  if (thang) thangQsParams.set("thang", thang);
+  if (locNguonThang) thangQsParams.set("nguon", locNguonThang);
+  const thangQs = thangQsParams.toString() ? `?${thangQsParams.toString()}` : "";
 
   const todayISO = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const [ngayTu, setNgayTu] = useState(todayISO);
@@ -483,15 +487,15 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
     setMoNhom((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
   const slaQuery = useQuery({
-    queryKey: ["bao-cao-sla", thang],
+    queryKey: ["bao-cao-sla", thang, locNguonThang],
     queryFn: () => api.get<SlaReport>(`/khieu-nai/bao-cao/sla${thangQs}`),
   });
   const trungLapQuery = useQuery({
-    queryKey: ["bao-cao-trung-lap", thang],
+    queryKey: ["bao-cao-trung-lap", thang, locNguonThang],
     queryFn: () => api.get<TrungLapReport>(`/khieu-nai/bao-cao/trung-lap${thangQs}`),
   });
   const chotLoiQuery = useQuery({
-    queryKey: ["bao-cao-chot-loi", thang],
+    queryKey: ["bao-cao-chot-loi", thang, locNguonThang],
     queryFn: () => api.get<ChotLoiReport>(`/khieu-nai/bao-cao/chot-loi${thangQs}`),
   });
 
@@ -557,7 +561,12 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
       <SectionHeader
         title="Tổng quan tháng"
         sub={<>Ca đang tồn (mọi lúc) + ca đóng/hủy/tiếp nhận trong <b className="text-ink">{thangNhan}</b>. Tái phát cách nhau quá 1 tháng không được gộp nhóm.</>}
-        right={<ThangFilter value={thang} onChange={setThang} />}
+        right={
+          <div className="flex flex-wrap items-center gap-2">
+            <FilterSelect className={selCls} value={locNguonThang} onChange={setLocNguonThang} allLabel="Mọi nguồn" options={NGUON_OPTIONS} />
+            <ThangFilter value={thang} onChange={setThang} />
+          </div>
+        }
       />
 
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 lg:grid-cols-5">

@@ -636,6 +636,8 @@ app.get("/bao-cao/sla", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"),
   const { sql: thangSql, binds: thangBinds } = buildThangCondition(thang, currentMonth);
   const conditions: string[] = ["trang_thai != 'Huy'", thangSql];
   const binds: unknown[] = [...thangBinds];
+  const nguon = c.req.query("nguon");
+  if (nguon) { conditions.push("nguon = ?"); binds.push(nguon); }
 
   // LIMIT phong ho: du lieu du kien tang 10-20k/thang, khong de 1 lan tra cuu khong loc ngay keo
   // toan bo bang vao Worker (CPU/rows_read) khi so lieu lon dan theo thoi gian.
@@ -721,6 +723,8 @@ app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
     "ngay_tiep_nhan >= ? AND ngay_tiep_nhan < datetime(?, '+1 month')",
   ];
   const binds: unknown[] = [start, start];
+  const nguon = c.req.query("nguon");
+  if (nguon) { conditions.push("nguon = ?"); binds.push(nguon); }
 
   const { results } = await c.env.DB.prepare(
     `SELECT id, id_lada, id_lada_phat_sinh, id_truy_van, ngay_tiep_nhan, ten_khach, van_de_dau_vao, trang_thai
@@ -872,6 +876,8 @@ app.get("/bao-cao/chot-loi", requireRole("CSKH", "TN CSKH", "QL", "Admin", "View
     conditions.push("(ngay_ket_thuc IS NULL OR ngay_ket_thuc >= datetime(?, '-11 months'))");
     binds.push(`${currentMonth}-01 00:00:00`);
   }
+  const nguon = c.req.query("nguon");
+  if (nguon) { conditions.push("nguon = ?"); binds.push(nguon); }
 
   // LIMIT phong ho giong cac bao cao khac (xem giai thich o /bao-cao/sla).
   const [{ results }, { results: userRows }] = await Promise.all([
