@@ -31,6 +31,8 @@ interface SlaReport {
   tong_dang_xu_ly: number;
   so_ngay_trung_binh: number;
   theo_nhom_van_de: SlaNhomVanDe[];
+  tong_phat_sinh_trong_thang: number;
+  ty_le_hoan_thanh_48h: number;
   thang: string;
 }
 
@@ -569,14 +571,14 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 lg:grid-cols-4">
+        <KpiCard label="Tổng ca phát sinh" value={sla?.tong_phat_sinh_trong_thang ?? "…"} tone="slate" icon="inbox" sub="ca mở trong tháng" />
         <KpiCard label="Đã kết thúc" value={sla?.tong_da_ket_thuc ?? "…"} tone="green" icon="xong" sub="ca đóng trong tháng" />
         <KpiCard label="Đang xử lý" value={sla?.tong_dang_xu_ly ?? "…"} tone="blue" icon="dangXuLy" sub="ca còn tồn" />
         <KpiCard label="TB thời gian xử lý" value={sla ? <>{fmtSoVN(sla.so_ngay_trung_binh)}<span className="ml-1 text-base font-bold">ngày</span></> : "…"} tone="brand" icon="choChot" sub="ca đã kết thúc" />
+        <KpiCard label="Tỷ lệ hoàn thành 48h" value={sla ? `${sla.ty_le_hoan_thanh_48h}%` : "…"} tone="cyan" icon="choChot" sub="trong số ca đã kết thúc" />
         <KpiCard label="Tỷ lệ ca có lỗi" value={cl ? `${cl.tong.ty_le_loi}%` : "…"} tone={cl && cl.tong.ty_le_loi >= 50 ? "red" : "amber"} icon="canhBao" sub={cl ? `${cl.tong.ca_co_loi}/${cl.tong.so_ca} ca đã chốt` : undefined} />
-        <div className="col-span-2 md:col-span-1">
-          <KpiCard label="Tái phát < 7 ngày" value={tl?.tong_tai_phat_7_ngay ?? "…"} tone="red" icon="lap" sub={tl ? `${tl.tong_nhom} nhóm trùng lặp` : undefined} />
-        </div>
+        <KpiCard label="Tái phát < 7 ngày" value={tl?.tong_tai_phat_7_ngay ?? "…"} tone="red" icon="lap" sub={tl ? `${tl.tong_nhom} nhóm trùng lặp` : undefined} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">

@@ -647,9 +647,18 @@ app.get("/bao-cao/sla", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"),
      FROM khieu_nai WHERE ${conditions.join(" AND ")} ORDER BY ngay_tiep_nhan DESC LIMIT 20000`,
   ).bind(...binds).all<{ trang_thai: string; nhom_van_de: string | null; so_ngay: number }>();
 
+  // Tong ca phat sinh trong thang: dem rieng theo ngay_tiep_nhan nam trong thang (khac voi tap tren,
+  // vi tap tren gom ca ca dang ton tu cac thang truoc theo buildThangCondition).
+  const phatSinhConditions = ["ngay_tiep_nhan >= ? AND ngay_tiep_nhan < datetime(?, '+1 month')"];
+  const phatSinhBinds: unknown[] = [`${thang}-01 00:00:00`, `${thang}-01 00:00:00`];
+  if (nguon) { phatSinhConditions.push("nguon = ?"); phatSinhBinds.push(nguon); }
+  const phatSinhRow = await c.env.DB.prepare(
+    `SELECT COUNT(*) as n FROM khieu_nai WHERE ${phatSinhConditions.join(" AND ")}`,
+  ).bind(...phatSinhBinds).first<{ n: number }>();
+
   const buckets = SLA_BUCKETS.map((b) => ({ label: b.label, da_ket_thuc: 0, dang_xu_ly: 0 }));
   const nhomStats = new Map<string, { soCa: number; tongNgay: number }>();
-  let tongDaKetThuc = 0, tongDangXuLy = 0, tongNgayDaKetThuc = 0;
+  let tongDaKetThuc = 0, tongDangXuLy = 0, tongNgayDaKetThuc = 0, soCaHoanThanh48h = 0;
 
   for (const r of results) {
     const days = Math.max(0, r.so_ngay ?? 0);
@@ -659,6 +668,7 @@ app.get("/bao-cao/sla", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"),
       bucket.da_ket_thuc++;
       tongDaKetThuc++;
       tongNgayDaKetThuc += days;
+      if (days <= 2) soCaHoanThanh48h++;
       if (r.nhom_van_de) {
         const s = nhomStats.get(r.nhom_van_de) ?? { soCa: 0, tongNgay: 0 };
         s.soCa++;
@@ -682,6 +692,8 @@ app.get("/bao-cao/sla", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"),
     tong_dang_xu_ly: tongDangXuLy,
     so_ngay_trung_binh: tongDaKetThuc > 0 ? Math.round((tongNgayDaKetThuc / tongDaKetThuc) * 10) / 10 : 0,
     theo_nhom_van_de: theoNhomVanDe,
+    tong_phat_sinh_trong_thang: phatSinhRow?.n ?? 0,
+    ty_le_hoan_thanh_48h: tongDaKetThuc > 0 ? Math.round((soCaHoanThanh48h / tongDaKetThuc) * 1000) / 10 : 0,
     thang,
   });
 });
