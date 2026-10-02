@@ -302,6 +302,49 @@ function TheoNguoiTnCard({ ten, v, tong, max }: { ten: string; v: TheoNguoiTnSo;
   );
 }
 
+// Bang ty le % so ca theo khoang ngay xu ly, tach theo Tong / Da ket thuc / Dang xu ly
+// (giong bang pivot SLA hay dung ngoai Sheet, de xem toc do xu ly nhanh/cham chiem bao nhieu %).
+function SlaTyLeTable({ buckets, tongDaKetThuc, tongDangXuLy }: { buckets: SlaBucket[]; tongDaKetThuc: number; tongDangXuLy: number }) {
+  const rows = [
+    { label: "Tổng", tong: tongDaKetThuc + tongDangXuLy, get: (b: SlaBucket) => b.da_ket_thuc + b.dang_xu_ly, hi: true },
+    { label: "Đã kết thúc", tong: tongDaKetThuc, get: (b: SlaBucket) => b.da_ket_thuc, hi: false },
+    { label: "Đang xử lý", tong: tongDangXuLy, get: (b: SlaBucket) => b.dang_xu_ly, hi: false },
+  ];
+  const pct = (n: number, tong: number) => (tong > 0 ? Math.round((n / tong) * 1000) / 10 : 0);
+  return (
+    <div className="mt-4 overflow-x-auto rounded-xl border border-line">
+      <table className="w-full min-w-[620px] border-collapse text-xs">
+        <thead>
+          <tr className="border-b border-line bg-surface-2 text-left font-semibold text-ink-soft">
+            <th className="whitespace-nowrap px-2.5 py-2">Trạng thái</th>
+            <th className="whitespace-nowrap px-2.5 py-2 text-right">Tổng</th>
+            {buckets.map((b) => (
+              <th key={b.label} className="whitespace-nowrap px-2.5 py-2 text-right">{b.label}</th>
+            ))}
+            {buckets.map((b) => (
+              <th key={`${b.label}-pct`} className="whitespace-nowrap bg-accent-soft px-2.5 py-2 text-right text-accent-ink">% {b.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.label} className={`border-b border-line text-ink-body last:border-0 ${r.hi ? "bg-accent-soft/30 font-semibold" : ""}`}>
+              <td className="whitespace-nowrap px-2.5 py-2 font-semibold text-ink">{r.label}</td>
+              <td className="whitespace-nowrap px-2.5 py-2 text-right font-bold text-ink">{r.tong}</td>
+              {buckets.map((b) => (
+                <td key={b.label} className="whitespace-nowrap px-2.5 py-2 text-right"><So v={r.get(b)} /></td>
+              ))}
+              {buckets.map((b) => (
+                <td key={`${b.label}-pct`} className="whitespace-nowrap bg-accent-soft/40 px-2.5 py-2 text-right font-semibold text-accent-ink">{pct(r.get(b), r.tong)}%</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // Danh sach xep hang co thanh ty le loi (thay bang mini chu thuan).
 function ChotLoiMiniTable({ title, rows }: { title: string; rows: ChotLoiGroup[] }) {
   return (
@@ -546,6 +589,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                   { key: "open", label: "Đang xử lý", color: STATUS_WARN, values: sla.buckets.map((b) => b.dang_xu_ly) },
                 ]}
               />
+              <SlaTyLeTable buckets={sla.buckets} tongDaKetThuc={sla.tong_da_ket_thuc} tongDangXuLy={sla.tong_dang_xu_ly} />
               {sla.theo_nhom_van_de.length > 0 && (
                 <div className="mt-4 border-t border-line pt-3">
                   <p className="mb-2.5 text-sm font-bold text-ink lg:text-xs">Theo nhóm vấn đề (ca đã kết thúc)</p>
