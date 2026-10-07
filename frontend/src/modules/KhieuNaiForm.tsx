@@ -15,6 +15,7 @@ import { fmtVN, translateDanhGia } from "../lib/formatVN";
 import { STATUS_LABEL } from "../components/ui/Badge";
 import { Timeline, type TimelineEvent } from "../components/ui/Timeline";
 import { mucDoTone, MUC_DO_BG, vipGlowClass, sortMucDoOptions } from "../lib/severity";
+import { chuanHoaIdCrm } from "../lib/crm";
 import {
   DINH_KEM_ERROR_MESSAGES, DINH_KEM_MAX_ANH, DINH_KEM_MAX_VIDEO, VIDEO_MAX_BYTES, VIDEO_MAX_DURATION_S,
   compressImage, readVideoDuration,
@@ -556,14 +557,16 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
           <fieldset className="rounded-xl border border-brand-200 bg-surface p-4 shadow-card lg:rounded-lg lg:border-accent/40 lg:p-2.5 lg:shadow-none">
             <SectionHead n={1} title="Tra cứu nhanh theo ID" />
             <div className="flex flex-col gap-2.5 lg:flex-row lg:flex-nowrap lg:items-end lg:gap-x-2 lg:gap-y-0 lg:overflow-x-auto lg:pb-0.5">
-              <div className="w-full lg:w-[92px] lg:shrink-0">
+              <div className="w-full lg:w-[124px] lg:shrink-0">
                 <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">ID CRM Karofi</span>
                 <div className="flex gap-1.5 lg:gap-0.5">
                   <Input
-                    className="lg:w-[62px] lg:!px-1.5 lg:!py-1 lg:!text-xs"
+                    className="lg:w-[94px] lg:!px-1.5 lg:!py-1 lg:!text-xs"
                     value={form.id_crm_karofi}
+                    placeholder="SC261007210"
+                    autoCapitalize="characters"
                     onChange={(e) => {
-                      const v = e.target.value;
+                      const v = chuanHoaIdCrm(e.target.value);
                       setField("id_crm_karofi", v);
                       if (v.trim() !== "" && form.id_crm_karofi.trim() === "" && form.nguon === "") setField("nguon", "CRM");
                     }}

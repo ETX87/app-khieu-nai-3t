@@ -147,6 +147,16 @@ function gioXuLyHeThong(ngayTiepNhan: string, ngayKetThuc: string | null): numbe
   return Math.max(0, Math.round(((end - start) / 3_600_000) * 10) / 10);
 }
 
+// ID CRM Karofi: ma so cu (vd "1311618", "T21234") va ma moi tu 2026-10 dang SC + yymmdd + so thu tu
+// (vd "SC261007210", 10-11 ky tu). Ben DVBH tra cuu khop CHINH XAC (WHERE id = ?) va moi ma deu viet
+// HOA, khong khoang trang -> chuan hoa truoc khi luu/tra cuu, tranh go "sc261007210" hoac dan kem
+// khoang trang bi bao nham "ID CRM sai".
+function chuanHoaIdCrm(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const s = v.replace(/\s+/g, "").toUpperCase();
+  return s === "" ? null : s;
+}
+
 interface CrmFields {
   ngay_tiep_nhan_crm: string | null;
   ket_qua_crm: string | null;
@@ -200,6 +210,10 @@ const TON_CRM_SQL = "id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL A
 const CRM_SAI_SQL =
   `(COALESCE(crm_tra_cuu, '') = 'SAI_ID' AND created_at <= datetime('now', '+7 hours', '-${CRM_SAI_SAU_GIO} hours'))`;
 const CRM_CHO_SQL = `NOT ${CRM_SAI_SQL}`;
+// Ca da ket thuc nhung con ket co "ID CRM sai": CRM import case cham hon luc ca dong (vd dot ma SC
+// moi 2026-10 - ca dong 01-02/10, DVBH 03/10 moi co) -> khong con nam trong "ton" nen truoc day khong
+// bao gio duoc tra cuu lai. Cho phep dong bo lai (rieng tung ca + hang loat) de go co sai.
+const CRM_SAI_DA_DONG_SQL = "id_crm_karofi IS NOT NULL AND trang_thai = 'Da ket thuc' AND crm_tra_cuu = 'SAI_ID'";
 
 const SORT_COLUMNS: Record<string, string> = {
   id: "id",
@@ -215,7 +229,7 @@ const SORT_COLUMNS: Record<string, string> = {
 app.get("/", async (c) => {
   const user = c.get("user");
   const trangThai = c.req.query("trang_thai");
-  const idCrmKarofi = c.req.query("id_crm_karofi");
+  const idCrmKarofi = chuanHoaIdCrm(c.req.query("id_crm_karofi"));
   const q = c.req.query("q");
   const mucDo = c.req.query("muc_do");
   const nguon = c.req.query("nguon");
@@ -483,7 +497,7 @@ async function localIdentityLookup(db: D1Database, column: "id_lada" | "id_truy_
 
 app.get("/tra-cuu", async (c) => {
   const idLada = c.req.query("id_lada")?.trim();
-  const idCrm = c.req.query("id_crm")?.trim();
+  const idCrm = chuanHoaIdCrm(c.req.query("id_crm"));
   const idTruyVan = c.req.query("id_truy_van")?.trim();
 
   // ID Truy xuat la he dinh danh KHAC id_lada (da xac nhan qua goi API Ecolada that, xem ghi chu o
@@ -1457,6 +1471,7 @@ app.post("/", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "Q
   // Ten tinh viet sai dau ("Dak nông") -> ten chuan trong danh muc ("Đắk Nông").
   if (body.tinh) body.tinh = await chuanHoaTinh(c.env.DB, "tinh", body.tinh);
   if (body.tinh_moi) body.tinh_moi = await chuanHoaTinh(c.env.DB, "tinh_moi", body.tinh_moi);
+  if ("id_crm_karofi" in body) body.id_crm_karofi = chuanHoaIdCrm(body.id_crm_karofi);
   const ts = nowVN();
   // CSKH/TN CSKH/QL/Admin tu tao phan anh thi coi nhu da tiep nhan luon (ca 3 vai tro nay deu co
   // quyen tu tiep nhan tu 2026-09); rieng NV Sale/Tong dai vien tao ho khach hang -> phai cho
@@ -1583,6 +1598,7 @@ app.patch("/:id", async (c) => {
   const bodyKeys = Object.keys(body);
   if (body.tinh) body.tinh = await chuanHoaTinh(c.env.DB, "tinh", body.tinh);
   if (body.tinh_moi) body.tinh_moi = await chuanHoaTinh(c.env.DB, "tinh_moi", body.tinh_moi);
+  if ("id_crm_karofi" in body) body.id_crm_karofi = chuanHoaIdCrm(body.id_crm_karofi);
   const disallowed = bodyKeys.filter((k) => !allowed.has(k));
   if (disallowed.length > 0) return c.json({ error: "FORBIDDEN_FIELD", fields: disallowed }, 403);
   if (bodyKeys.length === 0) return c.json({ error: "NO_FIELDS" }, 400);
@@ -1894,12 +1910,12 @@ const CRM_RESYNC_MIN_INTERVAL_MS = 5000;
 app.post("/:id/dong-bo-crm", requireRole("CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"), async (c) => {
   const id = c.req.param("id");
   const row = await c.env.DB.prepare(
-    "SELECT id_crm_karofi, trang_thai, crm_last_sync_at, nguoi_tao FROM khieu_nai WHERE id = ?",
-  ).bind(id).first<{ id_crm_karofi: string | null; trang_thai: string; crm_last_sync_at: string | null; nguoi_tao: string | null }>();
+    "SELECT id_crm_karofi, trang_thai, crm_tra_cuu, crm_last_sync_at, nguoi_tao FROM khieu_nai WHERE id = ?",
+  ).bind(id).first<{ id_crm_karofi: string | null; trang_thai: string; crm_tra_cuu: string | null; crm_last_sync_at: string | null; nguoi_tao: string | null }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
   if (chiXemCaNguoiKhac(c.get("user"), row.nguoi_tao)) return c.json({ error: "FORBIDDEN" }, 403);
   if (!row.id_crm_karofi) return c.json({ error: "NO_CRM_ID" }, 400);
-  if (row.trang_thai === "Da ket thuc") return c.json({ error: "CASE_CLOSED" }, 400);
+  if (row.trang_thai === "Da ket thuc" && row.crm_tra_cuu !== "SAI_ID") return c.json({ error: "CASE_CLOSED" }, 400);
   if (row.trang_thai === "Cho tiep nhan") return c.json({ error: "CHUA_TIEP_NHAN" }, 423);
   if (row.crm_last_sync_at) {
     // crm_last_sync_at duoc ghi boi nowVN() = gio VN (UTC+7) nhung luu duoi dang chuoi "UTC tran" (khong co Z/offset),
@@ -1945,15 +1961,16 @@ app.post("/dong-bo-cac-ca-ton", requireRole("CSKH", "TN CSKH", "QL", "Admin"), a
   const motPhutTruoc = new Date(Date.now() + 7 * 60 * 60 * 1000 - DONG_BO_CACH_GIAY * 1000).toISOString().slice(0, 19).replace("T", " ");
   const moc = batDau < motPhutTruoc ? batDau : motPhutTruoc;
   const chuaDongBoGanDay = "(crm_last_sync_at IS NULL OR crm_last_sync_at < ?1)";
+  const canDongBo = `((${TON_CRM_SQL}) OR (${CRM_SAI_DA_DONG_SQL}))`;
 
   const [dem, rows] = await Promise.all([
     c.env.DB.prepare(
       `SELECT COUNT(*) AS tong, COALESCE(SUM(CASE WHEN ${chuaDongBoGanDay} THEN 1 ELSE 0 END), 0) AS can
-       FROM khieu_nai WHERE ${TON_CRM_SQL}`,
+       FROM khieu_nai WHERE ${canDongBo}`,
     ).bind(moc).first<{ tong: number; can: number }>(),
     c.env.DB.prepare(
-      `SELECT id, id_crm_karofi FROM khieu_nai WHERE ${TON_CRM_SQL} AND ${chuaDongBoGanDay}
-       ORDER BY ${CRM_SAI_SQL}, crm_last_sync_at IS NOT NULL, crm_last_sync_at ASC LIMIT ?2`,
+      `SELECT id, id_crm_karofi FROM khieu_nai WHERE ${canDongBo} AND ${chuaDongBoGanDay}
+       ORDER BY trang_thai = 'Da ket thuc', ${CRM_SAI_SQL}, crm_last_sync_at IS NOT NULL, crm_last_sync_at ASC LIMIT ?2`,
     ).bind(moc, DONG_BO_TON_MAX).all<{ id: string; id_crm_karofi: string }>(),
   ]);
 

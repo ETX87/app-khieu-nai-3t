@@ -15,7 +15,7 @@ import { useToast } from "../components/ui/Toast";
 import { Timeline, type TimelineEvent } from "../components/ui/Timeline";
 import { Tabs, type TabItem } from "../components/ui/Tabs";
 import { NGUON_OPTIONS, NGUON_LABEL } from "./KhieuNaiForm";
-import { CRM_SAI_SAU_GIO, laChoCrmMoi, laIdCrmSai } from "../lib/crm";
+import { CRM_SAI_SAU_GIO, chuanHoaIdCrm, laChoCrmMoi, laIdCrmSai } from "../lib/crm";
 import {
   DINH_KEM_ERROR_MESSAGES, DINH_KEM_MAX_ANH, DINH_KEM_MAX_VIDEO, VIDEO_MAX_BYTES, VIDEO_MAX_DURATION_S,
   compressImage, driveViewUrl, readVideoDuration,
@@ -1463,7 +1463,9 @@ function CrmSection({
   const { showToast } = useToast();
   const editable = forceEditable ?? (user.vai_tro === "CSKH" || user.vai_tro === "Admin");
   const canResync =
-    forceEditable !== true && !!user.vai_tro && user.vai_tro !== "Viewer" && kn.trang_thai !== "Da ket thuc" &&
+    forceEditable !== true && !!user.vai_tro && user.vai_tro !== "Viewer" &&
+    // Ca da ket thuc van cho dong bo lai neu dang bi co "ID CRM sai" (CRM import case cham hon luc dong ca).
+    (kn.trang_thai !== "Da ket thuc" || kn.crm_tra_cuu === "SAI_ID") &&
     !(isKtvLikeRole(user.vai_tro) && kn.nguoi_tao !== user.email);
   const [crmId, setCrmId] = useState(kn.id_crm_karofi ?? "");
   const [showCaseDetail, setShowCaseDetail] = useState(false);
@@ -1471,7 +1473,7 @@ function CrmSection({
   useEffect(() => setCrmId(kn.id_crm_karofi ?? ""), [kn.id_crm_karofi]);
 
   const saveId = useMutation({
-    mutationFn: () => api.patch<{ khieuNai: KhieuNai; crm_sync_warning?: string }>(`/khieu-nai/${kn.id}`, { id_crm_karofi: crmId.trim() === "" ? null : crmId.trim() }),
+    mutationFn: () => api.patch<{ khieuNai: KhieuNai; crm_sync_warning?: string }>(`/khieu-nai/${kn.id}`, { id_crm_karofi: crmId === "" ? null : crmId }),
     onSuccess: (data) => {
       if (data.crm_sync_warning) {
         showToast(CRM_WARNING_MESSAGES[data.crm_sync_warning] ?? data.crm_sync_warning, "error");
@@ -1503,7 +1505,7 @@ function CrmSection({
           <Field label="ID CRM Karofi">
             {editable ? (
               <div className="flex flex-col gap-0.5">
-                <Input value={crmId} onChange={(e) => setCrmId(e.target.value)} placeholder="Chưa có" />
+                <Input value={crmId} onChange={(e) => setCrmId(chuanHoaIdCrm(e.target.value))} placeholder="VD: SC261007210" autoCapitalize="characters" />
                 {kn.id_crm_karofi && (
                   <button
                     type="button"
