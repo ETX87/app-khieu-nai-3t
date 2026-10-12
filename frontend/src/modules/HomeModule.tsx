@@ -322,6 +322,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
       >
         <KhieuNaiForm
           ref={createFormRef}
+          userEmail={user.email}
           onStateChange={setCreateHeader}
           onCreated={(id) => {
             setCreateOpen(false);

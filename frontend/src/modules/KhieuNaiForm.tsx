@@ -81,6 +81,19 @@ const EMPTY: FormState = {
 
 const DRAFT_KEY = "khieunai_draft_new";
 
+// Nho Nguon nguoi dung chon gan nhat (rieng tung tai khoan, dung chung may) de uu tien hien lai
+// lan tao phan anh ke tiep - khac voi DRAFT_KEY (chi luu tam ca dang go do, xoa sau khi tao xong).
+const NGUON_CACHE_PREFIX = "khieunai_last_nguon:";
+function loadLastNguon(email: string): string {
+  try { return localStorage.getItem(NGUON_CACHE_PREFIX + email) ?? ""; } catch { return ""; }
+}
+function saveLastNguon(email: string, value: string) {
+  try {
+    if (value) localStorage.setItem(NGUON_CACHE_PREFIX + email, value);
+    else localStorage.removeItem(NGUON_CACHE_PREFIX + email);
+  } catch { /* ignore */ }
+}
+
 const REQUIRED: { key: keyof FormState; label: string }[] = [
   { key: "ten_khach", label: "Tên khách hàng" },
   { key: "nhom_van_de", label: "Nhóm vấn đề" },
@@ -197,13 +210,14 @@ const SearchIcon = () => (
 );
 
 export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
+  userEmail: string;
   onCreated: (id: string) => void;
   onCancel: () => void;
   onStateChange?: (s: KhieuNaiFormHeaderState) => void;
-}>(function KhieuNaiForm({ onCreated, onCancel, onStateChange }, ref) {
+}>(function KhieuNaiForm({ userEmail, onCreated, onCancel, onStateChange }, ref) {
   const draftRef = useRef<DraftShape | null>(loadDraft());
   const formElRef = useRef<HTMLFormElement>(null);
-  const [form, setForm] = useState<FormState>(() => draftRef.current?.form ?? { ...EMPTY });
+  const [form, setForm] = useState<FormState>(() => draftRef.current?.form ?? { ...EMPTY, nguon: loadLastNguon(userEmail) });
   const [pendingOpts, setPendingOpts] = useState<PendingOpt[]>(() => draftRef.current?.pendingOpts ?? []);
   const [restored, setRestored] = useState(!!draftRef.current);
   const { showToast } = useToast();
@@ -642,7 +656,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                   options={NGUON_OPTIONS}
                   placeholder="— Chọn —"
                   value={form.nguon}
-                  onChange={(e) => setField("nguon", e.target.value)}
+                  onChange={(e) => { setField("nguon", e.target.value); saveLastNguon(userEmail, e.target.value); }}
                 />
               </div>
             </div>

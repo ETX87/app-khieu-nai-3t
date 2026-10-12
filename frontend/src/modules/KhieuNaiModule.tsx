@@ -686,6 +686,7 @@ export function KhieuNaiModule({
       >
         <KhieuNaiForm
           ref={createFormRef}
+          userEmail={user.email}
           onStateChange={setCreateHeader}
           onCreated={(id) => { setCreateOpen(false); query.refetch(); setDetailId(id); }}
           onCancel={() => setCreateOpen(false)}
