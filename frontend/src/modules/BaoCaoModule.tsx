@@ -422,11 +422,13 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
   // khong con duoc gop nhom, doi lay chi phi doc D1 chac chan theo khoi luong 1 thang.
   const [thang, setThang] = useState("");
   const [locNguonThang, setLocNguonThang] = useState("");
+  const [locNhomYeuCauThang, setLocNhomYeuCauThang] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
 
   const thangQsParams = new URLSearchParams();
   if (thang) thangQsParams.set("thang", thang);
   if (locNguonThang) thangQsParams.set("nguon", locNguonThang);
+  if (locNhomYeuCauThang) thangQsParams.set("nhom_yeu_cau", locNhomYeuCauThang);
   const thangQs = thangQsParams.toString() ? `?${thangQsParams.toString()}` : "";
 
   const todayISO = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -489,15 +491,15 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
     setMoNhom((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
   const slaQuery = useQuery({
-    queryKey: ["bao-cao-sla", thang, locNguonThang],
+    queryKey: ["bao-cao-sla", thang, locNguonThang, locNhomYeuCauThang],
     queryFn: () => api.get<SlaReport>(`/khieu-nai/bao-cao/sla${thangQs}`),
   });
   const trungLapQuery = useQuery({
-    queryKey: ["bao-cao-trung-lap", thang, locNguonThang],
+    queryKey: ["bao-cao-trung-lap", thang, locNguonThang, locNhomYeuCauThang],
     queryFn: () => api.get<TrungLapReport>(`/khieu-nai/bao-cao/trung-lap${thangQs}`),
   });
   const chotLoiQuery = useQuery({
-    queryKey: ["bao-cao-chot-loi", thang, locNguonThang],
+    queryKey: ["bao-cao-chot-loi", thang, locNguonThang, locNhomYeuCauThang],
     queryFn: () => api.get<ChotLoiReport>(`/khieu-nai/bao-cao/chot-loi${thangQs}`),
   });
 
@@ -566,6 +568,8 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         right={
           <div className="flex flex-wrap items-center gap-2">
             <FilterSelect className={selCls} value={locNguonThang} onChange={setLocNguonThang} allLabel="Mọi nguồn" options={NGUON_OPTIONS} />
+            <FilterSelect className={selCls} value={locNhomYeuCauThang} onChange={setLocNhomYeuCauThang} allLabel="Mọi nhóm yêu cầu"
+              options={(nhomYeuCauOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
             <ThangFilter value={thang} onChange={setThang} />
           </div>
         }

@@ -652,6 +652,8 @@ app.get("/bao-cao/sla", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"),
   const binds: unknown[] = [...thangBinds];
   const nguon = c.req.query("nguon");
   if (nguon) { conditions.push("nguon = ?"); binds.push(nguon); }
+  const nhomYeuCau = c.req.query("nhom_yeu_cau");
+  if (nhomYeuCau) { conditions.push("nhom_yeu_cau = ?"); binds.push(nhomYeuCau); }
 
   // LIMIT phong ho: du lieu du kien tang 10-20k/thang, khong de 1 lan tra cuu khong loc ngay keo
   // toan bo bang vao Worker (CPU/rows_read) khi so lieu lon dan theo thoi gian.
@@ -666,6 +668,7 @@ app.get("/bao-cao/sla", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Viewer"),
   const phatSinhConditions = ["ngay_tiep_nhan >= ? AND ngay_tiep_nhan < datetime(?, '+1 month')"];
   const phatSinhBinds: unknown[] = [`${thang}-01 00:00:00`, `${thang}-01 00:00:00`];
   if (nguon) { phatSinhConditions.push("nguon = ?"); phatSinhBinds.push(nguon); }
+  if (nhomYeuCau) { phatSinhConditions.push("nhom_yeu_cau = ?"); phatSinhBinds.push(nhomYeuCau); }
   const phatSinhRow = await c.env.DB.prepare(
     `SELECT COUNT(*) as n FROM khieu_nai WHERE ${phatSinhConditions.join(" AND ")}`,
   ).bind(...phatSinhBinds).first<{ n: number }>();
@@ -751,6 +754,8 @@ app.get("/bao-cao/trung-lap", requireRole("CSKH", "TN CSKH", "QL", "Admin", "Vie
   const binds: unknown[] = [start, start];
   const nguon = c.req.query("nguon");
   if (nguon) { conditions.push("nguon = ?"); binds.push(nguon); }
+  const nhomYeuCau = c.req.query("nhom_yeu_cau");
+  if (nhomYeuCau) { conditions.push("nhom_yeu_cau = ?"); binds.push(nhomYeuCau); }
 
   const { results } = await c.env.DB.prepare(
     `SELECT id, id_lada, id_lada_phat_sinh, id_truy_van, ngay_tiep_nhan, ten_khach, van_de_dau_vao, trang_thai
@@ -904,6 +909,8 @@ app.get("/bao-cao/chot-loi", requireRole("CSKH", "TN CSKH", "QL", "Admin", "View
   }
   const nguon = c.req.query("nguon");
   if (nguon) { conditions.push("nguon = ?"); binds.push(nguon); }
+  const nhomYeuCau = c.req.query("nhom_yeu_cau");
+  if (nhomYeuCau) { conditions.push("nhom_yeu_cau = ?"); binds.push(nhomYeuCau); }
 
   // LIMIT phong ho giong cac bao cao khac (xem giai thich o /bao-cao/sla).
   const [{ results }, { results: userRows }] = await Promise.all([
