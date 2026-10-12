@@ -64,7 +64,7 @@ const TON_TOI_THIEU_OPTIONS = [
 
 interface Filters {
   trangThai: string;
-  nguon: string; // "" | "Lada" (NSKX) | "CRM" (3T) - 3 nut loc nhanh tren toolbar
+  nguon: string; // "" | "Lada" (NSKX) | "CRM" (3T) | "PLP" - cac nut loc nhanh tren toolbar
   mucDo: string;
   nhomVanDe: string;
   nhomYeuCau: string;
@@ -92,6 +92,7 @@ const NGUON_QUICK_OPTIONS = [
   { value: "", label: "Tất cả" },
   { value: "Lada", label: "NSKX" },
   { value: "CRM", label: "3T" },
+  { value: "PLP", label: "PLP" },
 ];
 
 // Gia tri gia (khong trung voi trang_thai that nao) danh cho nut "Tat ca ton" - map sang query

@@ -64,8 +64,9 @@ interface FormState {
 export const NGUON_OPTIONS = [
   { value: "Lada", label: "NSKX" },
   { value: "CRM", label: "3T" },
+  { value: "PLP", label: "PLP" },
 ];
-export const NGUON_LABEL: Record<string, string> = { Lada: "NSKX", CRM: "3T" };
+export const NGUON_LABEL: Record<string, string> = { Lada: "NSKX", CRM: "3T", PLP: "PLP" };
 
 const EMPTY: FormState = {
   id_crm_karofi: "", id_lada: "", id_truy_van: "", nguon: "",
