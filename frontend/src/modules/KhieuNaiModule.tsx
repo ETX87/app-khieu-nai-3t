@@ -67,6 +67,7 @@ interface Filters {
   nguon: string; // "" | "Lada" (NSKX) | "CRM" (3T) - 3 nut loc nhanh tren toolbar
   mucDo: string;
   nhomVanDe: string;
+  nhomYeuCau: string;
   tuNgay: string;
   denNgay: string;
   chuaDongBo: string; // "" | "1" (tat ca ton CRM) | "cho" (cho dong bo) | "sai" (ID CRM sai)
@@ -103,7 +104,7 @@ const TRANG_THAI_QUICK_OPTIONS = [
 ];
 
 const EMPTY_FILTERS: Filters = {
-  trangThai: "", nguon: "", mucDo: "", nhomVanDe: "", tuNgay: "", denNgay: "",
+  trangThai: "", nguon: "", mucDo: "", nhomVanDe: "", nhomYeuCau: "", tuNgay: "", denNgay: "",
   chuaDongBo: "", choTnCskh: false, quaHanGiaiTrinh: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "", thangDong: "",
   q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
 };
@@ -187,6 +188,7 @@ export function KhieuNaiModule({
 
   const mucDoOpts = useSettingsOptions("muc_do");
   const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
+  const nhomYeuCauOpts = useSettingsOptions("nhom_yeu_cau");
 
   // So ca hien tren cac nut loc nhanh trang thai - dung lai dung /khieu-nai/stats (da toi uu, gioi
   // han theo thang hien tai) ma Trang chu dang dung, khong tao thanh 1 truy van rieng ton kem D1.
@@ -288,6 +290,7 @@ export function KhieuNaiModule({
       if (f.nguon) p.set("nguon", f.nguon);
       if (f.mucDo) p.set("muc_do", f.mucDo);
       if (f.nhomVanDe) p.set("nhom_van_de", f.nhomVanDe);
+      if (f.nhomYeuCau) p.set("nhom_yeu_cau", f.nhomYeuCau);
       if (f.tuNgay) p.set("tu_ngay", f.tuNgay);
       if (f.denNgay) p.set("den_ngay", f.denNgay);
       if (f.chuaDongBo) p.set("chua_dong_bo", f.chuaDongBo);
@@ -445,7 +448,7 @@ export function KhieuNaiModule({
   const totalPages = Math.max(1, Math.ceil(total / pageSizeN));
 
   const activeFilterCount =
-    [f.trangThai, f.nguon, f.mucDo, f.nhomVanDe, f.tuNgay, f.denNgay, f.chuaDongBo, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.q].filter(Boolean).length +
+    [f.trangThai, f.nguon, f.mucDo, f.nhomVanDe, f.nhomYeuCau, f.tuNgay, f.denNgay, f.chuaDongBo, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.q].filter(Boolean).length +
     (f.choTnCskh ? 1 : 0) + (f.quaHanGiaiTrinh ? 1 : 0) + (f.caCuaToi ? 1 : 0);
 
   const handleSort = (field: string) => {
@@ -537,6 +540,8 @@ export function KhieuNaiModule({
               options={(sortMucDoOptions(mucDoOpts.data ?? [])).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
             <FilterSelect className={selCls} value={f.nhomVanDe} onChange={(v) => set("nhomVanDe", v)} allLabel="Mọi nhóm vấn đề"
               options={(nhomVanDeOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
+            <FilterSelect className={selCls} value={f.nhomYeuCau} onChange={(v) => set("nhomYeuCau", v)} allLabel="Mọi nhóm yêu cầu"
+              options={(nhomYeuCauOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
             <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               Từ <input type="date" className={selCls} value={f.tuNgay} onChange={(e) => set("tuNgay", e.target.value)} />
             </label>
