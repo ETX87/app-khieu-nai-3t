@@ -13,6 +13,7 @@ import { sortMucDoOptions } from "../lib/severity";
 import { NGUON_OPTIONS } from "./KhieuNaiForm";
 import { FilterSelect } from "../components/ui/FilterSelect";
 import { KpiCard } from "../components/ui/KpiCard";
+import { Tabs } from "../components/ui/Tabs";
 import { Donut, InlineStackedBar, Legend, LineChart, SERIES, STATUS_GOOD, STATUS_WARN, StackedColumns } from "../components/charts/Charts";
 
 interface SlaBucket {
@@ -424,6 +425,9 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
   const [locNguonThang, setLocNguonThang] = useState("");
   const [locNhomYeuCauThang, setLocNhomYeuCauThang] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
+  // Tach noi dung thanh tab de man hinh bao cao khong qua dai (item): cac truy van van chay ngam
+  // dinh cho ca 3 tab (khong lazy) de chuyen tab khong phai cho tai lai, chi an/hien phan JSX.
+  const [tab, setTab] = useState<"tong-quan" | "van-hanh" | "toc-do">("tong-quan");
 
   const thangQsParams = new URLSearchParams();
   if (thang) thangQsParams.set("thang", thang);
@@ -561,7 +565,19 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         </div>
       </div>
 
-      {/* ============ PHAN 1: TONG QUAN THEO THANG ============ */}
+      <Tabs
+        tabs={[
+          { key: "tong-quan", label: "Tổng quan tháng" },
+          { key: "van-hanh", label: "Vận hành hằng ngày" },
+          { key: "toc-do", label: "Tốc độ xử lý" },
+        ]}
+        active={tab}
+        onChange={(k) => setTab(k as "tong-quan" | "van-hanh" | "toc-do")}
+      />
+
+      {/* ============ TAB: TONG QUAN THEO THANG ============ */}
+      {tab === "tong-quan" && (
+      <>
       <SectionHeader
         title="Tổng quan tháng"
         sub={<>Ca đang tồn (mọi lúc) + ca đóng/hủy/tiếp nhận trong <b className="text-ink">{thangNhan}</b>. Tái phát cách nhau quá 1 tháng không được gộp nhóm.</>}
@@ -674,7 +690,64 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         </Card>
       )}
 
-      {/* ============ PHAN 2: VAN HANH HANG NGAY ============ */}
+      <Card title={<CardTitle icon="lap" tone="red">Ca trùng lặp / tái phát theo ID Lada</CardTitle>}>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {tl && <Badge tone="violet">{tl.tong_nhom} nhóm</Badge>}
+          {tl && tl.tong_tai_phat_7_ngay > 0 && <Badge tone="red" dot>{tl.tong_tai_phat_7_ngay} tái phát &lt; 7 ngày</Badge>}
+          <span className="text-xs text-ink-soft">Theo <b className="text-ink">{thangNhan}</b> (bộ lọc tháng ở phần Tổng quan).</span>
+        </div>
+        {trungLapQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
+        {tl && tl.groups.length === 0 && (
+          <p className="py-4 text-center text-sm text-ink-soft">Không có ca trùng lặp theo ID Truy xuất/ID Lada trong khoảng lọc này.</p>
+        )}
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          {tl?.groups.map((g) => (
+            <div
+              key={[...g.id_truy_van_ids, ...g.lada_ids].join("+")}
+              className={`rounded-xl border border-l-4 p-3 shadow-card ${g.tai_phat_trong_7_ngay ? "border-red-200 border-l-red-500 bg-red-50/40" : "border-line border-l-brand-300 bg-surface"}`}
+            >
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                {g.tai_phat_trong_7_ngay ? (
+                  <Badge tone="red" dot>Tái phát trong {g.khoang_cach_ngan_nhat} ngày</Badge>
+                ) : (
+                  <Badge tone="gray">Cách nhau {g.khoang_cach_ngan_nhat} ngày</Badge>
+                )}
+                <span className="text-sm font-semibold text-ink lg:text-xs">{g.so_lan} lần phản ánh</span>
+              </div>
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {g.id_truy_van_ids.length > 0 && (
+                  <span className="rounded-lg bg-surface-2 px-2 py-1 font-mono text-xs text-ink-body">ID Truy xuất: {g.id_truy_van_ids.join(" → ")}</span>
+                )}
+                {g.lada_ids.length > 0 && (
+                  <span className="rounded-lg bg-surface-2 px-2 py-1 font-mono text-xs text-ink-body">ID Lada: {g.lada_ids.join(" → ")}</span>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                {g.items.map((it) => (
+                  <button
+                    key={it.id}
+                    onClick={() => setDetailId(it.id)}
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg px-2 py-2 text-left text-sm hover:bg-accent-soft sm:flex-nowrap lg:py-1.5 lg:text-xs"
+                  >
+                    <span className="min-w-0 basis-full truncate text-ink-body sm:flex-1 sm:basis-auto">
+                      <span className="font-mono font-semibold text-link">{it.id}</span> · {it.ten_khach ?? "—"} ·{" "}
+                      {it.van_de_dau_vao ?? "—"}
+                    </span>
+                    <span className="shrink-0 text-ink-soft">{fmtVN.date(it.ngay_tiep_nhan)}</span>
+                    <StatusBadge trangThai={it.trang_thai} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+      </>
+      )}
+
+      {/* ============ TAB: VAN HANH HANG NGAY ============ */}
+      {tab === "van-hanh" && (
+      <>
       <SectionHeader title="Vận hành hằng ngày" sub="Tiếp nhận, xử lý và tốc độ theo khoảng ngày tự chọn (không theo bộ lọc tháng ở trên)." />
 
       <Card title={<CardTitle icon="lich">Báo cáo theo ngày</CardTitle>}>
@@ -858,7 +931,12 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
           </>
         )}
       </Card>
+      </>
+      )}
 
+      {/* ============ TAB: TOC DO XU LY ============ */}
+      {tab === "toc-do" && (
+      <>
       <Card title={<CardTitle icon="tocDo">Tốc độ xử lý toàn hệ thống</CardTitle>}>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <PillGroup value={tdKy} options={KY_OPTIONS as { value: "ngay" | "tuan" | "thang"; label: string }[]} onChange={setTdKy} />
@@ -974,59 +1052,8 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
           </>
         )}
       </Card>
-
-      <Card title={<CardTitle icon="lap" tone="red">Ca trùng lặp / tái phát theo ID Lada</CardTitle>}>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          {tl && <Badge tone="violet">{tl.tong_nhom} nhóm</Badge>}
-          {tl && tl.tong_tai_phat_7_ngay > 0 && <Badge tone="red" dot>{tl.tong_tai_phat_7_ngay} tái phát &lt; 7 ngày</Badge>}
-          <span className="text-xs text-ink-soft">Theo <b className="text-ink">{thangNhan}</b> (bộ lọc tháng ở phần Tổng quan).</span>
-        </div>
-        {trungLapQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
-        {tl && tl.groups.length === 0 && (
-          <p className="py-4 text-center text-sm text-ink-soft">Không có ca trùng lặp theo ID Truy xuất/ID Lada trong khoảng lọc này.</p>
-        )}
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-          {tl?.groups.map((g) => (
-            <div
-              key={[...g.id_truy_van_ids, ...g.lada_ids].join("+")}
-              className={`rounded-xl border border-l-4 p-3 shadow-card ${g.tai_phat_trong_7_ngay ? "border-red-200 border-l-red-500 bg-red-50/40" : "border-line border-l-brand-300 bg-surface"}`}
-            >
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                {g.tai_phat_trong_7_ngay ? (
-                  <Badge tone="red" dot>Tái phát trong {g.khoang_cach_ngan_nhat} ngày</Badge>
-                ) : (
-                  <Badge tone="gray">Cách nhau {g.khoang_cach_ngan_nhat} ngày</Badge>
-                )}
-                <span className="text-sm font-semibold text-ink lg:text-xs">{g.so_lan} lần phản ánh</span>
-              </div>
-              <div className="mb-2 flex flex-wrap gap-1.5">
-                {g.id_truy_van_ids.length > 0 && (
-                  <span className="rounded-lg bg-surface-2 px-2 py-1 font-mono text-xs text-ink-body">ID Truy xuất: {g.id_truy_van_ids.join(" → ")}</span>
-                )}
-                {g.lada_ids.length > 0 && (
-                  <span className="rounded-lg bg-surface-2 px-2 py-1 font-mono text-xs text-ink-body">ID Lada: {g.lada_ids.join(" → ")}</span>
-                )}
-              </div>
-              <div className="flex flex-col gap-1">
-                {g.items.map((it) => (
-                  <button
-                    key={it.id}
-                    onClick={() => setDetailId(it.id)}
-                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg px-2 py-2 text-left text-sm hover:bg-accent-soft sm:flex-nowrap lg:py-1.5 lg:text-xs"
-                  >
-                    <span className="min-w-0 basis-full truncate text-ink-body sm:flex-1 sm:basis-auto">
-                      <span className="font-mono font-semibold text-link">{it.id}</span> · {it.ten_khach ?? "—"} ·{" "}
-                      {it.van_de_dau_vao ?? "—"}
-                    </span>
-                    <span className="shrink-0 text-ink-soft">{fmtVN.date(it.ngay_tiep_nhan)}</span>
-                    <StatusBadge trangThai={it.trang_thai} />
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
+      </>
+      )}
 
       <Modal open={!!detailId} onClose={() => setDetailId(null)} width="full">
         {detailId && (
