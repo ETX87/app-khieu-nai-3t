@@ -253,5 +253,92 @@
       "updateFailed": "Gagal memperbarui",
       "updateFailedCode": "Kesalahan: {{code}}"
     }
+  },
+  "users": {
+    "pageTitle": "Pengguna",
+    "tabUsers": "Pengguna",
+    "tabEtx": "Staf ETX",
+    "searchPlaceholder": "Cari berdasarkan email atau nama...",
+    "loadError": "Tidak dapat memuat daftar pengguna.",
+    "rangeFooter": "{{from}}–{{to}} / {{total}} baris · Halaman {{page}}/{{totalPages}}",
+    "col": {
+      "user": "Pengguna",
+      "role": "Peran",
+      "unassigned": "Belum ditetapkan",
+      "approval": "Persetujuan",
+      "seeAllCases": "Lihat semua kasus",
+      "available": "Tersedia",
+      "onViewOnly": "Aktif (hanya lihat)",
+      "offOwnCases": "Nonaktif · kasus sendiri",
+      "status": "Status",
+      "locked": "Terkunci",
+      "active": "Aktif",
+      "lastLogin": "Login terakhir",
+      "createdAt": "Dibuat"
+    },
+    "approveAssign": "Setujui & tetapkan peran",
+    "edit": "Ubah",
+    "cannotEditSelf": "Tidak dapat mengubah akun sendiri",
+    "toast": {
+      "updated": "Pengguna diperbarui",
+      "updateFailed": "Gagal memperbarui",
+      "updateFailedCode": "Kesalahan: {{code}}"
+    },
+    "err": {
+      "CANNOT_MODIFY_SELF": "Anda tidak dapat mengubah peran / mengunci akun sendiri.",
+      "LAST_ADMIN": "Ini adalah Admin aktif terakhir — tidak dapat diturunkan / dikunci / ditolak."
+    },
+    "duyet": {
+      "choDuyet": "Menunggu persetujuan",
+      "daDuyet": "Disetujui",
+      "tuChoi": "Ditolak"
+    },
+    "etx": {
+      "loadingSyncStatus": "Memuat status sinkronisasi...",
+      "lastSync": "Sinkronisasi terakhir: {{time}}",
+      "syncError": " — kesalahan: {{error}}",
+      "changedRows": " — {{count}} baris berubah",
+      "neverSynced": "Belum pernah disinkron.",
+      "syncing": "Menyinkron...",
+      "syncNow": "Sinkron sekarang",
+      "searchPlaceholder": "Cari berdasarkan kode staf, nama, gmail...",
+      "allStatus": "Semua status",
+      "working": "Bekerja",
+      "resigned": "Resign",
+      "loadError": "Tidak dapat memuat direktori staf ETX.",
+      "col": {
+        "code": "Kode staf",
+        "fullName": "Nama lengkap",
+        "title": "Jabatan",
+        "gmail": "Gmail",
+        "workStatus": "Status kerja",
+        "linkedAccount": "Akun tertaut"
+      },
+      "noRole": "Belum ada peran",
+      "noAccount": "Belum ada akun",
+      "toast": {
+        "syncError": "Kesalahan sinkronisasi: {{error}}",
+        "synced": "Sinkronisasi selesai, {{count}} baris berubah",
+        "syncFailed": "Tidak dapat sinkron: {{error}}"
+      }
+    },
+    "dialog": {
+      "approveTitle": "Setujui & tetapkan peran",
+      "editTitle": "Ubah pengguna",
+      "role": "Peran",
+      "noRolePlaceholder": "— Belum ditetapkan —",
+      "approvalStatus": "Status persetujuan",
+      "needRoleFirst": "Peran harus ditetapkan sebelum menyetujui.",
+      "seeAllCases": "Lihat semua kasus di sistem",
+      "seeAllCasesDesc": "Nonaktif (default): hanya melihat kasus yang dibuat sendiri. Aktif: melihat semua kasus, kasus orang lain hanya dapat dilihat.",
+      "roleSeesAll": "Peran {{role}} sudah dapat melihat semua kasus.",
+      "lockAccount": "Kunci akun",
+      "promotingAdmin": "Anda akan menaikkan orang ini menjadi Admin. ",
+      "locking": "Anda akan mengunci akun ini. ",
+      "confirmPre": "Ketik",
+      "confirmCode": "xac nhan",
+      "confirmPost": "untuk melanjutkan.",
+      "saving": "Menyimpan..."
+    }
   }
 }

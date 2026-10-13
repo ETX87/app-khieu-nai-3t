@@ -253,5 +253,92 @@
       "updateFailed": "Update failed",
       "updateFailedCode": "Error: {{code}}"
     }
+  },
+  "users": {
+    "pageTitle": "Users",
+    "tabUsers": "Users",
+    "tabEtx": "ETX staff",
+    "searchPlaceholder": "Search by email or name...",
+    "loadError": "Could not load the user list.",
+    "rangeFooter": "{{from}}–{{to}} / {{total}} rows · Page {{page}}/{{totalPages}}",
+    "col": {
+      "user": "User",
+      "role": "Role",
+      "unassigned": "Unassigned",
+      "approval": "Approval",
+      "seeAllCases": "See all cases",
+      "available": "Available",
+      "onViewOnly": "On (view only)",
+      "offOwnCases": "Off · own cases",
+      "status": "Status",
+      "locked": "Locked",
+      "active": "Active",
+      "lastLogin": "Last login",
+      "createdAt": "Created"
+    },
+    "approveAssign": "Approve & assign role",
+    "edit": "Edit",
+    "cannotEditSelf": "Cannot edit your own account",
+    "toast": {
+      "updated": "User updated",
+      "updateFailed": "Update failed",
+      "updateFailedCode": "Error: {{code}}"
+    },
+    "err": {
+      "CANNOT_MODIFY_SELF": "You cannot change your own role / lock your own account.",
+      "LAST_ADMIN": "This is the last active Admin — cannot demote / lock / reject."
+    },
+    "duyet": {
+      "choDuyet": "Pending approval",
+      "daDuyet": "Approved",
+      "tuChoi": "Rejected"
+    },
+    "etx": {
+      "loadingSyncStatus": "Loading sync status...",
+      "lastSync": "Last sync: {{time}}",
+      "syncError": " — error: {{error}}",
+      "changedRows": " — {{count}} rows changed",
+      "neverSynced": "Never synced.",
+      "syncing": "Syncing...",
+      "syncNow": "Sync now",
+      "searchPlaceholder": "Search by staff code, name, gmail...",
+      "allStatus": "All statuses",
+      "working": "Working",
+      "resigned": "Resigned",
+      "loadError": "Could not load the ETX staff directory.",
+      "col": {
+        "code": "Staff code",
+        "fullName": "Full name",
+        "title": "Title",
+        "gmail": "Gmail",
+        "workStatus": "Work status",
+        "linkedAccount": "Linked account"
+      },
+      "noRole": "No role assigned",
+      "noAccount": "No account",
+      "toast": {
+        "syncError": "Sync error: {{error}}",
+        "synced": "Sync complete, {{count}} rows changed",
+        "syncFailed": "Could not sync: {{error}}"
+      }
+    },
+    "dialog": {
+      "approveTitle": "Approve & assign role",
+      "editTitle": "Edit user",
+      "role": "Role",
+      "noRolePlaceholder": "— Unassigned —",
+      "approvalStatus": "Approval status",
+      "needRoleFirst": "A role must be assigned before approving.",
+      "seeAllCases": "See all cases in the system",
+      "seeAllCasesDesc": "Off (default): only sees cases they created. On: sees all cases, others' cases are view-only.",
+      "roleSeesAll": "The {{role}} role already sees all cases.",
+      "lockAccount": "Lock account",
+      "promotingAdmin": "You are promoting this person to Admin. ",
+      "locking": "You are locking this account. ",
+      "confirmPre": "Type",
+      "confirmCode": "xac nhan",
+      "confirmPost": "to continue.",
+      "saving": "Saving..."
+    }
   }
 }

@@ -253,5 +253,92 @@
       "updateFailed": "Cập nhật thất bại",
       "updateFailedCode": "Lỗi: {{code}}"
     }
+  },
+  "users": {
+    "pageTitle": "Người dùng",
+    "tabUsers": "Người dùng",
+    "tabEtx": "ETX nhân sự",
+    "searchPlaceholder": "Tìm theo email hoặc tên...",
+    "loadError": "Không thể tải danh sách người dùng.",
+    "rangeFooter": "{{from}}–{{to}} / {{total}} dòng · Trang {{page}}/{{totalPages}}",
+    "col": {
+      "user": "Người dùng",
+      "role": "Vai trò",
+      "unassigned": "Chưa gán",
+      "approval": "Duyệt",
+      "seeAllCases": "Xem tất cả ca",
+      "available": "Sẵn có",
+      "onViewOnly": "Bật (chỉ xem)",
+      "offOwnCases": "Tắt · ca của mình",
+      "status": "Trạng thái",
+      "locked": "Đã khoá",
+      "active": "Hoạt động",
+      "lastLogin": "Đăng nhập gần nhất",
+      "createdAt": "Ngày tạo"
+    },
+    "approveAssign": "Duyệt & gán vai trò",
+    "edit": "Sửa",
+    "cannotEditSelf": "Không thể sửa tài khoản của chính bạn",
+    "toast": {
+      "updated": "Đã cập nhật người dùng",
+      "updateFailed": "Cập nhật thất bại",
+      "updateFailedCode": "Lỗi: {{code}}"
+    },
+    "err": {
+      "CANNOT_MODIFY_SELF": "Không thể tự đổi vai trò / tự khoá tài khoản của chính bạn.",
+      "LAST_ADMIN": "Đây là Admin hoạt động cuối cùng — không thể hạ quyền / khoá / từ chối."
+    },
+    "duyet": {
+      "choDuyet": "Chờ duyệt",
+      "daDuyet": "Đã duyệt",
+      "tuChoi": "Từ chối"
+    },
+    "etx": {
+      "loadingSyncStatus": "Đang tải trạng thái đồng bộ...",
+      "lastSync": "Đồng bộ gần nhất: {{time}}",
+      "syncError": " — lỗi: {{error}}",
+      "changedRows": " — {{count}} dòng thay đổi",
+      "neverSynced": "Chưa đồng bộ lần nào.",
+      "syncing": "Đang đồng bộ...",
+      "syncNow": "Đồng bộ ngay",
+      "searchPlaceholder": "Tìm theo mã NV, họ tên, gmail...",
+      "allStatus": "Tất cả trạng thái",
+      "working": "Đang làm việc",
+      "resigned": "Đã nghỉ",
+      "loadError": "Không thể tải danh bạ ETX nhân sự.",
+      "col": {
+        "code": "Mã NV",
+        "fullName": "Họ tên",
+        "title": "Chức danh",
+        "gmail": "Gmail",
+        "workStatus": "Trạng thái làm việc",
+        "linkedAccount": "Tài khoản liên kết"
+      },
+      "noRole": "Chưa gán vai trò",
+      "noAccount": "Chưa có tài khoản",
+      "toast": {
+        "syncError": "Đồng bộ lỗi: {{error}}",
+        "synced": "Đã đồng bộ xong, {{count}} dòng thay đổi",
+        "syncFailed": "Không thể đồng bộ: {{error}}"
+      }
+    },
+    "dialog": {
+      "approveTitle": "Duyệt & gán vai trò",
+      "editTitle": "Chỉnh sửa người dùng",
+      "role": "Vai trò",
+      "noRolePlaceholder": "— Chưa gán —",
+      "approvalStatus": "Trạng thái duyệt",
+      "needRoleFirst": "Phải gán vai trò trước khi duyệt.",
+      "seeAllCases": "Xem tất cả ca trên hệ thống",
+      "seeAllCasesDesc": "Tắt (mặc định): chỉ thấy ca do mình tạo. Bật: thấy mọi ca, ca của người khác chỉ được xem.",
+      "roleSeesAll": "Vai trò {{role}} đã xem được tất cả các ca.",
+      "lockAccount": "Khoá tài khoản",
+      "promotingAdmin": "Bạn đang nâng người này lên quyền Admin. ",
+      "locking": "Bạn đang khoá tài khoản này. ",
+      "confirmPre": "Gõ",
+      "confirmCode": "xac nhan",
+      "confirmPost": "để tiếp tục.",
+      "saving": "Đang lưu..."
+    }
   }
 }
