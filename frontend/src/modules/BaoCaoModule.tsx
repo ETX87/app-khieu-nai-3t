@@ -1,5 +1,6 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import type { AppUser } from "../api/types";
 import { fmtVN } from "../lib/formatVN";
@@ -135,30 +136,38 @@ interface TocDoReport {
   tong: TocDoSo;
   rows: (TocDoSo & { ky: string; nhom: (TocDoSo & { key: string; nhan: string })[] })[];
 }
-const TOC_DO_MOC_COLS: { key: TocDoMoc; label: string; hint: string }[] = [
-  { key: "tn", label: "Tiếp nhận", hint: "Từ lúc mở ca đến khi CSKH bấm Tiếp nhận (không tính ca tự mở - nhận ngay)" },
-  { key: "vp", label: "Chốt vi phạm", hint: "Từ lúc mở ca đến lần đánh giá cuối cùng đủ 4 lỗi + kết luận" },
-  { key: "ql", label: "Đánh giá QL", hint: "Từ lúc mở ca đến khi QL nhập Đánh giá QL" },
-  { key: "kt", label: "Chốt kết thúc", hint: "Từ lúc mở ca đến khi ca chuyển Đã kết thúc" },
-];
-const KY_OPTIONS = [
-  { value: "ngay", label: "Theo ngày" },
-  { value: "tuan", label: "Theo tuần" },
-  { value: "thang", label: "Theo tháng" },
-];
-const PHAN_LOAI_OPTIONS = [
-  { value: "nguoi_tiep_nhan", label: "Theo người tiếp nhận" },
-  { value: "nguon", label: "Theo nguồn" },
-  { value: "tinh", label: "Theo tỉnh" },
-];
+type TFn = (k: string, o?: Record<string, unknown>) => string;
+
+function getTocDoMocCols(t: TFn): { key: TocDoMoc; label: string; hint: string }[] {
+  return [
+    { key: "tn", label: t("report.tocDoCol.tn"), hint: t("report.tocDoCol.tnHint") },
+    { key: "vp", label: t("report.tocDoCol.vp"), hint: t("report.tocDoCol.vpHint") },
+    { key: "ql", label: t("report.tocDoCol.ql"), hint: t("report.tocDoCol.qlHint") },
+    { key: "kt", label: t("report.tocDoCol.kt"), hint: t("report.tocDoCol.ktHint") },
+  ];
+}
+function getKyOptions(t: TFn) {
+  return [
+    { value: "ngay", label: t("report.ky.ngay") },
+    { value: "tuan", label: t("report.ky.tuan") },
+    { value: "thang", label: t("report.ky.thang") },
+  ];
+}
+function getPhanLoaiOptions(t: TFn) {
+  return [
+    { value: "nguoi_tiep_nhan", label: t("report.phanLoai.nguoiTiepNhan") },
+    { value: "nguon", label: t("report.phanLoai.nguon") },
+    { value: "tinh", label: t("report.phanLoai.tinh") },
+  ];
+}
 
 // Gio -> chu de doc: <1 gio hien phut, <48 gio hien gio, con lai hien ngay.
-function fmtGio(h: number | null | undefined): string {
+function fmtGio(h: number | null | undefined, t: TFn): string {
   if (h == null) return "—";
   const f1 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 1 });
-  if (h < 1) return `${Math.round(h * 60)} phút`;
-  if (h < 48) return `${f1(h)} giờ`;
-  return `${f1(h / 24)} ngày`;
+  if (h < 1) return `${Math.round(h * 60)} ${t("report.unit.minute")}`;
+  if (h < 48) return `${f1(h)} ${t("report.unit.hour")}`;
+  return `${f1(h / 24)} ${t("report.unit.day")}`;
 }
 
 const fmtSoVN = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 1 });
@@ -170,20 +179,22 @@ function isoAddDays(iso: string, days: number): string {
 }
 
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
-function kyLabel(ky: TocDoReport["ky"], key: string): string {
-  if (ky === "thang") return `Tháng ${key.slice(5, 7)}/${key.slice(0, 4)}`;
-  if (ky === "tuan") return `Tuần ${dmy(key).slice(0, 5)}–${dmy(isoAddDays(key, 6))}`;
+function kyLabel(ky: TocDoReport["ky"], key: string, t: TFn): string {
+  if (ky === "thang") return t("report.month", { m: key.slice(5, 7), y: key.slice(0, 4) });
+  if (ky === "tuan") return t("report.week", { from: dmy(key).slice(0, 5), to: dmy(isoAddDays(key, 6)) });
   return dmy(key);
 }
 
 function TocDoCells({ v, bold }: { v: TocDoSo; bold?: boolean }) {
+  const { t } = useTranslation();
+  const cols = getTocDoMocCols(t);
   return (
     <>
-      {TOC_DO_MOC_COLS.map((c) => (
+      {cols.map((c) => (
         <td key={c.key} className={`whitespace-nowrap px-2 py-2 ${bold ? "font-semibold text-ink" : ""}`}>
           {v[c.key].sl > 0 ? (
             <>
-              {fmtGio(v[c.key].tb_gio)} <span className="font-normal text-ink-faint">· {v[c.key].sl} ca</span>
+              {fmtGio(v[c.key].tb_gio, t)} <span className="font-normal text-ink-faint">· {t("report.casesCount", { n: v[c.key].sl })}</span>
             </>
           ) : (
             <span className="text-ink-faint">—</span>
@@ -278,28 +289,31 @@ function TyLePill({ v }: { v: number | null }) {
 const So = ({ v }: { v: number | null | undefined }) =>
   v == null ? <span className="text-ink-faint">—</span> : v === 0 ? <span className="text-ink-faint">0</span> : <>{v}</>;
 
-const TN_PARTS = [
-  { key: "tu_mo", label: "Tự mở mới", color: SERIES[0] },
-  { key: "tu_nguon_khac", label: "Nguồn khác", color: SERIES[1] },
-  { key: "ton_cu", label: "Tồn cũ", color: SERIES[2] },
-] as const;
-const tnParts = (v: TheoNguoiTnSo) => TN_PARTS.map((p) => ({ label: p.label, color: p.color, value: v[p.key] }));
+function getTnParts(t: TFn) {
+  return [
+    { key: "tu_mo" as const, label: t("report.tnPart.tuMo"), color: SERIES[0] },
+    { key: "tu_nguon_khac" as const, label: t("report.tnPart.tuNguonKhac"), color: SERIES[1] },
+    { key: "ton_cu" as const, label: t("report.tnPart.tonCu"), color: SERIES[2] },
+  ];
+}
+const tnParts = (v: TheoNguoiTnSo, t: TFn) => getTnParts(t).map((p) => ({ label: p.label, color: p.color, value: v[p.key] }));
 
 // Card mobile cho bang theo nguoi tiep nhan.
 function TheoNguoiTnCard({ ten, v, tong, max }: { ten: string; v: TheoNguoiTnSo; tong?: boolean; max: number }) {
+  const { t } = useTranslation();
   return (
     <div className={`rounded-xl border p-3 shadow-card ${tong ? "border-brand-200 bg-accent-soft" : "border-line bg-surface"}`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="min-w-0 truncate text-base font-bold text-ink">{ten}</span>
-        <span className="shrink-0 text-sm text-ink-soft"><b className="text-lg font-extrabold text-ink">{v.tong_tiep_nhan}</b> ca</span>
+        <span className="shrink-0 text-sm text-ink-soft"><b className="text-lg font-extrabold text-ink">{v.tong_tiep_nhan}</b> {t("report.caSuffix")}</span>
       </div>
-      <InlineStackedBar parts={tnParts(v)} max={max} className="mb-2.5" />
+      <InlineStackedBar parts={tnParts(v, t)} max={max} className="mb-2.5" />
       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
-        <TheoNgayStat k="Tự mở mới" v={v.tu_mo} dot={SERIES[0]} />
-        <TheoNgayStat k="Nguồn khác" v={v.tu_nguon_khac} dot={SERIES[1]} />
-        <TheoNgayStat k="Tồn cũ" v={v.ton_cu} dot={SERIES[2]} />
-        <TheoNgayStat k="Tỷ lệ TN" v={<TyLePill v={v.ty_le} />} />
-        <TheoNgayStat k="TB giờ TN" v={fmtGio(v.tb_gio_tiep_nhan)} />
+        <TheoNgayStat k={t("report.tnPart.tuMo")} v={v.tu_mo} dot={SERIES[0]} />
+        <TheoNgayStat k={t("report.tnPart.tuNguonKhac")} v={v.tu_nguon_khac} dot={SERIES[1]} />
+        <TheoNgayStat k={t("report.tnPart.tonCu")} v={v.ton_cu} dot={SERIES[2]} />
+        <TheoNgayStat k={t("report.dailyCol.receiveRate")} v={<TyLePill v={v.ty_le} />} />
+        <TheoNgayStat k={t("report.dailyCol.avgHourReceive")} v={fmtGio(v.tb_gio_tiep_nhan, t)} />
       </div>
     </div>
   );
@@ -308,10 +322,11 @@ function TheoNguoiTnCard({ ten, v, tong, max }: { ten: string; v: TheoNguoiTnSo;
 // Bang ty le % so ca theo khoang ngay xu ly, tach theo Tong / Da ket thuc / Dang xu ly
 // (giong bang pivot SLA hay dung ngoai Sheet, de xem toc do xu ly nhanh/cham chiem bao nhieu %).
 function SlaTyLeTable({ buckets, tongDaKetThuc, tongDangXuLy }: { buckets: SlaBucket[]; tongDaKetThuc: number; tongDangXuLy: number }) {
+  const { t } = useTranslation();
   const rows = [
-    { label: "Tổng", tong: tongDaKetThuc + tongDangXuLy, get: (b: SlaBucket) => b.da_ket_thuc + b.dang_xu_ly, hi: true },
-    { label: "Đã kết thúc", tong: tongDaKetThuc, get: (b: SlaBucket) => b.da_ket_thuc, hi: false },
-    { label: "Đang xử lý", tong: tongDangXuLy, get: (b: SlaBucket) => b.dang_xu_ly, hi: false },
+    { label: t("report.sla.total"), tong: tongDaKetThuc + tongDangXuLy, get: (b: SlaBucket) => b.da_ket_thuc + b.dang_xu_ly, hi: true },
+    { label: t("report.sla.done"), tong: tongDaKetThuc, get: (b: SlaBucket) => b.da_ket_thuc, hi: false },
+    { label: t("report.sla.processing"), tong: tongDangXuLy, get: (b: SlaBucket) => b.dang_xu_ly, hi: false },
   ];
   const pct = (n: number, tong: number) => (tong > 0 ? Math.round((n / tong) * 1000) / 10 : 0);
   return (
@@ -319,8 +334,8 @@ function SlaTyLeTable({ buckets, tongDaKetThuc, tongDangXuLy }: { buckets: SlaBu
       <table className="w-full min-w-[620px] border-collapse text-xs">
         <thead>
           <tr className="border-b border-line bg-surface-2 text-left font-semibold text-ink-soft">
-            <th className="whitespace-nowrap px-2.5 py-2">Trạng thái</th>
-            <th className="whitespace-nowrap px-2.5 py-2 text-right">Tổng</th>
+            <th className="whitespace-nowrap px-2.5 py-2">{t("report.sla.statusCol")}</th>
+            <th className="whitespace-nowrap px-2.5 py-2 text-right">{t("report.sla.total")}</th>
             {buckets.map((b) => (
               <th key={b.label} className="whitespace-nowrap px-2.5 py-2 text-right">{b.label}</th>
             ))}
@@ -350,6 +365,7 @@ function SlaTyLeTable({ buckets, tongDaKetThuc, tongDangXuLy }: { buckets: SlaBu
 
 // Danh sach xep hang co thanh ty le loi (thay bang mini chu thuan).
 function ChotLoiMiniTable({ title, rows }: { title: string; rows: ChotLoiGroup[] }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-xl border border-line bg-surface-2/50 p-3">
       <p className="mb-2 text-sm font-bold text-ink lg:text-xs">{title}</p>
@@ -364,8 +380,8 @@ function ChotLoiMiniTable({ title, rows }: { title: string; rows: ChotLoiGroup[]
               <div key={g.key} className="text-sm lg:text-xs">
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <span className="min-w-0 flex-1 truncate text-ink-body" title={g.key}>{g.key}</span>
-                  <span className="shrink-0 text-ink-soft">{g.so_ca} ca</span>
-                  <span className={`w-16 shrink-0 text-right font-bold ${rate}`}>{g.ca_co_loi > 0 ? `${g.ty_le_loi}% lỗi` : "—"}</span>
+                  <span className="shrink-0 text-ink-soft">{t("report.casesCount", { n: g.so_ca })}</span>
+                  <span className={`w-16 shrink-0 text-right font-bold ${rate}`}>{g.ca_co_loi > 0 ? t("report.errPct", { pct: g.ty_le_loi }) : "—"}</span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-surface">
                   <div className={`h-1.5 rounded-full ${bar}`} style={{ width: `${Math.max(g.ca_co_loi > 0 ? 3 : 0, g.ty_le_loi)}%` }} />
@@ -394,28 +410,33 @@ function TheoNgayStat({ k, v, dot }: { k: string; v: ReactNode; dot?: string }) 
 // Card doc cho mobile - mo phong pattern KhieuNaiCard (bang 11 cot khong xem duoc tren man hinh
 // hep, phai cuon ngang - card 1 the/ngay de doc thang khong can cuon).
 function TheoNgayCard({ r }: { r: TheoNgayRow }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-xl border border-line bg-surface p-3 shadow-card">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-base font-bold text-ink">{dmy(r.ngay)}</span>
-        <span className="text-sm text-ink-soft">Còn tồn: <b className="text-brand-700">{r.con_ton ?? "—"}</b></span>
+        <span className="text-sm text-ink-soft">{t("report.dailyCol.remaining")}: <b className="text-brand-700">{r.con_ton ?? "—"}</b></span>
       </div>
       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
-        <TheoNgayStat k="Ca mới" v={r.ca_moi} dot={SERIES[0]} />
-        <TheoNgayStat k="Đã tiếp nhận" v={r.da_tiep_nhan} dot={SERIES[1]} />
-        <TheoNgayStat k="Đã đóng" v={r.da_dong} dot={SERIES[2]} />
-        <TheoNgayStat k="Tỷ lệ TN" v={<TyLePill v={r.ty_le_tiep_nhan} />} />
-        <TheoNgayStat k="Tồn cũ chưa TN" v={r.ton_cu_chua_tiep_nhan ?? "—"} />
-        <TheoNgayStat k="Tồn cũ đã TN" v={r.ton_cu_da_tiep_nhan ?? "—"} />
-        <TheoNgayStat k="TB giờ TN" v={r.tb_gio_tiep_nhan ?? "—"} />
-        <TheoNgayStat k="TB giờ XL" v={r.tb_gio_xu_ly ?? "—"} />
-        <TheoNgayStat k="Chưa TN" v={r.cho_tiep_nhan ?? "—"} />
+        <TheoNgayStat k={t("report.dailyCol.newCases")} v={r.ca_moi} dot={SERIES[0]} />
+        <TheoNgayStat k={t("report.dailyCol.received")} v={r.da_tiep_nhan} dot={SERIES[1]} />
+        <TheoNgayStat k={t("report.dailyCol.closed")} v={r.da_dong} dot={SERIES[2]} />
+        <TheoNgayStat k={t("report.dailyCol.receiveRate")} v={<TyLePill v={r.ty_le_tiep_nhan} />} />
+        <TheoNgayStat k={t("report.dailyCol.oldPendingUnreceived")} v={r.ton_cu_chua_tiep_nhan ?? "—"} />
+        <TheoNgayStat k={t("report.dailyCol.oldPendingReceived")} v={r.ton_cu_da_tiep_nhan ?? "—"} />
+        <TheoNgayStat k={t("report.dailyCol.avgHourReceive")} v={r.tb_gio_tiep_nhan ?? "—"} />
+        <TheoNgayStat k={t("report.dailyCol.avgHourProcess")} v={r.tb_gio_xu_ly ?? "—"} />
+        <TheoNgayStat k={t("report.dailyCol.unreceived")} v={r.cho_tiep_nhan ?? "—"} />
       </div>
     </div>
   );
 }
 
 export function BaoCaoModule({ user }: { user: AppUser }) {
+  const { t } = useTranslation();
+  const KY_OPTIONS = getKyOptions(t);
+  const PHAN_LOAI_OPTIONS = getPhanLoaiOptions(t);
+  const TOC_DO_MOC_COLS = getTocDoMocCols(t);
   // "thang" dung chung cho SLA + Chot loi + Trung lap/tai phat - gioi han theo thang de tranh quet
   // toan bo lich su khi du lieu tang qua nhieu nam (xem backend/src/lib/thangFilter.ts). Trung lap/
   // tai phat truoc day quet xuyen suot (chi cham LIMIT dong) nhung "cua so" do se ngam seo lai khi
@@ -489,7 +510,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
       return api.get<TocDoReport>(`/khieu-nai/bao-cao/toc-do-xu-ly?${q.toString()}`);
     },
   });
-  const nguonLabel = (v: string) => NGUON_OPTIONS.find((o) => o.value === v)?.label ?? (v || "(Chưa có)");
+  const nguonLabel = (v: string) => NGUON_OPTIONS.find((o) => o.value === v)?.label ?? (v || t("report.noValueFallback"));
   const [moNhom, setMoNhom] = useState<Set<string>>(new Set());
   const toggleNhom = (k: string) =>
     setMoNhom((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
@@ -520,10 +541,10 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
 
   // Nut chon nhanh khoang ngay cho bao cao theo ngay (bieu do chi co y nghia khi >= 2 ngay).
   const KHOANG_NHANH = [
-    { value: "hom-nay", label: "Hôm nay", tu: todayISO },
-    { value: "7", label: "7 ngày", tu: isoAddDays(todayISO, -6) },
-    { value: "30", label: "30 ngày", tu: isoAddDays(todayISO, -29) },
-    { value: "thang", label: "Tháng này", tu: `${todayISO.slice(0, 8)}01` },
+    { value: "hom-nay", label: t("report.quickRange.today"), tu: todayISO },
+    { value: "7", label: t("report.quickRange.d7"), tu: isoAddDays(todayISO, -6) },
+    { value: "30", label: t("report.quickRange.d30"), tu: isoAddDays(todayISO, -29) },
+    { value: "thang", label: t("report.quickRange.thisMonth"), tu: `${todayISO.slice(0, 8)}01` },
   ];
   const khoangDangChon = ngayDen === todayISO ? (KHOANG_NHANH.find((k) => k.tu === ngayTu)?.value ?? "") : "";
 
@@ -545,31 +566,33 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
   const cl = chotLoiQuery.data;
   const loiItems = cl
     ? [
-        { label: "Nhà sản xuất", value: cl.tong.so_loi_nsx, color: SERIES[0] },
-        { label: "Lắp đặt", value: cl.tong.so_loi_lap_dat, color: SERIES[1] },
-        { label: "Thái độ KTV", value: cl.tong.so_loi_thai_do_ktv, color: SERIES[2] },
-        { label: "Quy trình NSKX", value: cl.tong.so_loi_quy_trinh_nskx, color: SERIES[3] },
+        { label: t("report.errorLabel.nsx"), value: cl.tong.so_loi_nsx, color: SERIES[0] },
+        { label: t("report.errorLabel.lapDat"), value: cl.tong.so_loi_lap_dat, color: SERIES[1] },
+        { label: t("report.errorLabel.thaiDoKtv"), value: cl.tong.so_loi_thai_do_ktv, color: SERIES[2] },
+        { label: t("report.errorLabel.quyTrinhNskx"), value: cl.tong.so_loi_quy_trinh_nskx, color: SERIES[3] },
       ]
     : [];
   const tongLuotLoi = loiItems.reduce((a, b) => a + b.value, 0);
   const tl = trungLapQuery.data;
-  const thangNhan = thang ? `tháng ${thang.slice(5)}/${thang.slice(0, 4)}` : `tháng hiện tại${sla ? ` (${sla.thang.slice(5)}/${sla.thang.slice(0, 4)})` : ""}`;
+  const thangNhan = thang
+    ? t("report.monthLower", { m: thang.slice(5), y: thang.slice(0, 4) })
+    : t("report.currentMonthLower", { suffix: sla ? t("report.currentMonthSuffix", { m: sla.thang.slice(5), y: sla.thang.slice(0, 4) }) : "" });
 
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-hero text-white shadow-brand">{TITLE_ICONS.baoCao}</span>
         <div>
-          <h2 className="text-xl font-bold text-ink lg:text-[21px]">Báo cáo</h2>
-          <p className="text-xs text-ink-soft">Theo dõi, phân tích và đánh giá hiệu quả xử lý phản ánh</p>
+          <h2 className="text-xl font-bold text-ink lg:text-[21px]">{t("report.pageTitle")}</h2>
+          <p className="text-xs text-ink-soft">{t("report.pageSub")}</p>
         </div>
       </div>
 
       <Tabs
         tabs={[
-          { key: "tong-quan", label: "Tổng quan tháng" },
-          { key: "van-hanh", label: "Vận hành hằng ngày" },
-          { key: "toc-do", label: "Tốc độ xử lý" },
+          { key: "tong-quan", label: t("report.tabOverview") },
+          { key: "van-hanh", label: t("report.tabDaily") },
+          { key: "toc-do", label: t("report.tabSpeed") },
         ]}
         active={tab}
         onChange={(k) => setTab(k as "tong-quan" | "van-hanh" | "toc-do")}
@@ -579,12 +602,12 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
       {tab === "tong-quan" && (
       <>
       <SectionHeader
-        title="Tổng quan tháng"
-        sub={<>Ca đang tồn (mọi lúc) + ca đóng/hủy/tiếp nhận trong <b className="text-ink">{thangNhan}</b>. Tái phát cách nhau quá 1 tháng không được gộp nhóm.</>}
+        title={t("report.tabOverview")}
+        sub={<>{t("report.overviewSubPre")}<b className="text-ink">{thangNhan}</b>{t("report.overviewSubPost")}</>}
         right={
           <div className="flex flex-wrap items-center gap-2">
-            <FilterSelect className={selCls} value={locNguonThang} onChange={setLocNguonThang} allLabel="Mọi nguồn" options={NGUON_OPTIONS} />
-            <FilterSelect className={selCls} value={locNhomYeuCauThang} onChange={setLocNhomYeuCauThang} allLabel="Mọi nhóm yêu cầu"
+            <FilterSelect className={selCls} value={locNguonThang} onChange={setLocNguonThang} allLabel={t("report.allSources")} options={NGUON_OPTIONS} />
+            <FilterSelect className={selCls} value={locNhomYeuCauThang} onChange={setLocNhomYeuCauThang} allLabel={t("report.allRequestGroup")}
               options={(nhomYeuCauOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
             <ThangFilter value={thang} onChange={setThang} />
           </div>
@@ -592,38 +615,38 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
       />
 
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 lg:grid-cols-4">
-        <KpiCard label="Tổng ca phát sinh" value={sla?.tong_phat_sinh_trong_thang ?? "…"} tone="slate" icon="inbox" sub="ca mở trong tháng" />
-        <KpiCard label="Đã kết thúc" value={sla?.tong_da_ket_thuc ?? "…"} tone="green" icon="xong" sub="ca đóng trong tháng" />
-        <KpiCard label="Đang xử lý" value={sla?.tong_dang_xu_ly ?? "…"} tone="blue" icon="dangXuLy" sub="ca còn tồn" />
-        <KpiCard label="TB thời gian xử lý" value={sla ? <>{fmtSoVN(sla.so_ngay_trung_binh)}<span className="ml-1 text-base font-bold">ngày</span></> : "…"} tone="brand" icon="choChot" sub="ca đã kết thúc" />
-        <KpiCard label="Tỷ lệ hoàn thành 48h" value={sla ? `${sla.ty_le_hoan_thanh_48h}%` : "…"} tone="cyan" icon="choChot" sub="trong số ca đã kết thúc" />
-        <KpiCard label="Tỷ lệ ca có lỗi" value={cl ? `${cl.tong.ty_le_loi}%` : "…"} tone={cl && cl.tong.ty_le_loi >= 50 ? "red" : "amber"} icon="canhBao" sub={cl ? `${cl.tong.ca_co_loi}/${cl.tong.so_ca} ca đã chốt` : undefined} />
-        <KpiCard label="Tái phát < 7 ngày" value={tl?.tong_tai_phat_7_ngay ?? "…"} tone="red" icon="lap" sub={tl ? `${tl.tong_nhom} nhóm trùng lặp` : undefined} />
+        <KpiCard label={t("report.kpi.newCases")} value={sla?.tong_phat_sinh_trong_thang ?? "…"} tone="slate" icon="inbox" sub={t("report.kpi.newCasesSub")} />
+        <KpiCard label={t("report.kpi.done")} value={sla?.tong_da_ket_thuc ?? "…"} tone="green" icon="xong" sub={t("report.kpi.doneSub")} />
+        <KpiCard label={t("report.kpi.processing")} value={sla?.tong_dang_xu_ly ?? "…"} tone="blue" icon="dangXuLy" sub={t("report.kpi.processingSub")} />
+        <KpiCard label={t("report.kpi.avgTime")} value={sla ? <>{fmtSoVN(sla.so_ngay_trung_binh)}<span className="ml-1 text-base font-bold">{t("report.unit.day")}</span></> : "…"} tone="brand" icon="choChot" sub={t("report.kpi.avgTimeSub")} />
+        <KpiCard label={t("report.kpi.completion48h")} value={sla ? `${sla.ty_le_hoan_thanh_48h}%` : "…"} tone="cyan" icon="choChot" sub={t("report.kpi.completion48hSub")} />
+        <KpiCard label={t("report.kpi.errorRate")} value={cl ? `${cl.tong.ty_le_loi}%` : "…"} tone={cl && cl.tong.ty_le_loi >= 50 ? "red" : "amber"} icon="canhBao" sub={cl ? t("report.kpi.errorRateSub", { err: cl.tong.ca_co_loi, total: cl.tong.so_ca }) : undefined} />
+        <KpiCard label={t("report.kpi.recurrence7d")} value={tl?.tong_tai_phat_7_ngay ?? "…"} tone="red" icon="lap" sub={tl ? t("report.kpi.recurrence7dSub", { n: tl.tong_nhom }) : undefined} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <Card className="lg:col-span-3" title={<CardTitle icon="sla">SLA theo thời gian xử lý</CardTitle>}>
-          {slaQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
+        <Card className="lg:col-span-3" title={<CardTitle icon="sla">{t("report.cardTitle.sla")}</CardTitle>}>
+          {slaQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">{t("common.loading")}</p>}
           {sla && (
             <>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <Legend items={[
-                  { label: "Đã kết thúc", color: STATUS_GOOD, value: sla.tong_da_ket_thuc },
-                  { label: "Đang xử lý", color: STATUS_WARN, value: sla.tong_dang_xu_ly },
+                  { label: t("report.sla.done"), color: STATUS_GOOD, value: sla.tong_da_ket_thuc },
+                  { label: t("report.sla.processing"), color: STATUS_WARN, value: sla.tong_dang_xu_ly },
                 ]} />
-                <span className="text-xs text-ink-soft">Số ca theo số ngày xử lý</span>
+                <span className="text-xs text-ink-soft">{t("report.casesByDaysProcessed")}</span>
               </div>
               <StackedColumns
                 categories={sla.buckets.map((b) => b.label)}
                 series={[
-                  { key: "done", label: "Đã kết thúc", color: STATUS_GOOD, values: sla.buckets.map((b) => b.da_ket_thuc) },
-                  { key: "open", label: "Đang xử lý", color: STATUS_WARN, values: sla.buckets.map((b) => b.dang_xu_ly) },
+                  { key: "done", label: t("report.sla.done"), color: STATUS_GOOD, values: sla.buckets.map((b) => b.da_ket_thuc) },
+                  { key: "open", label: t("report.sla.processing"), color: STATUS_WARN, values: sla.buckets.map((b) => b.dang_xu_ly) },
                 ]}
               />
               <SlaTyLeTable buckets={sla.buckets} tongDaKetThuc={sla.tong_da_ket_thuc} tongDangXuLy={sla.tong_dang_xu_ly} />
               {sla.theo_nhom_van_de.length > 0 && (
                 <div className="mt-4 border-t border-line pt-3">
-                  <p className="mb-2.5 text-sm font-bold text-ink lg:text-xs">Theo nhóm vấn đề (ca đã kết thúc)</p>
+                  <p className="mb-2.5 text-sm font-bold text-ink lg:text-xs">{t("report.byIssueGroupDone")}</p>
                   <div className="flex flex-col gap-2.5">
                     {sla.theo_nhom_van_de.map((n, i) => (
                       <div key={n.nhom_van_de} className="flex items-center gap-2.5">
@@ -631,7 +654,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                         <div className="min-w-0 flex-1">
                           <div className="mb-1 flex items-center justify-between gap-2 text-sm lg:text-xs">
                             <span className="truncate text-ink-body">{n.nhom_van_de}</span>
-                            <span className="shrink-0 text-ink-soft"><b className="text-ink">{n.so_ca}</b> ca · <b className="text-ink">{n.so_ngay_trung_binh}</b> ngày TB</span>
+                            <span className="shrink-0 text-ink-soft">{t("report.caseCountAvgDays", { n: n.so_ca, m: n.so_ngay_trung_binh })}</span>
                           </div>
                           <div className="h-2 w-full rounded-full bg-surface-2">
                             <div className="h-2 rounded-full bg-gradient-to-r from-brand-600 to-brand-400" style={{ width: `${(n.so_ca / maxNhom) * 100}%` }} />
@@ -646,13 +669,13 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
           )}
         </Card>
 
-        <Card className="lg:col-span-2" title={<CardTitle icon="loi">Cơ cấu lỗi đã chốt</CardTitle>}>
-          {chotLoiQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
+        <Card className="lg:col-span-2" title={<CardTitle icon="loi">{t("report.cardTitle.errorBreakdown")}</CardTitle>}>
+          {chotLoiQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">{t("common.loading")}</p>}
           {cl && (cl.tong.so_ca === 0 ? (
-            <p className="py-8 text-center text-sm text-ink-soft">Chưa có ca nào được chốt kết luận trong tháng này.</p>
+            <p className="py-8 text-center text-sm text-ink-soft">{t("report.noFinalizedCases")}</p>
           ) : (
             <div className="flex flex-col items-center gap-5 sm:flex-row lg:flex-col xl:flex-row">
-              <Donut items={loiItems} centerValue={tongLuotLoi} centerLabel="lượt lỗi" />
+              <Donut items={loiItems} centerValue={tongLuotLoi} centerLabel={t("report.errorTurns")} />
               <div className="w-full min-w-0 flex-1">
                 <div className="flex flex-col divide-y divide-line">
                   {loiItems.map((it) => (
@@ -665,7 +688,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                   ))}
                 </div>
                 <p className="mt-2 rounded-lg bg-surface-2 px-2.5 py-2 text-xs text-ink-soft">
-                  Đã chốt <b className="text-ink">{cl.tong.so_ca}</b> ca, <b className="text-ink">{cl.tong.ca_co_loi}</b> ca có lỗi. 1 ca có thể có nhiều loại lỗi.
+                  {t("report.finalizedSummary", { total: cl.tong.so_ca, err: cl.tong.ca_co_loi })}
                 </p>
               </div>
             </div>
@@ -674,31 +697,31 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
       </div>
 
       {cl && cl.tong.so_ca > 0 && (
-        <Card title={<CardTitle icon="nhom">Tỷ lệ lỗi theo nhóm</CardTitle>}>
+        <Card title={<CardTitle icon="nhom">{t("report.cardTitle.errorByGroup")}</CardTitle>}>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <ChotLoiMiniTable title="Theo tháng (đóng ca)" rows={cl.theo_thang.slice(0, 12)} />
-            <ChotLoiMiniTable title="Theo tỉnh" rows={cl.theo_tinh} />
-            <ChotLoiMiniTable title="Theo nhóm yêu cầu" rows={cl.theo_nhom_yeu_cau} />
-            <ChotLoiMiniTable title="Theo nhóm vấn đề" rows={cl.theo_nhom_van_de} />
-            <ChotLoiMiniTable title="Theo nguồn tạo" rows={cl.theo_nguon_tao} />
-            <ChotLoiMiniTable title="Theo người tạo" rows={cl.theo_nguoi_tao} />
+            <ChotLoiMiniTable title={t("report.errByMonth")} rows={cl.theo_thang.slice(0, 12)} />
+            <ChotLoiMiniTable title={t("report.errByProvince")} rows={cl.theo_tinh} />
+            <ChotLoiMiniTable title={t("report.errByRequestGroup")} rows={cl.theo_nhom_yeu_cau} />
+            <ChotLoiMiniTable title={t("report.errByIssueGroup")} rows={cl.theo_nhom_van_de} />
+            <ChotLoiMiniTable title={t("report.errBySourceCreated")} rows={cl.theo_nguon_tao} />
+            <ChotLoiMiniTable title={t("report.errByCreator")} rows={cl.theo_nguoi_tao} />
           </div>
           <p className="mt-3 flex flex-wrap items-center gap-3 text-xs text-ink-soft">
-            <span className="flex items-center gap-1"><i className="h-2 w-4 rounded-full bg-red-500" /> ≥ 50% ca có lỗi</span>
-            <span className="flex items-center gap-1"><i className="h-2 w-4 rounded-full bg-amber-400" /> dưới 50%</span>
+            <span className="flex items-center gap-1"><i className="h-2 w-4 rounded-full bg-red-500" /> {t("report.legendHighError")}</span>
+            <span className="flex items-center gap-1"><i className="h-2 w-4 rounded-full bg-amber-400" /> {t("report.legendLowError")}</span>
           </p>
         </Card>
       )}
 
-      <Card title={<CardTitle icon="lap" tone="red">Ca trùng lặp / tái phát theo ID Lada</CardTitle>}>
+      <Card title={<CardTitle icon="lap" tone="red">{t("report.cardTitle.duplicate")}</CardTitle>}>
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          {tl && <Badge tone="violet">{tl.tong_nhom} nhóm</Badge>}
-          {tl && tl.tong_tai_phat_7_ngay > 0 && <Badge tone="red" dot>{tl.tong_tai_phat_7_ngay} tái phát &lt; 7 ngày</Badge>}
-          <span className="text-xs text-ink-soft">Theo <b className="text-ink">{thangNhan}</b> (bộ lọc tháng ở phần Tổng quan).</span>
+          {tl && <Badge tone="violet">{t("report.groupsCount", { n: tl.tong_nhom })}</Badge>}
+          {tl && tl.tong_tai_phat_7_ngay > 0 && <Badge tone="red" dot>{t("report.recurrenceBadge", { n: tl.tong_tai_phat_7_ngay })}</Badge>}
+          <span className="text-xs text-ink-soft">{t("report.duplicateFollowingPre")}<b className="text-ink">{thangNhan}</b>{t("report.duplicateFollowingPost")}</span>
         </div>
-        {trungLapQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
+        {trungLapQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">{t("common.loading")}</p>}
         {tl && tl.groups.length === 0 && (
-          <p className="py-4 text-center text-sm text-ink-soft">Không có ca trùng lặp theo ID Truy xuất/ID Lada trong khoảng lọc này.</p>
+          <p className="py-4 text-center text-sm text-ink-soft">{t("report.noDuplicates")}</p>
         )}
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
           {tl?.groups.map((g) => (
@@ -708,18 +731,18 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
             >
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 {g.tai_phat_trong_7_ngay ? (
-                  <Badge tone="red" dot>Tái phát trong {g.khoang_cach_ngan_nhat} ngày</Badge>
+                  <Badge tone="red" dot>{t("report.recurringWithin", { n: g.khoang_cach_ngan_nhat })}</Badge>
                 ) : (
-                  <Badge tone="gray">Cách nhau {g.khoang_cach_ngan_nhat} ngày</Badge>
+                  <Badge tone="gray">{t("report.apartDays", { n: g.khoang_cach_ngan_nhat })}</Badge>
                 )}
-                <span className="text-sm font-semibold text-ink lg:text-xs">{g.so_lan} lần phản ánh</span>
+                <span className="text-sm font-semibold text-ink lg:text-xs">{t("report.timesReported", { n: g.so_lan })}</span>
               </div>
               <div className="mb-2 flex flex-wrap gap-1.5">
                 {g.id_truy_van_ids.length > 0 && (
-                  <span className="rounded-lg bg-surface-2 px-2 py-1 font-mono text-xs text-ink-body">ID Truy xuất: {g.id_truy_van_ids.join(" → ")}</span>
+                  <span className="rounded-lg bg-surface-2 px-2 py-1 font-mono text-xs text-ink-body">{t("report.idTruyXuat", { list: g.id_truy_van_ids.join(" → ") })}</span>
                 )}
                 {g.lada_ids.length > 0 && (
-                  <span className="rounded-lg bg-surface-2 px-2 py-1 font-mono text-xs text-ink-body">ID Lada: {g.lada_ids.join(" → ")}</span>
+                  <span className="rounded-lg bg-surface-2 px-2 py-1 font-mono text-xs text-ink-body">{t("report.idLada", { list: g.lada_ids.join(" → ") })}</span>
                 )}
               </div>
               <div className="flex flex-col gap-1">
@@ -748,17 +771,17 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
       {/* ============ TAB: VAN HANH HANG NGAY ============ */}
       {tab === "van-hanh" && (
       <>
-      <SectionHeader title="Vận hành hằng ngày" sub="Tiếp nhận, xử lý và tốc độ theo khoảng ngày tự chọn (không theo bộ lọc tháng ở trên)." />
+      <SectionHeader title={t("report.tabDaily")} sub={t("report.dailySub")} />
 
-      <Card title={<CardTitle icon="lich">Báo cáo theo ngày</CardTitle>}>
+      <Card title={<CardTitle icon="lich">{t("report.cardTitle.daily")}</CardTitle>}>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <PillGroup value={khoangDangChon} options={KHOANG_NHANH} onChange={(v) => { setNgayTu(KHOANG_NHANH.find((k) => k.value === v)!.tu); setNgayDen(todayISO); }} />
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
             <label className="flex min-w-0 items-center gap-1 text-sm text-ink-soft lg:text-xs">
-              Từ <input type="date" className={`${selCls} min-w-0 flex-1`} value={ngayTu} max={ngayDen} onChange={(e) => setNgayTu(e.target.value)} />
+              {t("list.from")} <input type="date" className={`${selCls} min-w-0 flex-1`} value={ngayTu} max={ngayDen} onChange={(e) => setNgayTu(e.target.value)} />
             </label>
             <label className="flex min-w-0 items-center gap-1 text-sm text-ink-soft lg:text-xs">
-              đến <input type="date" className={`${selCls} min-w-0 flex-1`} value={ngayDen} min={ngayTu} onChange={(e) => setNgayDen(e.target.value)} />
+              {t("list.to")} <input type="date" className={`${selCls} min-w-0 flex-1`} value={ngayDen} min={ngayTu} onChange={(e) => setNgayDen(e.target.value)} />
             </label>
           </div>
           <button
@@ -766,71 +789,70 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
             onClick={() => setMoLocNgay((v) => !v)}
             className="flex items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-semibold text-ink-body hover:bg-accent-soft hover:text-accent-ink md:hidden"
           >
-            Bộ lọc
+            {t("report.filters")}
             {soLocNgay > 0 && <span className="rounded-full bg-accent px-1.5 py-0.5 text-xs leading-none text-white">{soLocNgay}</span>}
             <span className="text-xs text-ink-soft">{moLocNgay ? "▲" : "▼"}</span>
           </button>
         </div>
         <div className={`${moLocNgay ? "flex" : "hidden"} mb-3 flex-col gap-2 md:flex md:flex-row md:flex-wrap md:items-end`}>
-          <FilterSelect className={selCls} value={locNguoiTiepNhan} onChange={setLocNguoiTiepNhan} allLabel="Mọi người tiếp nhận"
+          <FilterSelect className={selCls} value={locNguoiTiepNhan} onChange={setLocNguoiTiepNhan} allLabel={t("report.allReceiver")}
             options={(nguoiDungQuery.data?.items ?? []).map((u) => ({ value: u.email, label: u.ten || u.email }))} />
-          <FilterSelect className={selCls} value={locNguoiTao} onChange={setLocNguoiTao} allLabel="Mọi người tạo"
+          <FilterSelect className={selCls} value={locNguoiTao} onChange={setLocNguoiTao} allLabel={t("report.allCreator")}
             options={(nguoiDungQuery.data?.items ?? []).map((u) => ({ value: u.email, label: u.ten || u.email }))} />
-          <FilterSelect className={selCls} value={locNguon} onChange={setLocNguon} allLabel="Mọi nguồn"
+          <FilterSelect className={selCls} value={locNguon} onChange={setLocNguon} allLabel={t("report.allSources")}
             options={NGUON_OPTIONS} />
-          <FilterSelect className={selCls} value={locNhomYeuCau} onChange={setLocNhomYeuCau} allLabel="Mọi nhóm yêu cầu"
+          <FilterSelect className={selCls} value={locNhomYeuCau} onChange={setLocNhomYeuCau} allLabel={t("report.allRequestGroup")}
             options={(nhomYeuCauOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
-          <FilterSelect className={selCls} value={locMucDo} onChange={setLocMucDo} allLabel="Mọi mức độ"
+          <FilterSelect className={selCls} value={locMucDo} onChange={setLocMucDo} allLabel={t("report.allSeverity")}
             options={(sortMucDoOptions(mucDoOptsTheoNgay.data ?? [])).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
-          <FilterSelect className={selCls} value={locPhanLoaiKh} onChange={setLocPhanLoaiKh} allLabel="Mọi phân loại KH"
+          <FilterSelect className={selCls} value={locPhanLoaiKh} onChange={setLocPhanLoaiKh} allLabel={t("report.allCustomerType")}
             options={(phanLoaiKhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))} />
         </div>
 
         {tn?.co_loc && (
           <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">
-            Đang lọc: cột "Tồn cũ chưa/đã tiếp nhận", "Chưa tiếp nhận", "Còn tồn" chỉ tính được cho <b>hôm nay</b> —
-            các ngày quá khứ hiện "—" vì số tồn đọng theo bộ lọc tại 1 thời điểm cũ chưa được lưu lại.
+            {t("report.filteringNoticePre")}<b>{t("report.today")}</b>{t("report.filteringNoticePost")}
           </p>
         )}
 
-        {theoNgayQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
+        {theoNgayQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">{t("common.loading")}</p>}
         {tn && (
           <>
             <div className="mb-4 grid grid-cols-2 gap-2.5 md:grid-cols-4">
-              <MiniStat label="Ca mới" value={tongNgay.moi} color={SERIES[0]} sub={tnRows.length > 1 ? `${tnRows.length} ngày` : dmy(tn.tu_ngay)} />
-              <MiniStat label="Đã tiếp nhận" value={tongNgay.tn} color={SERIES[1]} />
-              <MiniStat label="Đã đóng" value={tongNgay.dong} color={SERIES[2]} />
-              <MiniStat label="Còn tồn" value={conTonCuoi ?? "—"} sub="cuối khoảng" />
+              <MiniStat label={t("report.miniStat.newCases")} value={tongNgay.moi} color={SERIES[0]} sub={tnRows.length > 1 ? t("report.miniStat.daysCount", { n: tnRows.length }) : dmy(tn.tu_ngay)} />
+              <MiniStat label={t("report.miniStat.received")} value={tongNgay.tn} color={SERIES[1]} />
+              <MiniStat label={t("report.miniStat.closed")} value={tongNgay.dong} color={SERIES[2]} />
+              <MiniStat label={t("report.miniStat.remaining")} value={conTonCuoi ?? "—"} sub={t("report.miniStat.endOfRange")} />
             </div>
 
             {tnRows.length > 1 && (
               <div className="mb-4 rounded-xl border border-line p-3">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-bold text-ink lg:text-xs">Xu hướng theo ngày</p>
+                  <p className="text-sm font-bold text-ink lg:text-xs">{t("report.dailyTrend")}</p>
                   <Legend items={[
-                    { label: "Ca mới", color: SERIES[0] },
-                    { label: "Đã tiếp nhận", color: SERIES[1] },
-                    { label: "Đã đóng", color: SERIES[2] },
+                    { label: t("report.miniStat.newCases"), color: SERIES[0] },
+                    { label: t("report.miniStat.received"), color: SERIES[1] },
+                    { label: t("report.miniStat.closed"), color: SERIES[2] },
                   ]} />
                 </div>
                 <LineChart
                   labels={tnRows.map((r) => dmy(r.ngay).slice(0, 5))}
                   tipLabels={tnRows.map((r) => dmy(r.ngay))}
                   series={[
-                    { key: "moi", label: "Ca mới", color: SERIES[0], values: tnRows.map((r) => r.ca_moi), area: true },
-                    { key: "tn", label: "Đã tiếp nhận", color: SERIES[1], values: tnRows.map((r) => r.da_tiep_nhan) },
-                    { key: "dong", label: "Đã đóng", color: SERIES[2], values: tnRows.map((r) => r.da_dong) },
+                    { key: "moi", label: t("report.miniStat.newCases"), color: SERIES[0], values: tnRows.map((r) => r.ca_moi), area: true },
+                    { key: "tn", label: t("report.miniStat.received"), color: SERIES[1], values: tnRows.map((r) => r.da_tiep_nhan) },
+                    { key: "dong", label: t("report.miniStat.closed"), color: SERIES[2], values: tnRows.map((r) => r.da_dong) },
                   ]}
                 />
               </div>
             )}
 
             <div className="flex flex-col gap-2 md:hidden">
-              {tnRows.length === 0 && <p className="py-4 text-center text-sm text-ink-soft">Không có dữ liệu</p>}
+              {tnRows.length === 0 && <p className="py-4 text-center text-sm text-ink-soft">{t("common.noData")}</p>}
               {(xemHetNgay ? ngayMoiTruoc : ngayMoiTruoc.slice(0, 5)).map((r) => <TheoNgayCard key={r.ngay} r={r} />)}
               {ngayMoiTruoc.length > 5 && (
                 <button type="button" onClick={() => setXemHetNgay((v) => !v)} className="rounded-lg py-2.5 text-sm font-semibold text-accent-ink hover:bg-accent-soft">
-                  {xemHetNgay ? "Thu gọn" : `Xem thêm ${ngayMoiTruoc.length - 5} ngày`}
+                  {xemHetNgay ? t("report.collapse") : t("report.showMoreDays", { n: ngayMoiTruoc.length - 5 })}
                 </button>
               )}
             </div>
@@ -838,17 +860,17 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
               <table className="w-full min-w-[980px] border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-line bg-surface-2 text-left font-semibold text-ink-soft">
-                    <th className="whitespace-nowrap px-2.5 py-2">Ngày</th>
-                    <th className="whitespace-nowrap px-2.5 py-2"><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: SERIES[0] }} />Ca mới</span></th>
-                    <th className="whitespace-nowrap px-2.5 py-2">Tồn cũ chưa TN</th>
-                    <th className="whitespace-nowrap px-2.5 py-2">Tồn cũ đã TN</th>
-                    <th className="whitespace-nowrap px-2.5 py-2"><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: SERIES[1] }} />Đã tiếp nhận</span></th>
-                    <th className="whitespace-nowrap px-2.5 py-2"><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: SERIES[2] }} />Đã đóng</span></th>
-                    <th className="whitespace-nowrap px-2.5 py-2">TB giờ TN</th>
-                    <th className="whitespace-nowrap px-2.5 py-2">TB giờ XL</th>
-                    <th className="whitespace-nowrap px-2.5 py-2">Tỷ lệ TN</th>
-                    <th className="whitespace-nowrap px-2.5 py-2">Chưa TN</th>
-                    <th className="whitespace-nowrap px-2.5 py-2">Còn tồn</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.dailyCol.date")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2"><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: SERIES[0] }} />{t("report.dailyCol.newCases")}</span></th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.dailyCol.oldPendingUnreceived")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.dailyCol.oldPendingReceived")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2"><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: SERIES[1] }} />{t("report.dailyCol.received")}</span></th>
+                    <th className="whitespace-nowrap px-2.5 py-2"><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: SERIES[2] }} />{t("report.dailyCol.closed")}</span></th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.dailyCol.avgHourReceive")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.dailyCol.avgHourProcess")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.dailyCol.receiveRate")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.dailyCol.unreceived")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.dailyCol.remaining")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -874,59 +896,58 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         )}
       </Card>
 
-      <Card title={<CardTitle icon="nguoi">Theo người tiếp nhận</CardTitle>}>
+      <Card title={<CardTitle icon="nguoi">{t("report.cardTitle.byReceiver")}</CardTitle>}>
         <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
           <p className="max-w-3xl text-xs text-ink-soft">
-            Cùng khoảng ngày và bộ lọc của báo cáo theo ngày. Chỉ hiện người có tiếp nhận ca trong khoảng. <b>Tự mở mới</b> / <b>Nguồn khác</b>: ca mở
-            trong khoảng (tự tạo & nhận luôn / người khác tạo, bấm Tiếp nhận). <b>Tồn cũ</b>: ca mở trước khoảng, được nhận trong khoảng.
-            Tỷ lệ = (tự mở mới + nguồn khác) ÷ tổng ca mở mới mọi nguồn
-            {nguoiTn ? <> (<b className="text-ink">{nguoiTn.tong_ca_moi}</b> ca)</> : null} — tồn cũ không tính vào tỷ lệ.
-            TB giờ TN tính các ca bấm Tiếp nhận (nguồn khác + tồn cũ).
+            {t("report.byReceiverDesc", {
+              tuMo: t("report.tnPart.tuMo"), nguonKhac: t("report.tnPart.tuNguonKhac"), tonCu: t("report.tnPart.tonCu"),
+              total: nguoiTn ? t("report.totalNewCases", { n: nguoiTn.tong_ca_moi }) : "",
+            })}
           </p>
-          <Legend items={TN_PARTS.map((p) => ({ label: p.label, color: p.color }))} />
+          <Legend items={getTnParts(t).map((p) => ({ label: p.label, color: p.color }))} />
         </div>
-        {theoNguoiTnQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
+        {theoNguoiTnQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">{t("common.loading")}</p>}
         {nguoiTn && (
           <>
             <div className="flex flex-col gap-2 md:hidden">
-              <TheoNguoiTnCard ten="Toàn hệ thống" v={nguoiTn.tong} tong max={Math.max(1, nguoiTn.tong.tong_tiep_nhan)} />
+              <TheoNguoiTnCard ten={t("report.wholeSystem")} v={nguoiTn.tong} tong max={Math.max(1, nguoiTn.tong.tong_tiep_nhan)} />
               {nguoiTn.rows.map((r) => <TheoNguoiTnCard key={r.email} ten={r.ten || r.email} v={r} max={maxTn} />)}
             </div>
             <div className="hidden overflow-x-auto rounded-xl border border-line md:block">
               <table className="w-full min-w-[820px] border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-line bg-surface-2 text-left font-semibold text-ink-soft">
-                    <th className="whitespace-nowrap px-2.5 py-2">Người tiếp nhận</th>
-                    <th className="w-[28%] whitespace-nowrap px-2.5 py-2">Cơ cấu tiếp nhận</th>
-                    <th className="whitespace-nowrap px-2.5 py-2">Tự mở mới</th>
-                    <th className="whitespace-nowrap px-2.5 py-2">Nguồn khác</th>
-                    <th className="whitespace-nowrap px-2.5 py-2">Tồn cũ</th>
-                    <th className="whitespace-nowrap px-2.5 py-2">Tổng tiếp nhận</th>
-                    <th className="whitespace-nowrap px-2.5 py-2">Tỷ lệ TN</th>
-                    <th className="whitespace-nowrap px-2.5 py-2">TB giờ TN</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.byReceiverCol.receiver")}</th>
+                    <th className="w-[28%] whitespace-nowrap px-2.5 py-2">{t("report.byReceiverCol.composition")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.byReceiverCol.tuMo")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.byReceiverCol.nguonKhac")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.byReceiverCol.tonCu")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.byReceiverCol.totalReceived")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.byReceiverCol.receiveRate")}</th>
+                    <th className="whitespace-nowrap px-2.5 py-2">{t("report.byReceiverCol.avgHourReceive")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[{ key: "__tong__", ten: "Toàn hệ thống", v: nguoiTn.tong, tong: true },
+                  {[{ key: "__tong__", ten: t("report.wholeSystem"), v: nguoiTn.tong, tong: true },
                     ...nguoiTn.rows.map((r) => ({ key: r.email, ten: r.ten || r.email, v: r as TheoNguoiTnSo, tong: false }))].map((x) => (
                     <tr key={x.key} className={`border-b border-line text-ink-body last:border-0 ${x.tong ? "bg-accent-soft font-semibold text-ink" : "hover:bg-accent-soft/50"}`}>
                       <td className="whitespace-nowrap px-2.5 py-2 font-semibold text-ink">{x.ten}</td>
                       <td className="px-2.5 py-2">
-                        <InlineStackedBar parts={tnParts(x.v)} max={x.tong ? Math.max(1, x.v.tong_tiep_nhan) : maxTn} />
+                        <InlineStackedBar parts={tnParts(x.v, t)} max={x.tong ? Math.max(1, x.v.tong_tiep_nhan) : maxTn} />
                       </td>
                       <td className="px-2.5 py-2"><So v={x.v.tu_mo} /></td>
                       <td className="px-2.5 py-2"><So v={x.v.tu_nguon_khac} /></td>
                       <td className="px-2.5 py-2"><So v={x.v.ton_cu} /></td>
                       <td className="px-2.5 py-2 text-sm font-bold text-ink">{x.v.tong_tiep_nhan}</td>
                       <td className="px-2.5 py-2"><TyLePill v={x.v.ty_le} /></td>
-                      <td className="px-2.5 py-2">{fmtGio(x.v.tb_gio_tiep_nhan)}</td>
+                      <td className="px-2.5 py-2">{fmtGio(x.v.tb_gio_tiep_nhan, t)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             {nguoiTn.rows.length === 0 && (
-              <p className="py-2 text-center text-sm text-ink-soft">Chưa có ai tiếp nhận ca trong khoảng này.</p>
+              <p className="py-2 text-center text-sm text-ink-soft">{t("report.noOneReceived")}</p>
             )}
           </>
         )}
@@ -937,27 +958,27 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
       {/* ============ TAB: TOC DO XU LY ============ */}
       {tab === "toc-do" && (
       <>
-      <Card title={<CardTitle icon="tocDo">Tốc độ xử lý toàn hệ thống</CardTitle>}>
+      <Card title={<CardTitle icon="tocDo">{t("report.cardTitle.speed")}</CardTitle>}>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <PillGroup value={tdKy} options={KY_OPTIONS as { value: "ngay" | "tuan" | "thang"; label: string }[]} onChange={setTdKy} />
           <FilterSelect className={selCls} value={tdPhanLoai} onChange={(v) => { setTdPhanLoai(v); setMoNhom(new Set()); }}
-            allLabel="Không phân loại" options={PHAN_LOAI_OPTIONS} />
+            allLabel={t("report.phanLoai.none")} options={PHAN_LOAI_OPTIONS} />
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
             <label className="flex min-w-0 items-center gap-1 text-sm text-ink-soft lg:text-xs">
-              Từ <input type="date" className={`${selCls} min-w-0 flex-1`} value={tdTu} max={tdDen} onChange={(e) => setTdTu(e.target.value)} />
+              {t("list.from")} <input type="date" className={`${selCls} min-w-0 flex-1`} value={tdTu} max={tdDen} onChange={(e) => setTdTu(e.target.value)} />
             </label>
             <label className="flex min-w-0 items-center gap-1 text-sm text-ink-soft lg:text-xs">
-              đến <input type="date" className={`${selCls} min-w-0 flex-1`} value={tdDen} min={tdTu} onChange={(e) => setTdDen(e.target.value)} />
+              {t("list.to")} <input type="date" className={`${selCls} min-w-0 flex-1`} value={tdDen} min={tdTu} onChange={(e) => setTdDen(e.target.value)} />
             </label>
           </div>
         </div>
         <p className="mb-3 text-xs text-ink-soft">
-          Mỗi mốc tính từ lúc <b>mở ca</b> đến khi mốc đó xảy ra, xếp vào kỳ theo <b>ngày xảy ra mốc</b>. Không tính ca đã hủy.
+          {t("report.speedDesc", { bold: t("report.openCase"), bold2: t("report.dayMilestone") })}
           {td && (td.tu_ngay !== tdTu || td.den_ngay !== tdDen) && (
-            <> Khoảng ngày được giới hạn còn <b className="text-ink">{dmy(td.tu_ngay)} – {dmy(td.den_ngay)}</b> cho kiểu kỳ này.</>
+            <>{t("report.rangeLimited", { from: dmy(td.tu_ngay), to: dmy(td.den_ngay) })}</>
           )}
         </p>
-        {tocDoQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">Đang tải...</p>}
+        {tocDoQuery.isLoading && <p className="py-4 text-center text-sm text-ink-soft">{t("common.loading")}</p>}
         {td && (
           <>
             <div className="mb-4 grid grid-cols-2 gap-2.5 xl:grid-cols-4 xl:gap-3">
@@ -966,19 +987,19 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                   <span className="absolute inset-x-0 top-0 h-1" style={{ background: SERIES[i] }} />
                   <p className="flex items-center gap-1.5 text-xs font-semibold text-ink-body">
                     <i className="h-2.5 w-2.5 rounded-full" style={{ background: SERIES[i] }} />
-                    TB đến {c.label.charAt(0).toLowerCase() + c.label.slice(1)}
+                    {t("report.avgTo", { label: c.label.charAt(0).toLowerCase() + c.label.slice(1) })}
                   </p>
-                  <p className="mt-1 text-xl font-extrabold leading-none text-ink sm:text-2xl">{fmtGio(td.tong[c.key].tb_gio)}</p>
-                  <p className="mt-1 text-[11px] text-ink-soft">{td.tong[c.key].sl} ca · cả khoảng</p>
+                  <p className="mt-1 text-xl font-extrabold leading-none text-ink sm:text-2xl">{fmtGio(td.tong[c.key].tb_gio, t)}</p>
+                  <p className="mt-1 text-[11px] text-ink-soft">{t("report.wholeRangeCases", { n: td.tong[c.key].sl })}</p>
                   {tdRowsTang.length > 1 && (
                     <div className="mt-2">
                       <LineChart
                         compact
                         height={52}
                         labels={tdRowsTang.map((r) => r.ky)}
-                        tipLabels={tdRowsTang.map((r) => kyLabel(td.ky, r.ky))}
-                        fmt={(v) => fmtGio(v)}
-                        series={[{ key: c.key, label: `TB ${c.label}`, color: SERIES[i], area: true, values: tdRowsTang.map((r) => (r[c.key].sl > 0 ? r[c.key].tb_gio : null)) }]}
+                        tipLabels={tdRowsTang.map((r) => kyLabel(td.ky, r.ky, t))}
+                        fmt={(v) => fmtGio(v, t)}
+                        series={[{ key: c.key, label: t("report.avgCol", { label: c.label }), color: SERIES[i], area: true, values: tdRowsTang.map((r) => (r[c.key].sl > 0 ? r[c.key].tb_gio : null)) }]}
                       />
                     </div>
                   )}
@@ -991,27 +1012,27 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
               onClick={() => setMoBangTocDo((v) => !v)}
               className="mb-2 w-full rounded-lg border border-line-strong py-2.5 text-sm font-semibold text-ink-body hover:bg-accent-soft hover:text-accent-ink md:hidden"
             >
-              {moBangTocDo ? "Ẩn bảng chi tiết theo kỳ" : "Xem bảng chi tiết theo kỳ"}
+              {moBangTocDo ? t("report.hideDetailTable") : t("report.showDetailTable")}
             </button>
             <div className={`${moBangTocDo ? "block" : "hidden"} overflow-x-auto rounded-xl border border-line md:block`}>
               <table className="w-full min-w-[720px] border-collapse text-sm lg:text-xs">
                 <thead>
                   <tr className="border-b border-line bg-surface-2 text-left font-semibold text-ink-soft">
-                    <th className="sticky left-0 whitespace-nowrap bg-surface-2 px-2 py-2">Kỳ</th>
+                    <th className="sticky left-0 whitespace-nowrap bg-surface-2 px-2 py-2">{t("report.periodCol")}</th>
                     {TOC_DO_MOC_COLS.map((c, i) => (
                       <th key={c.key} className="whitespace-nowrap px-2 py-2" title={c.hint}>
-                        <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: SERIES[i] }} />TB {c.label}</span>
+                        <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: SERIES[i] }} />{t("report.avgCol", { label: c.label })}</span>
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-b border-line bg-accent-soft">
-                    <td className="sticky left-0 whitespace-nowrap bg-accent-soft px-2 py-2 font-bold text-ink">Cả khoảng</td>
+                    <td className="sticky left-0 whitespace-nowrap bg-accent-soft px-2 py-2 font-bold text-ink">{t("report.wholeRange")}</td>
                     <TocDoCells v={td.tong} bold />
                   </tr>
                   {td.rows.length === 0 && (
-                    <tr><td colSpan={5} className="px-2 py-6 text-center text-ink-soft">Không có dữ liệu</td></tr>
+                    <tr><td colSpan={5} className="px-2 py-6 text-center text-ink-soft">{t("common.noData")}</td></tr>
                   )}
                   {td.rows.map((r) => {
                     const mo = moNhom.has(r.ky);
@@ -1023,11 +1044,11 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                             {coNhom ? (
                               <button type="button" onClick={() => toggleNhom(r.ky)} className="flex items-center gap-1 hover:text-accent">
                                 <span className="inline-block w-3 text-ink-soft">{mo ? "▾" : "▸"}</span>
-                                {kyLabel(td.ky, r.ky)}
+                                {kyLabel(td.ky, r.ky, t)}
                                 <span className="text-xs font-normal text-ink-faint">({r.nhom.length})</span>
                               </button>
                             ) : (
-                              kyLabel(td.ky, r.ky)
+                              kyLabel(td.ky, r.ky, t)
                             )}
                           </td>
                           <TocDoCells v={r} />
@@ -1047,7 +1068,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
               </table>
             </div>
             {tdPhanLoai && td.rows.some((r) => r.nhom.length > 0) && (
-              <p className="mt-2 text-xs text-ink-soft">Bấm vào từng kỳ để xem chi tiết theo phân loại.</p>
+              <p className="mt-2 text-xs text-ink-soft">{t("report.clickPeriodDetail")}</p>
             )}
           </>
         )}
