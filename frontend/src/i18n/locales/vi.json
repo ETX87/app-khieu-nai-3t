@@ -18,7 +18,7 @@
     "loading": "Đang tải..."
   },
   "sidebar": {
-    "appTitle": "Ghi nhận phản ánh, khiếu nại",
+    "appTitle": "Tiếp nhận phản ánh",
     "appSubtitle": "Tiếp nhận · Xử lý · Đồng hành",
     "closeMenu": "Đóng menu",
     "logout": "Đăng xuất",
@@ -31,7 +31,7 @@
     "ngonNgu": "Ngôn ngữ"
   },
   "auth": {
-    "appTitle": "Ghi nhận phản ánh, khiếu nại",
+    "appTitle": "Tiếp nhận phản ánh",
     "appSubtitle": "Hệ thống ghi nhận phản ánh bảo hành máy lọc nước Karofi",
     "loginGoogle": "Đăng nhập với Google",
     "loginDev": "Đăng nhập dev (bypass)",
