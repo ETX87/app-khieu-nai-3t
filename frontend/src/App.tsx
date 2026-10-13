@@ -18,6 +18,7 @@ import type { AppUser } from "./api/types";
 const ACTIVE_MODULE_KEY = "khieunai_active_module";
 
 function MainApp({ user }: { user: AppUser }) {
+  const { t } = useTranslation();
   const modules = user.vai_tro ? ROLE_MODULES[user.vai_tro] : DEFAULT_MODULES;
 
   const [active, setActive] = useState<ModuleKey>(() => {
@@ -70,7 +71,7 @@ function MainApp({ user }: { user: AppUser }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex items-center gap-3 bg-sidebar px-4 py-3 text-white shadow-brand md:hidden">
           <img src="/icon-192.png" alt="3T" className="h-8 w-8 shrink-0 rounded-lg ring-1 ring-white/30" />
-          <span className="text-base font-bold">Phản ánh 3T</span>
+          <span className="text-base font-bold">{t("sidebar.appTitle")}</span>
           <div className="ml-auto">
             <NotificationBell onOpenDetail={openDetail} onDark />
           </div>

@@ -18,7 +18,7 @@
     "loading": "Memuat..."
   },
   "sidebar": {
-    "appTitle": "Keluhan 3T",
+    "appTitle": "Penerimaan Keluhan",
     "appSubtitle": "Terima · Tangani · Dukung",
     "closeMenu": "Tutup menu",
     "logout": "Keluar",
@@ -31,7 +31,7 @@
     "ngonNgu": "Bahasa"
   },
   "auth": {
-    "appTitle": "Penerimaan Keluhan 3T",
+    "appTitle": "Penerimaan Keluhan",
     "appSubtitle": "Sistem pencatatan keluhan garansi pembersih air Karofi",
     "loginGoogle": "Masuk dengan Google",
     "loginDev": "Masuk dev (bypass)",

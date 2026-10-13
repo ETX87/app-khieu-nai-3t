@@ -1,6 +1,6 @@
 {
-  "name": "Tiếp nhận phản ánh 3T",
-  "short_name": "Phản ánh 3T",
+  "name": "Phản ánh, khiếu nại",
+  "short_name": "Phản ánh, khiếu nại",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f6f5fc",
