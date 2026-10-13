@@ -3,6 +3,7 @@ import {
   type ChangeEvent, type FormEvent, type KeyboardEvent,
 } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api, ApiError } from "../api/client";
 import type { KhieuNai, SettingsNhom } from "../api/types";
 import { useSettingsOptions } from "../api/useSettingsOptions";
@@ -81,16 +82,22 @@ const EMPTY: FormState = {
 
 const DRAFT_KEY = "khieunai_draft_new";
 
-const REQUIRED: { key: keyof FormState; label: string }[] = [
-  { key: "ten_khach", label: "Tên khách hàng" },
-  { key: "nhom_van_de", label: "Nhóm vấn đề" },
-  { key: "thong_tin_ban_dau", label: "Thông tin ban đầu" },
-];
+type TFn = (k: string, o?: Record<string, unknown>) => string;
 
-const CRM_WARNING_MESSAGES: Record<string, string> = {
-  DVBH_NOT_FOUND: "Không tìm thấy case trên CRM Karofi",
-  DVBH_LOOKUP_FAILED: "Không thể kết nối CRM Karofi lúc này",
-};
+function getRequired(t: TFn): { key: keyof FormState; label: string }[] {
+  return [
+    { key: "ten_khach", label: t("form.required.tenKhach") },
+    { key: "nhom_van_de", label: t("form.required.nhomVanDe") },
+    { key: "thong_tin_ban_dau", label: t("form.required.thongTinBanDau") },
+  ];
+}
+
+function getCrmWarningMessages(t: TFn): Record<string, string> {
+  return {
+    DVBH_NOT_FOUND: t("form.crmWarning.DVBH_NOT_FOUND"),
+    DVBH_LOOKUP_FAILED: t("form.crmWarning.DVBH_LOOKUP_FAILED"),
+  };
+}
 
 type PendingOpt = { nhom: SettingsNhom; gia_tri: string; parent?: string };
 
@@ -204,6 +211,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   onCancel: () => void;
   onStateChange?: (s: KhieuNaiFormHeaderState) => void;
 }>(function KhieuNaiForm({ userCongTy, onCreated, onCancel, onStateChange }, ref) {
+  const { t } = useTranslation();
+  const REQUIRED = getRequired(t);
+  const CRM_WARNING_MESSAGES = getCrmWarningMessages(t);
   const draftRef = useRef<DraftShape | null>(loadDraft());
   const formElRef = useRef<HTMLFormElement>(null);
   const [form, setForm] = useState<FormState>(() => draftRef.current?.form ?? { ...EMPTY, nguon: userCongTy ?? "" });
@@ -253,7 +263,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
     const extra = pendingOpts
       .filter((p) => p.nhom === nhom && (parent === undefined || (p.parent ?? "") === parent))
       .filter((p) => !base.some((b) => b.value === p.gia_tri))
-      .map((p) => ({ value: p.gia_tri, label: `${p.gia_tri} — mới` }));
+      .map((p) => ({ value: p.gia_tri, label: `${p.gia_tri} — ${t("form.newOptionSuffix")}` }));
     return [...base, ...extra];
   };
 
@@ -281,19 +291,19 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
       setLookup(res);
       setFilledFromLookup(false);
       if (res.found) {
-        showToast("Đã tìm thấy thông tin — xem bên dưới và bấm \"Xác nhận điền thông tin\" nếu đúng", "info");
+        showToast(t("form.toast.lookupFound"), "info");
       } else {
         showToast(
           kind === "crm"
-            ? CRM_WARNING_MESSAGES[res.warning ?? ""] ?? "Không tìm thấy trên CRM Karofi"
-            : "Chưa có phản ánh nào cùng ID này",
+            ? CRM_WARNING_MESSAGES[res.warning ?? ""] ?? t("form.toast.lookupNotFoundCrm")
+            : t("form.toast.lookupNotFoundOther"),
           "info",
         );
       }
     } catch {
       if (seq === lookupSeq.current) {
         setLookup({ found: false, source: kind === "crm" ? "crm" : kind === "lada" ? "lada" : "truy_van", warning: "LOOKUP_ERROR" });
-        showToast("Tra cứu thất bại, thử lại sau", "error");
+        showToast(t("form.toast.lookupFailed"), "error");
       }
     } finally {
       if (seq === lookupSeq.current) setLookupBusy(null);
@@ -311,7 +321,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
     if (files.length === 0) return;
     const remain = DINH_KEM_MAX_ANH - pendingAnh.length;
     if (remain <= 0) {
-      showToast(`Tối đa ${DINH_KEM_MAX_ANH} ảnh`, "error");
+      showToast(t("form.toast.maxPhotos", { n: DINH_KEM_MAX_ANH }), "error");
       return;
     }
     for (const file of files.slice(0, remain)) {
@@ -333,18 +343,18 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
     if (files.length === 0) return;
     const remain = DINH_KEM_MAX_VIDEO - pendingVideo.length;
     if (remain <= 0) {
-      showToast(`Tối đa ${DINH_KEM_MAX_VIDEO} video`, "error");
+      showToast(t("form.toast.maxVideos", { n: DINH_KEM_MAX_VIDEO }), "error");
       return;
     }
     for (const file of files.slice(0, remain)) {
       if (file.size > VIDEO_MAX_BYTES) {
-        showToast(`Video "${file.name}" vượt quá ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)}MB`, "error");
+        showToast(t("form.toast.videoTooBig", { name: file.name, mb: Math.round(VIDEO_MAX_BYTES / 1024 / 1024) }), "error");
         continue;
       }
       try {
         const duration = await readVideoDuration(file);
         if (duration > VIDEO_MAX_DURATION_S) {
-          showToast(`Video "${file.name}" dài quá ${VIDEO_MAX_DURATION_S}s`, "error");
+          showToast(t("form.toast.videoTooLong", { name: file.name, s: VIDEO_MAX_DURATION_S }), "error");
           continue;
         }
       } catch {
@@ -367,7 +377,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         await api.postForm(`/khieu-nai/${khieuNaiId}/dinh-kem`, form);
       } catch (err) {
         const code = err instanceof ApiError ? err.code : "UPLOAD_FAILED";
-        showToast(`Ảnh "${file.name}": ${DINH_KEM_ERROR_MESSAGES[code] ?? "tải lên thất bại"}`, "error");
+        showToast(t("form.toast.photoUploadFail", { name: file.name, reason: DINH_KEM_ERROR_MESSAGES[code] ?? t("form.toast.uploadFailedDefault") }), "error");
       }
     }
     for (const file of pendingVideo) {
@@ -378,7 +388,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         await api.postForm(`/khieu-nai/${khieuNaiId}/dinh-kem`, form);
       } catch (err) {
         const code = err instanceof ApiError ? err.code : "UPLOAD_FAILED";
-        showToast(`Video "${file.name}": ${DINH_KEM_ERROR_MESSAGES[code] ?? "tải lên thất bại"}`, "error");
+        showToast(t("form.toast.videoUploadFail", { name: file.name, reason: DINH_KEM_ERROR_MESSAGES[code] ?? t("form.toast.uploadFailedDefault") }), "error");
       }
     }
   };
@@ -403,8 +413,8 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
     setFilledFromLookup(true);
     showToast(
       filledCount > 0
-        ? `Đã điền ${filledCount} thông tin từ ${lookup.source === "crm" ? "CRM Karofi" : "đơn cũ"}`
-        : "Không có ô nào cần điền thêm (đã có dữ liệu)",
+        ? t("form.toast.filledCount", { n: filledCount, source: lookup.source === "crm" ? t("form.toast.sourceCrm") : t("form.toast.sourceOldCase") })
+        : t("form.toast.filledNoneNeeded"),
       "success",
     );
   };
@@ -448,7 +458,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
       if (data.crm_sync_warning) {
         showToast(CRM_WARNING_MESSAGES[data.crm_sync_warning] ?? data.crm_sync_warning, "error");
       } else {
-        showToast("Đã tạo phản ánh thành công", "success");
+        showToast(t("form.toast.createSuccess"), "success");
       }
       if (pendingAnh.length > 0 || pendingVideo.length > 0) {
         await uploadPendingDinhKem(data.khieuNai.id);
@@ -456,8 +466,8 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
       onCreated(data.khieuNai.id);
     },
     onError: (err) => {
-      const msg = err instanceof ApiError ? err.code : "Có lỗi xảy ra";
-      showToast(`Tạo phản ánh thất bại: ${msg}`, "error");
+      const msg = err instanceof ApiError ? err.code : t("form.toast.createFailedDefault");
+      showToast(t("form.toast.createFailed", { msg }), "error");
     },
   });
 
@@ -469,7 +479,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
       const el = document.getElementById(`fld-${missing[0].key}`);
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
       window.setTimeout(() => el?.focus(), 350);
-      showToast(`Còn thiếu: ${missing.map((m) => m.label).join(", ")}`, "error");
+      showToast(t("form.toast.missingFields", { list: missing.map((m) => m.label).join(", ") }), "error");
       return;
     }
     mutation.mutate();
@@ -484,7 +494,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
   };
 
   const cancel = () => {
-    if (dirty && !window.confirm("Bỏ phản ánh đang nhập? Nháp vẫn được giữ để mở lại sau.")) return;
+    if (dirty && !window.confirm(t("form.confirmDiscard"))) return;
     onCancel();
   };
 
@@ -543,9 +553,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
     <form ref={formElRef} onSubmit={submit} onKeyDown={onFormKeyDown} className="flex h-full min-h-0 flex-col">
       {restored && (
         <div className="mb-2 flex shrink-0 items-center justify-between rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-300">
-          <span>Đã khôi phục nội dung nhập dở lần trước.</span>
+          <span>{t("form.restoredBanner")}</span>
           <button type="button" onClick={clearDraft} className="font-medium underline">
-            Xoá &amp; nhập mới
+            {t("form.clearAndNew")}
           </button>
         </div>
       )}
@@ -559,10 +569,10 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         <div className="flex min-w-0 flex-col gap-3 pb-1 lg:min-h-0 lg:overflow-y-auto lg:pr-3">
           {/* Tra cứu ID — ô gọn, nút kính lúp */}
           <fieldset className="rounded-xl border border-brand-200 bg-surface p-4 shadow-card lg:rounded-lg lg:border-accent/40 lg:p-2.5 lg:shadow-none">
-            <SectionHead n={1} title="Tra cứu nhanh theo ID" />
+            <SectionHead n={1} title={t("form.section.lookup")} />
             <div className="flex flex-col gap-2.5 lg:flex-row lg:flex-nowrap lg:items-end lg:gap-x-2 lg:gap-y-0 lg:overflow-x-auto lg:pb-0.5">
               <div className="w-full lg:w-[124px] lg:shrink-0">
-                <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">ID CRM Karofi</span>
+                <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">{t("form.field.idCrmKarofi")}</span>
                 <div className="flex gap-1.5 lg:gap-0.5">
                   <Input
                     className="lg:w-[94px] lg:!px-1.5 lg:!py-1 lg:!text-xs"
@@ -578,8 +588,8 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                   />
                   <button
                     type="button"
-                    aria-label="Tra cứu ID CRM Karofi"
-                    title="Tra cứu"
+                    aria-label={t("form.searchAriaCrm")}
+                    title={t("form.search")}
                     onClick={() => void runLookup("crm")}
                     disabled={!form.id_crm_karofi.trim() || lookupBusy === "crm"}
                     className={searchBtnCls}
@@ -589,7 +599,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 </div>
               </div>
               <div className="w-full lg:w-[80px] lg:shrink-0">
-                <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">ID Lada</span>
+                <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">{t("form.field.idLada")}</span>
                 <div className="flex gap-1.5 lg:gap-0.5">
                   <Input
                     className="lg:w-[62px] lg:!px-1.5 lg:!py-1 lg:!text-xs"
@@ -603,8 +613,8 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                   />
                   <button
                     type="button"
-                    aria-label="Tra cứu ID Lada"
-                    title="Tra cứu"
+                    aria-label={t("form.searchAriaLada")}
+                    title={t("form.search")}
                     onClick={() => void runLookup("lada")}
                     disabled={!form.id_lada.trim() || lookupBusy === "lada"}
                     className={searchBtnCls}
@@ -614,7 +624,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 </div>
               </div>
               <div className="w-full lg:w-[92px] lg:shrink-0">
-                <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">ID Truy xuất</span>
+                <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">{t("form.field.idTruyXuat")}</span>
                 <div className="flex gap-1.5 lg:gap-0.5">
                   <Input
                     className="lg:w-[62px] lg:!px-1.5 lg:!py-1 lg:!text-xs"
@@ -628,8 +638,8 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                   />
                   <button
                     type="button"
-                    aria-label="Tra cứu ID truy xuất"
-                    title="Tra cứu"
+                    aria-label={t("form.searchAriaTruyVan")}
+                    title={t("form.search")}
                     onClick={() => void runLookup("truy_van")}
                     disabled={!form.id_truy_van.trim() || lookupBusy === "truy_van"}
                     className={searchBtnCls}
@@ -639,18 +649,18 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 </div>
               </div>
               <div className="w-full lg:w-[76px] lg:shrink-0">
-                <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">Nguồn</span>
+                <span className="mb-1 block text-sm font-medium leading-tight text-ink-soft lg:mb-0.5 lg:text-xs">{t("form.field.nguon")}</span>
                 <Select
                   className="lg:w-[76px] lg:!px-1.5 lg:!py-1 lg:!text-xs"
                   options={NGUON_OPTIONS}
-                  placeholder="— Chọn —"
+                  placeholder={t("form.field.choosePlaceholder")}
                   value={form.nguon}
                   onChange={(e) => setField("nguon", e.target.value)}
                 />
               </div>
             </div>
             <p className="mt-1.5 text-xs leading-tight text-ink-faint lg:text-[11px]">
-              Nhập ID rồi Enter / bấm kính lúp — tự điền vào các ô còn trống.
+              {t("form.field.lookupHint")}
             </p>
 
             {lookup && <LookupResult res={lookup} onApplyFill={applyLookupFill} applied={filledFromLookup} />}
@@ -658,18 +668,18 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
 
           {/* Khách hàng (luôn hiện, trái) + Địa chính (tab, phải) */}
           <fieldset className={fsCls}>
-            <SectionHead n={2} title="Thông tin khách hàng & địa chỉ" />
+            <SectionHead n={2} title={t("form.section.customerAddress")} />
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <p className={`mb-2 ${subCls}`}>Khách hàng</p>
+                <p className={`mb-2 ${subCls}`}>{t("form.field.customerGroup")}</p>
                 <div className={rowCls}>
-                  <Field label="Tên khách hàng *" className={W_MD}>
+                  <Field label={t("form.field.tenKhach")} className={W_MD}>
                     <Input id="fld-ten_khach" value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} autoFocus />
                   </Field>
-                  <Field label="Số điện thoại" hint="Có thể bổ sung sau" className={W_SM}>
+                  <Field label={t("form.field.sdt")} hint={t("form.field.sdtHint")} className={W_SM}>
                     <Input value={form.sdt_khach} onChange={(e) => setField("sdt_khach", e.target.value)} inputMode="tel" />
                   </Field>
-                  <Field label="Phân loại KH" className={W_XS}>
+                  <Field label={t("form.field.phanLoaiKh")} className={W_XS}>
                     <Combobox
                       options={(phanLoaiKhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                       value={form.phan_loai_kh}
@@ -681,9 +691,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
 
               <div className="flex flex-col gap-3">
                 <div>
-                  <p className={`mb-1.5 ${subCls}`}>Địa chính cũ</p>
+                  <p className={`mb-1.5 ${subCls}`}>{t("form.field.oldAddress")}</p>
                   <div className={rowCls}>
-                    <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới" className={W_SM}>
+                    <Field label={t("form.field.tinhThanhPho")} hint={t("form.field.typeToSearchHint")} className={W_SM}>
                       <Combobox
                         options={optsFor(tinhOpts.data, "tinh")}
                         value={form.tinh}
@@ -692,7 +702,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                         onCreate={(v) => addPending("tinh", v)}
                       />
                     </Field>
-                    <Field label="Quận / Huyện" hint={form.tinh ? "Gõ để tìm / thêm mới" : "Chọn Tỉnh trước"} className={W_SM}>
+                    <Field label={t("form.field.quanHuyen")} hint={form.tinh ? t("form.field.typeToSearchHint") : t("form.field.chooseTinhFirst")} className={W_SM}>
                       <Combobox
                         options={optsFor(quanHuyenOpts.data, "quan_huyen", form.tinh)}
                         value={form.quan_huyen}
@@ -702,7 +712,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                         onCreate={(v) => addPending("quan_huyen", v, form.tinh)}
                       />
                     </Field>
-                    <Field label="Phường / Xã" hint={form.quan_huyen ? "Gõ để tìm / thêm mới" : "Chọn Quận/Huyện trước"} className={W_SM}>
+                    <Field label={t("form.field.phuongXa")} hint={form.quan_huyen ? t("form.field.typeToSearchHint") : t("form.field.chooseQuanHuyenFirst")} className={W_SM}>
                       <Combobox
                         options={optsFor(phuongXaOpts.data, "phuong_xa", form.quan_huyen)}
                         value={form.phuong_xa}
@@ -716,9 +726,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                 </div>
 
                 <div className="border-t border-line pt-3">
-                  <p className={`mb-1.5 ${subCls}`}>Địa chính mới</p>
+                  <p className={`mb-1.5 ${subCls}`}>{t("form.field.newAddress")}</p>
                   <div className={rowCls}>
-                    <Field label="Tỉnh / Thành phố" hint="Gõ để tìm / thêm mới" className={W_SM}>
+                    <Field label={t("form.field.tinhThanhPho")} hint={t("form.field.typeToSearchHint")} className={W_SM}>
                       <Combobox
                         options={optsFor(tinhMoiOpts.data, "tinh_moi")}
                         value={form.tinh_moi}
@@ -727,7 +737,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                         onCreate={(v) => addPending("tinh_moi", v)}
                       />
                     </Field>
-                    <Field label="Phường / Xã" hint={form.tinh_moi ? "Gõ để tìm / thêm mới" : "Chọn Tỉnh trước"} className={W_SM}>
+                    <Field label={t("form.field.phuongXa")} hint={form.tinh_moi ? t("form.field.typeToSearchHint") : t("form.field.chooseTinhFirst")} className={W_SM}>
                       <Combobox
                         options={optsFor(phuongXaMoiOpts.data, "phuong_xa_moi", form.tinh_moi)}
                         value={form.phuong_xa_moi}
@@ -738,7 +748,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                       />
                     </Field>
                     <p className="mb-1 w-full text-xs leading-tight text-ink-faint lg:text-[11px]">
-                      Điền theo địa chính cũ, mới, hoặc cả hai — không bắt buộc.
+                      {t("form.field.addressNote")}
                     </p>
                   </div>
                 </div>
@@ -747,9 +757,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
           </fieldset>
 
           <fieldset className={fsCls}>
-            <SectionHead n={3} title="Sản phẩm" />
+            <SectionHead n={3} title={t("form.section.product")} />
             <div className={rowCls}>
-              <Field label="Hãng" hint="Gõ để tìm / thêm mới" className={W_MD}>
+              <Field label={t("form.field.hang")} hint={t("form.field.typeToSearchHint")} className={W_MD}>
                 <Combobox
                   options={optsFor(hangOpts.data, "hang")}
                   value={form.hang}
@@ -758,7 +768,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                   onCreate={(v) => addPending("hang", v)}
                 />
               </Field>
-              <Field label="Model" hint="Gõ để tìm / thêm mới" className={W_MD}>
+              <Field label={t("form.field.model")} hint={t("form.field.typeToSearchHint")} className={W_MD}>
                 <Combobox
                   options={optsFor(modelOpts.data, "model")}
                   value={form.model}
@@ -771,9 +781,9 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
           </fieldset>
 
           <fieldset className={fsCls}>
-            <SectionHead n={4} title="Nội bộ" />
+            <SectionHead n={4} title={t("form.section.internal")} />
             <div className={rowCls}>
-              <Field label="Sale khu vực" hint="Gõ để tìm / thêm mới" className={W_MD}>
+              <Field label={t("form.field.saleKhuVuc")} hint={t("form.field.typeToSearchHint")} className={W_MD}>
                 <Combobox
                   options={optsFor(saleKhuVucOpts.data, "sale_khu_vuc")}
                   value={form.sale_khu_vuc}
@@ -782,12 +792,12 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                   onCreate={(v) => addPending("sale_khu_vuc", v)}
                 />
               </Field>
-              <Field label="Người báo" className={W_SM}>
+              <Field label={t("form.field.nguoiBao")} className={W_SM}>
                 <Input value={form.nguoi_bao} onChange={(e) => setField("nguoi_bao", e.target.value)} />
               </Field>
             </div>
             <p className="mt-2 text-xs leading-tight text-ink-soft lg:text-[11px]">
-              Ngày tiếp nhận &amp; các dữ liệu CRM khác được hệ thống tự đồng bộ, không cần nhập.
+              {t("form.field.internalNote")}
             </p>
           </fieldset>
         </div>
@@ -795,15 +805,15 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
         {/* ── Phải: Phân loại vấn đề · Nội dung phản ánh — cố định, cuộn riêng ── */}
         <div className="flex min-w-0 flex-col gap-3 pb-1 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-line lg:pl-4">
           <fieldset className={fsCls}>
-            <SectionHead n={5} title="Phân loại vấn đề" />
+            <SectionHead n={5} title={t("form.section.issueClassification")} />
             <div className={rowCls}>
-              <Field label="Nhóm yêu cầu" className={W_SM}>
+              <Field label={t("form.field.nhomYeuCau")} className={W_SM}>
                 <Combobox
                   options={(nhomYeuCauOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                   value={form.nhom_yeu_cau} onChange={(v) => setField("nhom_yeu_cau", v)}
                 />
               </Field>
-              <Field label="Nhóm vấn đề *" className={W_MD}>
+              <Field label={t("form.field.nhomVanDe")} className={W_MD}>
                 <Combobox
                   id="fld-nhom_van_de"
                   options={(nhomVanDeOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
@@ -811,7 +821,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                   onChange={(v) => { setField("nhom_van_de", v); setField("van_de_dau_vao", ""); }}
                 />
               </Field>
-              <Field label="Vấn đề đầu vào" className={W_MD}>
+              <Field label={t("form.field.vanDeDauVao")} className={W_MD}>
                 <Combobox
                   options={filteredVanDeDauVao.map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                   value={form.van_de_dau_vao}
@@ -819,7 +829,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                   disabled={!form.nhom_van_de}
                 />
               </Field>
-              <Field label="Mức độ" className={W_SM}>
+              <Field label={t("form.field.mucDo")} className={W_SM}>
                 <Combobox
                   options={sortMucDoOptions(mucDoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                   value={form.muc_do} onChange={(v) => setField("muc_do", v)}
@@ -829,19 +839,19 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
           </fieldset>
 
           <fieldset className={fsCls}>
-            <SectionHead n={6} title="Nội dung phản ánh" />
+            <SectionHead n={6} title={t("form.section.content")} />
             <div className="flex flex-col gap-2.5">
-              <Field label="Thông tin ban đầu *">
+              <Field label={t("form.field.thongTinBanDau")}>
                 <Textarea id="fld-thong_tin_ban_dau" rows={3} value={form.thong_tin_ban_dau} onChange={(e) => setField("thong_tin_ban_dau", e.target.value)} />
               </Field>
-              <Field label="Ghi chú người tạo">
+              <Field label={t("form.field.ghiChuNguoiTao")}>
                 <Textarea rows={3} value={form.ghi_chu_nguoi_tao} onChange={(e) => setField("ghi_chu_nguoi_tao", e.target.value)} />
               </Field>
             </div>
           </fieldset>
 
           <fieldset className={fsCls}>
-            <SectionHead n={7} title="Ảnh / video đính kèm" />
+            <SectionHead n={7} title={t("form.section.media")} />
             <div className="space-y-3">
               {/* Mobile: 2 o bam lon (camera / thu vien) thay cho nut chu nho - nguoi dung lon tuoi. */}
               <div className="grid grid-cols-2 gap-2.5 lg:hidden">
@@ -851,10 +861,10 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
 
               <div className={pendingAnh.length > 0 ? "" : "hidden lg:block"}>
                 <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-ink-body lg:text-xs lg:font-normal lg:text-ink-soft">Ảnh ({pendingAnh.length}/{DINH_KEM_MAX_ANH})</span>
+                  <span className="text-sm font-semibold text-ink-body lg:text-xs lg:font-normal lg:text-ink-soft">{t("form.photosCount", { n: pendingAnh.length, max: DINH_KEM_MAX_ANH })}</span>
                   {pendingAnh.length < DINH_KEM_MAX_ANH && (
                     <label className="hidden cursor-pointer rounded-lg border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-surface-2 lg:inline-block">
-                      + Thêm ảnh
+                      {t("form.addPhoto")}
                       <input type="file" accept="image/*" multiple className="hidden" onChange={handleAnhChange} />
                     </label>
                   )}
@@ -868,7 +878,7 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                         <button
                           type="button"
                           onClick={() => removeAnh(idx)}
-                          aria-label="Xoá ảnh"
+                          aria-label={t("form.removePhoto")}
                           className="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-sm text-white lg:h-5 lg:w-5 lg:text-xs lg:opacity-0 lg:group-hover:opacity-100"
                         >
                           ✕
@@ -881,10 +891,10 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
 
               <div className={pendingVideo.length > 0 ? "" : "hidden lg:block"}>
                 <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-ink-body lg:text-xs lg:font-normal lg:text-ink-soft">Video ({pendingVideo.length}/{DINH_KEM_MAX_VIDEO})</span>
+                  <span className="text-sm font-semibold text-ink-body lg:text-xs lg:font-normal lg:text-ink-soft">{t("form.videosCount", { n: pendingVideo.length, max: DINH_KEM_MAX_VIDEO })}</span>
                   {pendingVideo.length < DINH_KEM_MAX_VIDEO && (
                     <label className="hidden cursor-pointer rounded-lg border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-surface-2 lg:inline-block">
-                      + Thêm video
+                      {t("form.addVideo")}
                       <input type="file" accept="video/*" multiple className="hidden" onChange={handleVideoChange} />
                     </label>
                   )}
@@ -900,14 +910,14 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
                           onClick={() => removeVideo(idx)}
                           className="rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 lg:rounded lg:px-1.5 lg:py-0.5 lg:text-xs lg:font-normal"
                         >
-                          Xoá
+                          {t("form.remove")}
                         </button>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-              <p className="text-xs text-ink-faint lg:text-[11px]">Ảnh được tự động nén trước khi gửi; video chỉ giới hạn dung lượng (≤80MB) và thời lượng (≤60s), không nén.</p>
+              <p className="text-xs text-ink-faint lg:text-[11px]">{t("form.mediaNote")}</p>
             </div>
           </fieldset>
         </div>
@@ -917,14 +927,14 @@ export const KhieuNaiForm = forwardRef<KhieuNaiFormHandle, {
           Bam Tao khi con thieu -> cuon toi o thieu dau tien (xem submit). Desktop dung nut o tieu de. */}
       <div className="-mx-3 -mb-3 mt-3 flex shrink-0 flex-col gap-2 border-t border-line bg-surface px-3 pb-3 pt-2.5 shadow-[0_-4px_16px_rgba(15,23,42,0.06)] lg:hidden">
         {missing.length > 0 ? (
-          <p className="text-sm text-amber-700">Còn thiếu: <b>{missing.map((m) => m.label).join(", ")}</b></p>
+          <p className="text-sm text-amber-700">{t("form.missingPrefix")} <b>{missing.map((m) => m.label).join(", ")}</b></p>
         ) : pendingOpts.length > 0 ? (
-          <p className="text-xs text-ink-soft">{pendingOpts.length} lựa chọn mới sẽ được lưu khi bấm Tạo</p>
+          <p className="text-xs text-ink-soft">{t("form.pendingChoices", { count: pendingOpts.length })}</p>
         ) : null}
         <div className="grid grid-cols-[1fr_2fr] gap-2">
-          <Btn type="button" variant="secondary" size="touch" onClick={cancel}>Hủy</Btn>
+          <Btn type="button" variant="secondary" size="touch" onClick={cancel}>{t("common.cancel")}</Btn>
           <Btn type="submit" variant="primary" size="touch" disabled={mutation.isPending}>
-            {mutation.isPending ? "Đang tạo..." : "Tạo phản ánh"}
+            {mutation.isPending ? t("form.creating") : t("form.createSubmit")}
           </Btn>
         </div>
       </div>
@@ -961,12 +971,13 @@ function MediaPicker({
   accept: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }) {
+  const { t } = useTranslation();
   const full = count >= max;
   const body = (
     <>
       <span className={full ? "text-ink-faint" : "text-accent"}>{kind === "anh" ? <CameraIcon /> : <VideoIcon size={28} />}</span>
-      <span className="text-base font-bold">{kind === "anh" ? "Thêm ảnh" : "Thêm video"}</span>
-      <span className="text-xs font-medium text-ink-soft">{full ? "Đã đủ " : ""}{count}/{max} {kind === "anh" ? "ảnh" : "video"}</span>
+      <span className="text-base font-bold">{kind === "anh" ? t("form.mediaPicker.addPhoto") : t("form.mediaPicker.addVideo")}</span>
+      <span className="text-xs font-medium text-ink-soft">{full ? t("form.mediaPicker.full") : ""}{count}/{max} {kind === "anh" ? t("form.mediaPicker.photo") : t("form.mediaPicker.video")}</span>
     </>
   );
   const cls = "flex min-h-[104px] flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-2 py-3 text-center";
@@ -986,14 +997,16 @@ function LookupResult({
   onApplyFill: () => void;
   applied: boolean;
 }) {
+  const { t } = useTranslation();
+  const crmWarningMessages = getCrmWarningMessages(t);
   if (!res.found) {
     return (
       <div className="mt-3 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink-soft lg:text-xs">
         {res.source === "lada"
-          ? "Không tìm thấy ID Lada này (đã kiểm tra cả lịch sử phản ánh cũ lẫn hệ thống đơn hàng) — nhập thủ công."
+          ? t("form.lookup.notFoundLada")
           : res.source === "truy_van"
-          ? "Chưa có phản ánh nào cùng ID Truy xuất này — nhập thủ công."
-          : CRM_WARNING_MESSAGES[res.warning ?? ""] ?? "Không tìm thấy trên CRM Karofi."}
+          ? t("form.lookup.notFoundTruyVan")
+          : crmWarningMessages[res.warning ?? ""] ?? t("form.lookup.notFoundCrmDefault")}
       </div>
     );
   }
@@ -1005,7 +1018,7 @@ function LookupResult({
     const giaiTrinhEvents: TimelineEvent[] = (res.giaiTrinh ?? []).map((g, i) => ({
       key: `gt-${i}`,
       tone: "teal",
-      badge: "GT tồn",
+      badge: t("form.lookup.badgeGiaiTrinhTon"),
       time: fmtVN.dateTime(g.ngay_giai_trinh),
       sortMs: parseVnNaive(g.ngay_giai_trinh),
       actor: g.nguoi_giai_trinh ?? null,
@@ -1014,7 +1027,7 @@ function LookupResult({
     return (
       <div className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm text-teal-900 lg:text-xs">
         <div className="mb-1 flex items-center justify-between gap-2">
-          <span className="font-semibold">Tìm thấy trên CRM Karofi</span>
+          <span className="font-semibold">{t("form.lookup.foundCrm")}</span>
           {hasFill && (
             <button
               type="button"
@@ -1024,35 +1037,35 @@ function LookupResult({
                 applied ? "cursor-default bg-teal-200 text-teal-900" : "bg-teal-600 text-white hover:bg-teal-700"
               }`}
             >
-              {applied ? "✓ Đã điền thông tin" : "Xác nhận điền thông tin"}
+              {applied ? t("form.lookup.applied") : t("form.lookup.applyFill")}
             </button>
           )}
         </div>
         <dl className="grid grid-cols-1 gap-x-4 gap-y-0.5 lg:grid-cols-2">
-          {p?.khach_hang && <Row k="Khách hàng" v={p.khach_hang} />}
-          {p?.ky_thuat_vien && <Row k="Kỹ thuật viên" v={p.ky_thuat_vien} />}
-          {p?.khu_vuc && <Row k="Khu vực" v={p.khu_vuc} />}
-          {p?.tien_do_hoan_thanh && <Row k="Tiến độ" v={p.tien_do_hoan_thanh} />}
-          {p?.loai_yeu_cau && <Row k="Loại yêu cầu" v={p.loai_yeu_cau} />}
-          {p?.thoi_gian_cskh_tiep_nhan && <Row k="CSKH tiếp nhận" v={fmtVN.dateTime(p.thoi_gian_cskh_tiep_nhan)} />}
-          {p?.thoi_gian_hen_xu_ly && <Row k="Hẹn xử lý" v={fmtVN.dateTime(p.thoi_gian_hen_xu_ly)} />}
-          {p?.thoi_gian_hoan_thanh && <Row k="Hoàn thành" v={fmtVN.dateTime(p.thoi_gian_hoan_thanh)} />}
-          {p?.ly_do_qua_han && <Row k="Lý do quá hạn" v={p.ly_do_qua_han} />}
+          {p?.khach_hang && <Row k={t("form.lookup.khachHang")} v={p.khach_hang} />}
+          {p?.ky_thuat_vien && <Row k={t("form.lookup.kyThuatVien")} v={p.ky_thuat_vien} />}
+          {p?.khu_vuc && <Row k={t("form.lookup.khuVuc")} v={p.khu_vuc} />}
+          {p?.tien_do_hoan_thanh && <Row k={t("form.lookup.tienDo")} v={p.tien_do_hoan_thanh} />}
+          {p?.loai_yeu_cau && <Row k={t("form.lookup.loaiYeuCau")} v={p.loai_yeu_cau} />}
+          {p?.thoi_gian_cskh_tiep_nhan && <Row k={t("form.lookup.cskhTiepNhan")} v={fmtVN.dateTime(p.thoi_gian_cskh_tiep_nhan)} />}
+          {p?.thoi_gian_hen_xu_ly && <Row k={t("form.lookup.henXuLy")} v={fmtVN.dateTime(p.thoi_gian_hen_xu_ly)} />}
+          {p?.thoi_gian_hoan_thanh && <Row k={t("form.lookup.hoanThanh")} v={fmtVN.dateTime(p.thoi_gian_hoan_thanh)} />}
+          {p?.ly_do_qua_han && <Row k={t("form.lookup.lyDoQuaHan")} v={p.ly_do_qua_han} />}
         </dl>
         {p?.mo_ta_loi && (
-          <p className="mt-1 whitespace-pre-wrap border-t border-teal-200 pt-1"><b>Mô tả lỗi: </b>{p.mo_ta_loi}</p>
+          <p className="mt-1 whitespace-pre-wrap border-t border-teal-200 pt-1"><b>{t("form.lookup.moTaLoi")}</b>{p.mo_ta_loi}</p>
         )}
         {p?.noi_dung_xu_ly && (
-          <p className="mt-1 whitespace-pre-wrap border-t border-teal-200 pt-1"><b>Nội dung xử lý: </b>{p.noi_dung_xu_ly}</p>
+          <p className="mt-1 whitespace-pre-wrap border-t border-teal-200 pt-1"><b>{t("form.lookup.noiDungXuLy")}</b>{p.noi_dung_xu_ly}</p>
         )}
         {p?.link_crm && (
           <p className="mt-1 border-t border-teal-200 pt-1">
-            <a href={p.link_crm} target="_blank" rel="noreferrer" className="underline">Xem trên CRM ↗</a>
+            <a href={p.link_crm} target="_blank" rel="noreferrer" className="underline">{t("form.lookup.xemTrenCrm")}</a>
           </p>
         )}
         {giaiTrinhEvents.length > 0 && (
           <div className="mt-2 border-t border-teal-200 pt-2">
-            <p className="mb-1 font-semibold">Log giải trình tồn ({giaiTrinhEvents.length})</p>
+            <p className="mb-1 font-semibold">{t("form.lookup.giaiTrinhLog", { n: giaiTrinhEvents.length })}</p>
             <Timeline events={giaiTrinhEvents} />
           </div>
         )}
@@ -1065,12 +1078,12 @@ function LookupResult({
   // mo rong duoc. truy_van khong co "preview" (khong goi API ngoai) nen chi hien danh sach cu.
   const rows = res.recent ?? [];
   const p = res.preview;
-  const idLabel = res.source === "truy_van" ? "ID Truy xuất" : "ID Lada";
+  const idLabel = res.source === "truy_van" ? t("form.lookup.idTruyXuatLabel") : t("form.lookup.idLadaLabel");
   return (
     <div className="mt-3 rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-sm text-violet-900 lg:text-xs">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <span className="font-semibold">
-          {p ? "Tìm thấy thông tin đơn hàng" : `${rows.length} phản ánh cũ cùng ${idLabel}`}
+          {p ? t("form.lookup.foundOrder") : t("form.lookup.oldCasesSameId", { n: rows.length, idLabel })}
         </span>
         {hasFill && (
           <button
@@ -1081,27 +1094,27 @@ function LookupResult({
               applied ? "cursor-default bg-violet-200 text-violet-900" : "bg-violet-600 text-white hover:bg-violet-700"
             }`}
           >
-            {applied ? "✓ Đã điền thông tin" : "Xác nhận điền thông tin"}
+            {applied ? t("form.lookup.applied") : t("form.lookup.applyFill")}
           </button>
         )}
       </div>
       {p && (
         <dl className="mb-2 grid grid-cols-1 gap-x-4 gap-y-0.5 border-b border-violet-200 pb-2 lg:grid-cols-2">
-          {p.khach_hang && <Row k="Khách hàng" v={p.khach_hang} />}
-          {p.ky_thuat_vien && <Row k="Kỹ thuật viên" v={p.ky_thuat_vien} />}
-          {p.khu_vuc && <Row k="Khu vực" v={p.khu_vuc} />}
-          {p.tien_do_hoan_thanh && <Row k="Trạng thái đơn" v={p.tien_do_hoan_thanh} />}
-          {p.thoi_gian_cskh_tiep_nhan && <Row k="Ngày khởi tạo" v={p.thoi_gian_cskh_tiep_nhan} />}
-          {p.thoi_gian_hen_xu_ly && <Row k="Ngày hẹn" v={p.thoi_gian_hen_xu_ly} />}
-          {p.thoi_gian_hoan_thanh && <Row k="Ngày chốt đơn" v={p.thoi_gian_hoan_thanh} />}
+          {p.khach_hang && <Row k={t("form.lookup.khachHang")} v={p.khach_hang} />}
+          {p.ky_thuat_vien && <Row k={t("form.lookup.kyThuatVien")} v={p.ky_thuat_vien} />}
+          {p.khu_vuc && <Row k={t("form.lookup.khuVuc")} v={p.khu_vuc} />}
+          {p.tien_do_hoan_thanh && <Row k={t("form.lookup.trangThaiDon")} v={p.tien_do_hoan_thanh} />}
+          {p.thoi_gian_cskh_tiep_nhan && <Row k={t("form.lookup.ngayKhoiTao")} v={p.thoi_gian_cskh_tiep_nhan} />}
+          {p.thoi_gian_hen_xu_ly && <Row k={t("form.lookup.ngayHen")} v={p.thoi_gian_hen_xu_ly} />}
+          {p.thoi_gian_hoan_thanh && <Row k={t("form.lookup.ngayChotDon")} v={p.thoi_gian_hoan_thanh} />}
         </dl>
       )}
       {p?.noi_dung_xu_ly && (
-        <p className="mb-2 whitespace-pre-wrap border-b border-violet-200 pb-2"><b>Ghi chú: </b>{p.noi_dung_xu_ly}</p>
+        <p className="mb-2 whitespace-pre-wrap border-b border-violet-200 pb-2"><b>{t("form.lookup.ghiChu")}</b>{p.noi_dung_xu_ly}</p>
       )}
       {rows.length > 0 && (
         <>
-          {p && <p className="mb-1 font-semibold">{rows.length} phản ánh cũ cùng {idLabel}</p>}
+          {p && <p className="mb-1 font-semibold">{t("form.lookup.oldCasesSameId", { n: rows.length, idLabel })}</p>}
           <div className="divide-y divide-violet-200">
             {rows.map((r) => <LadaCaseRow key={r.id} r={r} />)}
           </div>
@@ -1112,6 +1125,7 @@ function LookupResult({
 }
 
 function LadaCaseRow({ r }: { r: TraCuuRecent }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const diaChi = [
     r.phuong_xa_moi || r.phuong_xa || "",
@@ -1119,19 +1133,19 @@ function LadaCaseRow({ r }: { r: TraCuuRecent }) {
   ].filter(Boolean).join(" — ");
   const sanPham = [r.hang, r.model].filter(Boolean).join(" - ");
   const loiList = [
-    r.loi_nha_san_xuat === "Co" && "NSX",
-    r.loi_lap_dat === "Co" && "Lắp đặt",
-    r.loi_thai_do_ktv === "Co" && "Thái độ KTV",
-    r.loi_quy_trinh_nskx === "Co" && "Quy trình NSKX",
+    r.loi_nha_san_xuat === "Co" && t("form.lookup.loiNsx"),
+    r.loi_lap_dat === "Co" && t("form.lookup.loiLapDat"),
+    r.loi_thai_do_ktv === "Co" && t("form.lookup.loiThaiDoKtv"),
+    r.loi_quy_trinh_nskx === "Co" && t("form.lookup.loiQuyTrinhNskx"),
   ].filter((v): v is string => !!v);
-  const tienTrinhEvents: TimelineEvent[] = r.tien_trinh.map((t, i) => ({
+  const tienTrinhEvents: TimelineEvent[] = r.tien_trinh.map((tt, i) => ({
     key: `${r.id}-tt-${i}`,
     tone: "gray",
-    badge: t.ly_do_xu_ly_cham ? "Ghi chú (chậm)" : "Ghi chú",
-    time: fmtVN.dateTime(t.ngay_tao),
-    sortMs: parseVnNaive(t.ngay_tao),
-    actor: t.nguoi_tao,
-    summary: [t.ly_do_xu_ly_cham, t.noi_dung_ghi_chep].filter(Boolean).join(": ") || "—",
+    badge: tt.ly_do_xu_ly_cham ? t("form.lookup.badgeNoteLate") : t("form.lookup.badgeNote"),
+    time: fmtVN.dateTime(tt.ngay_tao),
+    sortMs: parseVnNaive(tt.ngay_tao),
+    actor: tt.nguoi_tao,
+    summary: [tt.ly_do_xu_ly_cham, tt.noi_dung_ghi_chep].filter(Boolean).join(": ") || "—",
   }));
 
   return (
@@ -1149,23 +1163,23 @@ function LadaCaseRow({ r }: { r: TraCuuRecent }) {
             onClick={() => setOpen((o) => !o)}
             className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-800 hover:bg-violet-200 lg:text-[11px]"
           >
-            Log tiến trình ({r.tien_trinh.length}) {open ? "▲" : "▼"}
+            {t("form.lookup.tienTrinhLog", { n: r.tien_trinh.length })} {open ? "▲" : "▼"}
           </button>
         )}
       </div>
       <dl className="mt-0.5 grid grid-cols-1 gap-x-4 gap-y-0.5 lg:grid-cols-2">
-        {r.ten_khach && <Row k="Khách hàng" v={r.ten_khach} />}
-        {diaChi && <Row k="Địa chỉ" v={diaChi} />}
-        {sanPham && <Row k="Sản phẩm" v={sanPham} />}
-        {(r.van_de_dau_vao || r.nhom_van_de) && <Row k="Vấn đề" v={r.van_de_dau_vao || r.nhom_van_de || ""} />}
-        {r.nguoi_tao && <Row k="Người tạo" v={r.nguoi_tao} />}
+        {r.ten_khach && <Row k={t("form.lookup.khachHang")} v={r.ten_khach} />}
+        {diaChi && <Row k={t("form.lookup.diaChi")} v={diaChi} />}
+        {sanPham && <Row k={t("form.lookup.sanPham")} v={sanPham} />}
+        {(r.van_de_dau_vao || r.nhom_van_de) && <Row k={t("form.lookup.vanDe")} v={r.van_de_dau_vao || r.nhom_van_de || ""} />}
+        {r.nguoi_tao && <Row k={t("form.lookup.nguoiTao")} v={r.nguoi_tao} />}
       </dl>
       {r.thong_tin_ban_dau && <p className="mt-0.5 whitespace-pre-wrap opacity-90">{r.thong_tin_ban_dau}</p>}
       {(loiList.length > 0 || (r.ket_luan_khieu_nai && r.ket_luan_khieu_nai !== "Chua danh gia")) && (
         <p className="mt-0.5 font-medium text-red-700">
-          Lỗi ghi nhận: {loiList.length > 0 ? loiList.join(", ") : "Không có"}
+          {t("form.lookup.loiGhiNhan", { list: loiList.length > 0 ? loiList.join(", ") : t("form.lookup.khongCo") })}
           {r.ket_luan_khieu_nai && r.ket_luan_khieu_nai !== "Chua danh gia"
-            ? ` (Kết luận: ${translateDanhGia(r.ket_luan_khieu_nai)})`
+            ? t("form.lookup.ketLuanSuffix", { v: translateDanhGia(r.ket_luan_khieu_nai) })
             : ""}
         </p>
       )}
