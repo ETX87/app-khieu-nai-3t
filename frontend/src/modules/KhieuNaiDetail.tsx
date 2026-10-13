@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
 import type { AppUser, DanhGia3, KhieuNai, KhieuNaiDinhKem, LichSu, TienTrinh } from "../api/types";
@@ -42,34 +43,44 @@ interface DetailResponse {
   related: RelatedItem[];
 }
 
-const DANH_GIA_OPTIONS = [
-  { value: "Chua danh gia", label: "Chưa đánh giá" },
-  { value: "Khong", label: "Không" },
-  { value: "Co", label: "Có" },
-];
+type TFn = (k: string, o?: Record<string, unknown>) => string;
 
-const CAM_CO_OPTIONS = [
-  { value: "Khong co", label: "Không cờ" },
-  { value: "Co vang", label: "Cờ vàng" },
-  { value: "Co do", label: "Cờ đỏ" },
-];
+function getDanhGiaOptions(t: TFn) {
+  return [
+    { value: "Chua danh gia", label: t("detail.danhGia.chuaDanhGia") },
+    { value: "Khong", label: t("detail.danhGia.khong") },
+    { value: "Co", label: t("detail.danhGia.co") },
+  ];
+}
 
-const KET_QUA_DOI_MAY_OPTIONS = [
-  { value: "Khong co", label: "Không có" },
-  { value: "Dang xu ly", label: "Đang xử lý" },
-  { value: "Doi thanh cong", label: "Đổi thành công" },
-  { value: "Huy bo", label: "Hủy bỏ" },
-  { value: "Doi khong thanh cong", label: "Đổi không thành công" },
-];
+function getCamCoOptions(t: TFn) {
+  return [
+    { value: "Khong co", label: t("detail.camCoOptions.khongCo") },
+    { value: "Co vang", label: t("detail.camCoOptions.coVang") },
+    { value: "Co do", label: t("detail.camCoOptions.coDo") },
+  ];
+}
 
-const LY_DO_HUY_OPTIONS = [
-  "Trùng lặp với đơn khác",
-  "Khách hàng rút phản ánh",
-  "Nhập nhầm / sai hệ thống",
-  "Không liên hệ được khách",
-  "Không thuộc phạm vi xử lý",
-  "Lý do khác",
-];
+function getKetQuaDoiMayOptions(t: TFn) {
+  return [
+    { value: "Khong co", label: t("detail.doiMay.options.khongCo") },
+    { value: "Dang xu ly", label: t("detail.doiMay.options.dangXuLy") },
+    { value: "Doi thanh cong", label: t("detail.doiMay.options.doiThanhCong") },
+    { value: "Huy bo", label: t("detail.doiMay.options.huyBo") },
+    { value: "Doi khong thanh cong", label: t("detail.doiMay.options.doiKhongThanhCong") },
+  ];
+}
+
+function getLyDoHuyOptions(t: TFn) {
+  return [
+    t("detail.action.lyDoHuyOptions.trungLap"),
+    t("detail.action.lyDoHuyOptions.khachRut"),
+    t("detail.action.lyDoHuyOptions.nhapNham"),
+    t("detail.action.lyDoHuyOptions.khongLienHe"),
+    t("detail.action.lyDoHuyOptions.khongThuocPhamVi"),
+    t("detail.action.lyDoHuyOptions.khac"),
+  ];
+}
 
 // Dịch giá trị mã hoá sang nhãn hiển thị (dùng cho cả chế độ đọc). Hai nhóm có value trùng
 // ("Khong co") nên phải tra riêng theo từng nhóm.
@@ -77,18 +88,20 @@ function labelFrom(opts: { value: string; label: string }[], v: string | null | 
   if (v == null || v === "") return null;
   return opts.find((o) => o.value === v)?.label ?? v;
 }
-const camCoLabel = (v: string | null | undefined) => labelFrom(CAM_CO_OPTIONS, v);
-const ketQuaDoiMayLabel = (v: string | null | undefined) => labelFrom(KET_QUA_DOI_MAY_OPTIONS, v);
+const camCoLabel = (t: TFn, v: string | null | undefined) => labelFrom(getCamCoOptions(t), v);
+const ketQuaDoiMayLabel = (t: TFn, v: string | null | undefined) => labelFrom(getKetQuaDoiMayOptions(t), v);
 
 const isKtvLikeRole = (v: string | null) => v === "NV Sale" || v === "Tổng đài viên";
 
-const CRM_WARNING_MESSAGES: Record<string, string> = {
-  DVBH_NOT_FOUND: "Không tìm thấy case trên CRM Karofi",
-  DVBH_LOOKUP_FAILED: "Không thể kết nối CRM Karofi lúc này",
-  CASE_CLOSED: "Phản ánh đã kết thúc, không thể đồng bộ lại",
-  RESYNC_TOO_SOON: "Vui lòng đợi ít nhất 5 giây giữa 2 lần đồng bộ",
-  CHUA_TIEP_NHAN: "Phản ánh chưa được CSKH tiếp nhận",
-};
+function getCrmWarningMessages(t: TFn): Record<string, string> {
+  return {
+    DVBH_NOT_FOUND: t("detail.crm.warning.DVBH_NOT_FOUND"),
+    DVBH_LOOKUP_FAILED: t("detail.crm.warning.DVBH_LOOKUP_FAILED"),
+    CASE_CLOSED: t("detail.crm.warning.CASE_CLOSED"),
+    RESYNC_TOO_SOON: t("detail.crm.warning.RESYNC_TOO_SOON"),
+    CHUA_TIEP_NHAN: t("detail.crm.warning.CHUA_TIEP_NHAN"),
+  };
+}
 
 // yyyy-mm-dd hh:mm:ss (naive, gio VN) -> epoch ms, dung tinh khoang cach giua 2 moc cho Timeline.
 function parseVnNaive(s: string | null | undefined): number {
@@ -108,11 +121,11 @@ function parseGiaiTrinhDvbh(json: string | null): DvbhGiaiTrinhRow[] {
   }
 }
 
-function giaiTrinhDvbhEvents(kn: KhieuNai): TimelineEvent[] {
+function giaiTrinhDvbhEvents(t: TFn, kn: KhieuNai): TimelineEvent[] {
   return parseGiaiTrinhDvbh(kn.giai_trinh_dvbh_json).map((g, i) => ({
     key: `gt-${i}`,
     tone: "teal",
-    badge: "GT tồn",
+    badge: t("detail.crmModal.gtTonBadge"),
     time: fmtVN.dateTime(g.ngay_giai_trinh),
     sortMs: parseVnNaive(g.ngay_giai_trinh),
     actor: g.nguoi_giai_trinh ?? null,
@@ -165,6 +178,7 @@ function Zone({
   collapsible?: boolean;
   defaultOpen?: boolean;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(defaultOpen);
   const a = ZONE_ACCENT[accent];
   return (
@@ -180,7 +194,7 @@ function Zone({
               onClick={() => setOpen((v) => !v)}
               className="rounded px-2 py-1 text-sm font-semibold opacity-80 hover:bg-black/5 hover:opacity-100 lg:px-0 lg:py-0 lg:text-xs"
             >
-              {open ? "Thu gọn" : "Mở rộng"}
+              {open ? t("detail.zone.collapse") : t("detail.zone.expand")}
             </button>
           )}
         </div>
@@ -219,6 +233,7 @@ function KeyTile({
 }
 
 function NextStepChip({ kn }: { kn: KhieuNai }) {
+  const { t } = useTranslation();
   let text = "";
   let cls = "bg-gray-100 text-ink-soft";
   if (kn.trang_thai === "Dang xu ly") {
@@ -228,35 +243,37 @@ function NextStepChip({ kn }: { kn: KhieuNai }) {
       kn.loi_thai_do_ktv !== "Chua danh gia" &&
       kn.loi_quy_trinh_nskx !== "Chua danh gia" &&
       (kn.ket_luan_khieu_nai ?? "Chua danh gia") !== "Chua danh gia";
-    if (du) { text = "Bước kế: TN CSKH đóng ca"; cls = "bg-blue-100 text-blue-800"; }
-    else { text = "Bước kế: đánh giá đủ 4 lỗi + kết luận"; cls = "bg-amber-100 text-amber-900"; }
+    if (du) { text = t("detail.nextStep.tnCskhDongCa"); cls = "bg-blue-100 text-blue-800"; }
+    else { text = t("detail.nextStep.danhGiaDu4Loi"); cls = "bg-amber-100 text-amber-900"; }
   } else if (kn.trang_thai === "Cho chot ket thuc") {
-    text = "Bước kế: QL chốt kết thúc"; cls = "bg-violet-100 text-violet-800";
+    text = t("detail.nextStep.qlChotKetThuc"); cls = "bg-violet-100 text-violet-800";
   } else if (kn.trang_thai === "Da ket thuc") {
-    text = "Đã hoàn tất"; cls = "bg-green-100 text-green-800";
+    text = t("detail.nextStep.daHoanTat"); cls = "bg-green-100 text-green-800";
   } else if (kn.trang_thai === "Huy") {
-    text = `Đã hủy${kn.ly_do_huy ? ": " + kn.ly_do_huy : ""}`; cls = "bg-gray-200 text-ink-soft";
+    text = kn.ly_do_huy ? t("detail.nextStep.daHuyWithReason", { reason: kn.ly_do_huy }) : t("detail.nextStep.daHuy"); cls = "bg-gray-200 text-ink-soft";
   } else if (kn.trang_thai === "Cho tiep nhan") {
-    text = "Bước kế: CSKH tiếp nhận"; cls = "bg-red-100 text-red-800";
+    text = t("detail.nextStep.cskhTiepNhan"); cls = "bg-red-100 text-red-800";
   }
   return <span className={`rounded-lg px-2 py-1 text-xs font-semibold ${cls}`}>{text}</span>;
 }
 
 function FlagBadge({ value }: { value: string | null | undefined }) {
-  if (value === "Co do") return <span className="rounded-lg bg-red-600 px-2 py-0.5 text-xs font-bold text-white">⚑ CỜ ĐỎ</span>;
-  if (value === "Co vang") return <span className="rounded-lg bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">⚑ CỜ VÀNG</span>;
+  const { t } = useTranslation();
+  if (value === "Co do") return <span className="rounded-lg bg-red-600 px-2 py-0.5 text-xs font-bold text-white">{t("detail.flag.coDo")}</span>;
+  if (value === "Co vang") return <span className="rounded-lg bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">{t("detail.flag.coVang")}</span>;
   return null;
 }
 
 function CamCoButtons({ kn, canEdit, onSaved }: { kn: KhieuNai; canEdit: boolean; onSaved: () => void }) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const m = useMutation({
     mutationFn: (v: string) => api.patch(`/khieu-nai/${kn.id}`, { cam_co: v }),
     onSuccess: (_d, v) => {
-      showToast(v === "Khong co" ? "Đã bỏ cờ" : "Đã cắm cờ", "success");
+      showToast(v === "Khong co" ? t("detail.camCo.toastBoCo") : t("detail.camCo.toastCamCo"), "success");
       onSaved();
     },
-    onError: (e) => showToast(e instanceof ApiError ? `Lỗi: ${e.code}` : "Không cập nhật được cờ", "error"),
+    onError: (e) => showToast(e instanceof ApiError ? t("detail.camCo.toastErrorCode", { code: e.code }) : t("detail.camCo.toastErrorDefault"), "error"),
   });
   const cur = kn.cam_co ?? "Khong co";
   if (!canEdit) return <FlagBadge value={cur} />;
@@ -264,14 +281,14 @@ function CamCoButtons({ kn, canEdit, onSaved }: { kn: KhieuNai; canEdit: boolean
   const base = "rounded-lg px-2 py-0.5 text-xs font-semibold ring-1 ring-inset transition-colors disabled:opacity-50";
   return (
     <span className="flex items-center gap-1">
-      <span className="text-xs font-medium text-ink-soft">Cắm cờ:</span>
+      <span className="text-xs font-medium text-ink-soft">{t("detail.camCo.label")}</span>
       <button
         type="button"
         disabled={m.isPending}
         onClick={() => m.mutate("Co vang")}
         className={`${base} ${cur === "Co vang" ? "bg-amber-500 text-white ring-amber-500" : "bg-white text-amber-700 ring-amber-400 hover:bg-amber-50"}`}
       >
-        ⚑ Cờ vàng
+        {t("detail.camCo.vang")}
       </button>
       <button
         type="button"
@@ -279,7 +296,7 @@ function CamCoButtons({ kn, canEdit, onSaved }: { kn: KhieuNai; canEdit: boolean
         onClick={() => m.mutate("Co do")}
         className={`${base} ${cur === "Co do" ? "bg-red-600 text-white ring-red-600" : "bg-white text-red-700 ring-red-400 hover:bg-red-50"}`}
       >
-        ⚑ Cờ đỏ
+        {t("detail.camCo.do")}
       </button>
       {cur !== "Khong co" && (
         <button
@@ -288,7 +305,7 @@ function CamCoButtons({ kn, canEdit, onSaved }: { kn: KhieuNai; canEdit: boolean
           onClick={() => m.mutate("Khong co")}
           className={`${base} bg-white text-ink-soft ring-line hover:bg-surface-2`}
         >
-          Bỏ cờ
+          {t("detail.camCo.bo")}
         </button>
       )}
     </span>
@@ -315,6 +332,7 @@ const WARN_BELL_CLS: Record<WarnTone, string> = {
 // da dong ca) vao 1 icon (!) thu gon tren thanh tieu de - bam moi mo popover xem chi tiet, thay
 // vi de nhieu dai mau chiem het chieu cao header nhu truoc.
 function WarningBell({ warnings }: { warnings: WarnItem[] }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   if (warnings.length === 0) return null;
   const worst: WarnTone = warnings.some((w) => w.tone === "red")
@@ -327,7 +345,7 @@ function WarningBell({ warnings }: { warnings: WarnItem[] }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        title="Xem cảnh báo"
+        title={t("detail.warningBell.title")}
         className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ring-1 ring-inset ${WARN_BELL_CLS[worst]}`}
       >
         ⚠ {warnings.length}
@@ -348,13 +366,13 @@ function WarningBell({ warnings }: { warnings: WarnItem[] }) {
   );
 }
 
-function dongCaChecklist(kn: KhieuNai) {
+function dongCaChecklist(t: TFn, kn: KhieuNai) {
   return [
-    { label: "Lỗi NSX", ok: kn.loi_nha_san_xuat !== "Chua danh gia" },
-    { label: "Lỗi lắp đặt", ok: kn.loi_lap_dat !== "Chua danh gia" },
-    { label: "Lỗi thái độ KTV", ok: kn.loi_thai_do_ktv !== "Chua danh gia" },
-    { label: "Lỗi quy trình NSKX", ok: kn.loi_quy_trinh_nskx !== "Chua danh gia" },
-    { label: "Kết luận", ok: kn.ket_luan_khieu_nai !== "Chua danh gia" && kn.ket_luan_khieu_nai !== null },
+    { label: t("detail.checklist.loiNsx"), ok: kn.loi_nha_san_xuat !== "Chua danh gia" },
+    { label: t("detail.checklist.loiLapDat"), ok: kn.loi_lap_dat !== "Chua danh gia" },
+    { label: t("detail.checklist.loiThaiDoKtv"), ok: kn.loi_thai_do_ktv !== "Chua danh gia" },
+    { label: t("detail.checklist.loiQuyTrinhNskx"), ok: kn.loi_quy_trinh_nskx !== "Chua danh gia" },
+    { label: t("detail.checklist.ketLuan"), ok: kn.ket_luan_khieu_nai !== "Chua danh gia" && kn.ket_luan_khieu_nai !== null },
   ];
 }
 
@@ -374,6 +392,7 @@ export function KhieuNaiDetail({
   onChanged: () => void;
   onNavigate?: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { showToast } = useToast();
   const nameOf = useNameMap();
@@ -394,8 +413,8 @@ export function KhieuNaiDetail({
     setEditing(null);
   };
 
-  if (detail.isLoading) return <p className="p-8 text-center text-sm text-ink-soft">Đang tải...</p>;
-  if (detail.isError || !detail.data) return <p className="p-8 text-center text-sm text-red-600">Không tải được phản ánh.</p>;
+  if (detail.isLoading) return <p className="p-8 text-center text-sm text-ink-soft">{t("detail.loading")}</p>;
+  if (detail.isError || !detail.data) return <p className="p-8 text-center text-sm text-red-600">{t("detail.loadError")}</p>;
 
   const kn = detail.data.khieuNai;
   const tienTrinh = detail.data.tienTrinh;
@@ -432,18 +451,18 @@ export function KhieuNaiDetail({
 
   const copyId = () => {
     navigator.clipboard?.writeText(kn.id).then(
-      () => showToast(`Đã sao chép mã đơn ${kn.id}`, "success"),
-      () => showToast("Không sao chép được", "error"),
+      () => showToast(t("detail.header.copiedToast", { id: kn.id }), "success"),
+      () => showToast(t("detail.header.copyFailedToast"), "error"),
     );
   };
 
-  const checklist = dongCaChecklist(kn);
+  const checklist = dongCaChecklist(t, kn);
   const dongCaBlocked =
     (user.vai_tro === "TN CSKH" || user.vai_tro === "Admin") &&
     kn.trang_thai === "Dang xu ly" &&
     !checklist.every((c) => c.ok);
   // Số lượng dữ liệu mỗi tab bên phải (item 4) — chỉ hiện badge khi > 0, giống phong cách tab dvbh.
-  const giaiTrinhDvbhCount = giaiTrinhDvbhEvents(kn).length;
+  const giaiTrinhDvbhCount = giaiTrinhDvbhEvents(t, kn).length;
   const tabCounts: Record<RightTabKey, number> = {
     "tien-trinh": tienTrinh.length + lichSu.length,
     crm: [kn.ngay_tiep_nhan_crm, kn.ket_qua_crm, kn.thong_tin_xu_ly_crm, kn.ngay_ktv_hoan_thanh].filter(Boolean).length + giaiTrinhDvbhCount,
@@ -459,22 +478,24 @@ export function KhieuNaiDetail({
       + (kn.danh_gia_ql ? 1 : 0),
   };
   const rightTabs: TabItem[] = [
-    { key: "tien-trinh", label: "Tiến trình & lịch sử", count: tabCounts["tien-trinh"] },
-    { key: "crm", label: "Đồng bộ CRM Karofi", count: tabCounts.crm },
-    { key: "doi-may", label: "Thông tin khác", count: tabCounts["doi-may"] },
-    { key: "ket-luan", label: "Kết luận & đánh giá", count: tabCounts["ket-luan"] },
+    { key: "tien-trinh", label: t("detail.zone.tienTrinhLichSu"), count: tabCounts["tien-trinh"] },
+    { key: "crm", label: t("detail.zone.dongBoCrm"), count: tabCounts.crm },
+    { key: "doi-may", label: t("detail.zone.thongTinKhac"), count: tabCounts["doi-may"] },
+    { key: "ket-luan", label: t("detail.zone.ketLuanDanhGia"), count: tabCounts["ket-luan"] },
   ];
 
   // Kết quả ngắn gọn cho tiêu đề
   const ketLuanDone = kn.ket_luan_khieu_nai && kn.ket_luan_khieu_nai !== "Chua danh gia";
   const ketQua =
     kn.trang_thai === "Huy"
-      ? `Hủy${kn.ly_do_huy ? " · " + kn.ly_do_huy : ""}`
+      ? kn.ly_do_huy
+        ? t("detail.header.ketQuaHuyWithReason", { reason: kn.ly_do_huy })
+        : t("detail.header.ketQuaHuyNoReason")
       : kn.ket_qua_crm
         ? kn.ket_qua_crm
         : ketLuanDone
-          ? `Kết luận: ${translateDanhGia(kn.ket_luan_khieu_nai)}`
-          : "Chưa có kết quả";
+          ? t("detail.header.ketQuaKetLuan", { value: translateDanhGia(kn.ket_luan_khieu_nai) })
+          : t("detail.header.ketQuaChuaCo");
   const tocDo = fmtVN.gioXuLy(kn.ngay_tiep_nhan, isClosed ? kn.ngay_ket_thuc : null);
   const severityBg = MUC_DO_BG[mucDoTone(kn.muc_do)];
   const flagBorder = camCoBorderClass(kn.cam_co);
@@ -489,8 +510,8 @@ export function KhieuNaiDetail({
       tone: "red",
       content: (
         <span>
-          <span className="font-semibold">⚠ Chờ tiếp nhận</span> — phản ánh chưa được sửa/cập nhật cho đến khi được tiếp nhận.
-          {!canTiepNhan && <span className="italic text-red-800"> Đang chờ CSKH/TN CSKH/QL tiếp nhận…</span>}
+          <span className="font-semibold">{t("detail.warnings.choTiepNhanBold")}</span>{t("detail.warnings.choTiepNhanPost")}
+          {!canTiepNhan && <span className="italic text-red-800">{t("detail.warnings.dangChoTiepNhan")}</span>}
         </span>
       ),
     });
@@ -500,7 +521,7 @@ export function KhieuNaiDetail({
       tone: "amber",
       content: (
         <>
-          <span className="font-semibold">Chưa đủ điều kiện đóng ca:</span>{" "}
+          <span className="font-semibold">{t("detail.warnings.chuaDuDieuKienBold")}</span>{" "}
           {checklist.map((c) => (
             <span key={c.label} className={`mr-2 inline-block ${c.ok ? "text-green-700" : "font-medium"}`}>
               {c.ok ? "✓" : "✗"} {c.label}
@@ -515,10 +536,10 @@ export function KhieuNaiDetail({
       tone: "red",
       content: (
         <>
-          <span className="font-semibold">⚠ Quá hạn giải trình lý do chậm</span>
-          {giaiTrinhDeadline && <span> (mốc {fmtVN.dateTime(giaiTrinhDeadline)})</span>} — mọi mục sửa khác đã bị khoá.
-          Bấm <span className="font-semibold">“+ Ghi chú”</span> ở khu Tiến trình &amp; lịch sử, điền đủ{" "}
-          <span className="font-semibold">Nội dung ghi chép</span> và <span className="font-semibold">Lý do xử lý chậm</span> để mở khoá lại.
+          <span className="font-semibold">{t("detail.warnings.quaHanBold")}</span>
+          {giaiTrinhDeadline && <span>{t("detail.warnings.quaHanMoc", { date: fmtVN.dateTime(giaiTrinhDeadline) })}</span>}{t("detail.warnings.quaHanPre")}
+          <span className="font-semibold">{t("detail.warnings.quaHanGhiChuBold")}</span>{t("detail.warnings.quaHanMid1")}
+          <span className="font-semibold">{t("detail.warnings.quaHanNoiDungBold")}</span>{t("detail.warnings.quaHanMid2")}<span className="font-semibold">{t("detail.warnings.quaHanLyDoBold")}</span>{t("detail.warnings.quaHanPost")}
         </>
       ),
     });
@@ -528,7 +549,7 @@ export function KhieuNaiDetail({
       tone: "gray",
       content: (
         <div className="flex items-center justify-between gap-2">
-          <span>Ca đã kết thúc — chỉ xem. Mọi thay đổi đã bị khoá.</span>
+          <span>{t("detail.warnings.daKetThuc")}</span>
           {user.vai_tro === "Admin" && <MoLaiButton id={id} onDone={invalidate} onError={(m) => showToast(m, "error")} />}
         </div>
       ),
@@ -546,16 +567,16 @@ export function KhieuNaiDetail({
             type="button"
             onClick={copyId}
             className="rounded border border-line px-2 py-0.5 font-mono text-xs text-ink-soft hover:bg-surface-2"
-            title="Sao chép mã đơn — gửi cho người cần xem"
+            title={t("detail.header.copyIdTitle")}
           >
             {kn.id} ⧉
           </button>
           <span className="text-sm">
-            <span className="text-ink-soft">Kết quả: </span>
+            <span className="text-ink-soft">{t("detail.header.ketQuaLabel")}</span>
             <span className="font-semibold text-ink">{ketQua}</span>
           </span>
           <span className="text-sm">
-            <span className="text-ink-soft">Tốc độ: </span>
+            <span className="text-ink-soft">{t("detail.header.tocDoLabel")}</span>
             <span className="font-semibold text-ink">{tocDo}</span>
           </span>
           <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -565,7 +586,7 @@ export function KhieuNaiDetail({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Đóng"
+              aria-label={t("detail.header.close")}
               className="rounded p-1 text-ink-soft hover:bg-accent-soft hover:text-ink"
             >
               ✕
@@ -576,8 +597,8 @@ export function KhieuNaiDetail({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line px-3 py-1.5 text-xs">
           <NextStepChip kn={kn} />
           <NguoiPhuTrachInline kn={kn} user={user} canEdit={canPhuTrach} onSaved={invalidate} nameOf={nameOf} />
-          <span className="text-ink-soft">· Tiếp nhận {fmtVN.dateTime(kn.ngay_tiep_nhan)}</span>
-          <span className="text-ink-soft">· Cập nhật {fmtVN.relative(kn.ngay_thay_doi)}</span>
+          <span className="text-ink-soft">{t("detail.header.tiepNhanAt", { date: fmtVN.dateTime(kn.ngay_tiep_nhan) })}</span>
+          <span className="text-ink-soft">{t("detail.header.capNhatAt", { date: fmtVN.relative(kn.ngay_thay_doi) })}</span>
           <div className="ml-auto">
             <CamCoButtons kn={kn} canEdit={canXuLyDoiMay} onSaved={invalidate} />
           </div>
@@ -591,12 +612,12 @@ export function KhieuNaiDetail({
             <Zone
               accent="slate"
               icon={ICON.doc}
-              title="Thông tin đầu vào"
-              actions={canEditThongTin && <ZoneBtn onClick={() => setEditing("khach")}>Sửa</ZoneBtn>}
+              title={t("detail.zone.thongTinDauVao")}
+              actions={canEditThongTin && <ZoneBtn onClick={() => setEditing("khach")}>{t("detail.actions.sua")}</ZoneBtn>}
             >
               <CustomerInfoSection kn={kn} editable={false} onSaved={invalidate} />
             </Zone>
-            <Zone accent="green" icon={ICON.media} title={`Ảnh / video đính kèm (${dinhKem.length})`}>
+            <Zone accent="green" icon={ICON.media} title={t("detail.zone.anhVideoCount", { n: dinhKem.length })}>
               <DinhKemSection khieuNaiId={id} items={dinhKem} canEdit={canDinhKem} onSaved={invalidate} />
             </Zone>
             {related.length > 0 && <RelatedList items={related} onNavigate={onNavigate} />}
@@ -612,8 +633,8 @@ export function KhieuNaiDetail({
                 <Zone
                   accent="violet"
                   icon={ICON.log}
-                  title="Tiến trình & lịch sử"
-                  actions={canThemTienTrinh && <ZoneBtn onClick={() => setEditing("log")}>+ Ghi chú</ZoneBtn>}
+                  title={t("detail.zone.tienTrinhLichSu")}
+                  actions={canThemTienTrinh && <ZoneBtn onClick={() => setEditing("log")}>{t("detail.actions.themGhiChu")}</ZoneBtn>}
                 >
                   <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem={false} onSaved={invalidate} />
                 </Zone>
@@ -623,8 +644,8 @@ export function KhieuNaiDetail({
                 <Zone
                   accent="teal"
                   icon={ICON.sync}
-                  title="Đồng bộ CRM Karofi"
-                  actions={isCskh && <ZoneBtn onClick={() => setEditing("crm")}>Sửa ID CRM</ZoneBtn>}
+                  title={t("detail.zone.dongBoCrm")}
+                  actions={isCskh && <ZoneBtn onClick={() => setEditing("crm")}>{t("detail.actions.suaIdCrm")}</ZoneBtn>}
                 >
                   <CrmSection kn={kn} user={user} onSaved={invalidate} forceEditable={false} />
                 </Zone>
@@ -634,8 +655,8 @@ export function KhieuNaiDetail({
                 <Zone
                   accent="amber"
                   icon={ICON.swap}
-                  title="Thông tin khác"
-                  actions={canXuLyDoiMay && <ZoneBtn onClick={() => setEditing("doimay")}>Sửa</ZoneBtn>}
+                  title={t("detail.zone.thongTinKhac")}
+                  actions={canXuLyDoiMay && <ZoneBtn onClick={() => setEditing("doimay")}>{t("detail.actions.sua")}</ZoneBtn>}
                 >
                   <DoiMaySection kn={kn} editable={false} onSaved={invalidate} />
                 </Zone>
@@ -645,21 +666,21 @@ export function KhieuNaiDetail({
                 <Zone
                   accent="rose"
                   icon={ICON.scale}
-                  title="Kết luận & đánh giá"
+                  title={t("detail.zone.ketLuanDanhGia")}
                   actions={
                     <>
-                      {canDanhGia4Loi && <ZoneBtn onClick={() => setEditing("loi")}>Đánh giá lỗi</ZoneBtn>}
-                      {isQl && <ZoneBtn onClick={() => setEditing("ql")}>Đánh giá QL</ZoneBtn>}
+                      {canDanhGia4Loi && <ZoneBtn onClick={() => setEditing("loi")}>{t("detail.actions.danhGiaLoi")}</ZoneBtn>}
+                      {isQl && <ZoneBtn onClick={() => setEditing("ql")}>{t("detail.actions.danhGiaQl")}</ZoneBtn>}
                     </>
                   }
                 >
                   <div className="space-y-2">
                     <div>
-                      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Nguyên nhân lỗi · điều kiện đóng ca</p>
+                      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("detail.zone.nguyenNhanLoi")}</p>
                       <TnCskhSection kn={kn} editable={false} onSaved={invalidate} />
                     </div>
                     <div className="border-t border-line pt-3">
-                      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Đánh giá QL · điều kiện chốt</p>
+                      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("detail.zone.danhGiaQlDieuKien")}</p>
                       <QlSection kn={kn} editable={false} onSaved={invalidate} />
                     </div>
                   </div>
@@ -673,13 +694,13 @@ export function KhieuNaiDetail({
               <Zone
                 accent="violet"
                 icon={ICON.log}
-                title="Tiến trình & lịch sử"
+                title={t("detail.zone.tienTrinhLichSu")}
                 collapsible
                 defaultOpen
                 actions={
                   <>
                     {tabCounts["tien-trinh"] > 0 && <ZoneCountBadge n={tabCounts["tien-trinh"]} />}
-                    {canThemTienTrinh && <ZoneBtn onClick={() => setEditing("log")}>+ Ghi chú</ZoneBtn>}
+                    {canThemTienTrinh && <ZoneBtn onClick={() => setEditing("log")}>{t("detail.actions.themGhiChu")}</ZoneBtn>}
                   </>
                 }
               >
@@ -689,13 +710,13 @@ export function KhieuNaiDetail({
               <Zone
                 accent="teal"
                 icon={ICON.sync}
-                title="Đồng bộ CRM Karofi"
+                title={t("detail.zone.dongBoCrm")}
                 collapsible
                 defaultOpen={false}
                 actions={
                   <>
                     {tabCounts.crm > 0 && <ZoneCountBadge n={tabCounts.crm} />}
-                    {isCskh && <ZoneBtn onClick={() => setEditing("crm")}>Sửa ID CRM</ZoneBtn>}
+                    {isCskh && <ZoneBtn onClick={() => setEditing("crm")}>{t("detail.actions.suaIdCrm")}</ZoneBtn>}
                   </>
                 }
               >
@@ -705,13 +726,13 @@ export function KhieuNaiDetail({
               <Zone
                 accent="amber"
                 icon={ICON.swap}
-                title="Thông tin khác"
+                title={t("detail.zone.thongTinKhac")}
                 collapsible
                 defaultOpen={false}
                 actions={
                   <>
                     {tabCounts["doi-may"] > 0 && <ZoneCountBadge n={tabCounts["doi-may"]} />}
-                    {canXuLyDoiMay && <ZoneBtn onClick={() => setEditing("doimay")}>Sửa</ZoneBtn>}
+                    {canXuLyDoiMay && <ZoneBtn onClick={() => setEditing("doimay")}>{t("detail.actions.sua")}</ZoneBtn>}
                   </>
                 }
               >
@@ -721,24 +742,24 @@ export function KhieuNaiDetail({
               <Zone
                 accent="rose"
                 icon={ICON.scale}
-                title="Kết luận & đánh giá"
+                title={t("detail.zone.ketLuanDanhGia")}
                 collapsible
                 defaultOpen
                 actions={
                   <>
                     {tabCounts["ket-luan"] > 0 && <ZoneCountBadge n={tabCounts["ket-luan"]} />}
-                    {canDanhGia4Loi && <ZoneBtn onClick={() => setEditing("loi")}>Đánh giá lỗi</ZoneBtn>}
-                    {isQl && <ZoneBtn onClick={() => setEditing("ql")}>Đánh giá QL</ZoneBtn>}
+                    {canDanhGia4Loi && <ZoneBtn onClick={() => setEditing("loi")}>{t("detail.actions.danhGiaLoi")}</ZoneBtn>}
+                    {isQl && <ZoneBtn onClick={() => setEditing("ql")}>{t("detail.actions.danhGiaQl")}</ZoneBtn>}
                   </>
                 }
               >
                 <div className="space-y-2">
                   <div>
-                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Nguyên nhân lỗi · điều kiện đóng ca</p>
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("detail.zone.nguyenNhanLoi")}</p>
                     <TnCskhSection kn={kn} editable={false} onSaved={invalidate} />
                   </div>
                   <div className="border-t border-line pt-3">
-                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">Đánh giá QL · điều kiện chốt</p>
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("detail.zone.danhGiaQlDieuKien")}</p>
                     <QlSection kn={kn} editable={false} onSaved={invalidate} />
                   </div>
                 </div>
@@ -750,32 +771,32 @@ export function KhieuNaiDetail({
 
       {/* ===== POPUP NHẬP LIỆU RIÊNG TỪNG MỤC ===== */}
       {editing === "khach" && (
-        <EditDialog title="Sửa thông tin đầu vào" onClose={() => setEditing(null)}>
+        <EditDialog title={t("detail.editDialog.suaThongTinDauVao")} onClose={() => setEditing(null)}>
           <CustomerInfoSection kn={kn} editable onSaved={savedAndClose} />
         </EditDialog>
       )}
       {editing === "log" && (
-        <EditDialog title="Thêm ghi chú tiến trình" onClose={() => setEditing(null)}>
+        <EditDialog title={t("detail.editDialog.themGhiChuTienTrinh")} onClose={() => setEditing(null)}>
           <TienTrinhSection id={id} items={tienTrinh} lichSu={lichSu} canThem addOnly overdue={overdue} onSaved={savedAndClose} />
         </EditDialog>
       )}
       {editing === "crm" && (
-        <EditDialog title="Sửa ID CRM Karofi" onClose={() => setEditing(null)}>
+        <EditDialog title={t("detail.editDialog.suaIdCrmKarofi")} onClose={() => setEditing(null)}>
           <CrmSection kn={kn} user={user} onSaved={savedAndClose} forceEditable />
         </EditDialog>
       )}
       {editing === "doimay" && (
-        <EditDialog title="Thông tin khác" onClose={() => setEditing(null)}>
+        <EditDialog title={t("detail.editDialog.thongTinKhac")} onClose={() => setEditing(null)}>
           <DoiMaySection kn={kn} editable onSaved={savedAndClose} />
         </EditDialog>
       )}
       {editing === "loi" && (
-        <EditDialog title="Đánh giá nguyên nhân lỗi" onClose={() => setEditing(null)}>
+        <EditDialog title={t("detail.editDialog.danhGiaNguyenNhanLoi")} onClose={() => setEditing(null)}>
           <TnCskhSection kn={kn} editable onSaved={savedAndClose} />
         </EditDialog>
       )}
       {editing === "ql" && (
-        <EditDialog title="Đánh giá QL" onClose={() => setEditing(null)}>
+        <EditDialog title={t("detail.editDialog.danhGiaQl")} onClose={() => setEditing(null)}>
           <QlSection kn={kn} editable onSaved={savedAndClose} />
         </EditDialog>
       )}
@@ -814,6 +835,7 @@ function DinhKemSection({
   canEdit: boolean;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const [busy, setBusy] = useState(false);
   const anhItems = items.filter((i) => i.loai === "anh");
@@ -829,17 +851,17 @@ function DinhKemSection({
     onSuccess: () => onSaved(),
     onError: (err) => {
       const code = err instanceof ApiError ? err.code : "UPLOAD_FAILED";
-      showToast(DINH_KEM_ERROR_MESSAGES[code] ?? "Tải lên thất bại", "error");
+      showToast(DINH_KEM_ERROR_MESSAGES[code] ?? t("detail.dinhKem.toastUploadFailedDefault"), "error");
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (dinhKemId: string) => api.delete(`/khieu-nai/${khieuNaiId}/dinh-kem/${dinhKemId}`),
     onSuccess: () => {
-      showToast("Đã xoá", "success");
+      showToast(t("detail.dinhKem.toastDaXoa"), "success");
       onSaved();
     },
-    onError: () => showToast("Xoá thất bại", "error"),
+    onError: () => showToast(t("detail.dinhKem.toastXoaThatBai"), "error"),
   });
 
   const handleAnhChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -848,7 +870,7 @@ function DinhKemSection({
     if (files.length === 0) return;
     const remain = DINH_KEM_MAX_ANH - anhItems.length;
     if (remain <= 0) {
-      showToast(`Tối đa ${DINH_KEM_MAX_ANH} ảnh`, "error");
+      showToast(t("detail.dinhKem.toastMaxAnh", { max: DINH_KEM_MAX_ANH }), "error");
       return;
     }
     setBusy(true);
@@ -868,20 +890,20 @@ function DinhKemSection({
     if (files.length === 0) return;
     const remain = DINH_KEM_MAX_VIDEO - videoItems.length;
     if (remain <= 0) {
-      showToast(`Tối đa ${DINH_KEM_MAX_VIDEO} video`, "error");
+      showToast(t("detail.dinhKem.toastMaxVideo", { max: DINH_KEM_MAX_VIDEO }), "error");
       return;
     }
     setBusy(true);
     try {
       for (const file of files.slice(0, remain)) {
         if (file.size > VIDEO_MAX_BYTES) {
-          showToast(`Video "${file.name}" vượt quá ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)}MB`, "error");
+          showToast(t("detail.dinhKem.toastVideoQuaLon", { name: file.name, mb: Math.round(VIDEO_MAX_BYTES / 1024 / 1024) }), "error");
           continue;
         }
         try {
           const duration = await readVideoDuration(file);
           if (duration > VIDEO_MAX_DURATION_S) {
-            showToast(`Video "${file.name}" dài quá ${VIDEO_MAX_DURATION_S}s`, "error");
+            showToast(t("detail.dinhKem.toastVideoQuaDai", { name: file.name, s: VIDEO_MAX_DURATION_S }), "error");
             continue;
           }
         } catch {
@@ -896,7 +918,7 @@ function DinhKemSection({
   };
 
   if (!canEdit && items.length === 0) {
-    return <p className="text-[13px] text-ink-faint">Không có ảnh/video đính kèm.</p>;
+    return <p className="text-[13px] text-ink-faint">{t("detail.dinhKem.khongCo")}</p>;
   }
 
   return (
@@ -904,11 +926,11 @@ function DinhKemSection({
       <div>
         <div className="mb-1.5 flex items-center justify-between">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-            Ảnh ({anhItems.length}/{DINH_KEM_MAX_ANH})
+            {t("detail.dinhKem.anhCount", { n: anhItems.length, max: DINH_KEM_MAX_ANH })}
           </p>
           {canEdit && anhItems.length < DINH_KEM_MAX_ANH && (
             <label className="cursor-pointer rounded-lg border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-surface-2">
-              + Thêm ảnh
+              {t("detail.dinhKem.themAnh")}
               <input type="file" accept="image/*" multiple className="hidden" disabled={busy} onChange={handleAnhChange} />
             </label>
           )}
@@ -934,18 +956,18 @@ function DinhKemSection({
             ))}
           </div>
         ) : (
-          <p className="text-[12px] text-ink-faint">Chưa có ảnh</p>
+          <p className="text-[12px] text-ink-faint">{t("detail.dinhKem.chuaCoAnh")}</p>
         )}
       </div>
 
       <div>
         <div className="mb-1.5 flex items-center justify-between">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-            Video ({videoItems.length}/{DINH_KEM_MAX_VIDEO})
+            {t("detail.dinhKem.videoCount", { n: videoItems.length, max: DINH_KEM_MAX_VIDEO })}
           </p>
           {canEdit && videoItems.length < DINH_KEM_MAX_VIDEO && (
             <label className="cursor-pointer rounded-lg border border-line bg-white px-2 py-0.5 text-xs font-semibold shadow-card hover:bg-surface-2">
-              + Thêm video
+              {t("detail.dinhKem.themVideo")}
               <input type="file" accept="video/*" multiple className="hidden" disabled={busy} onChange={handleVideoChange} />
             </label>
           )}
@@ -961,7 +983,7 @@ function DinhKemSection({
                   rel="noreferrer"
                   className="flex-1 truncate text-[13px] text-accent hover:underline"
                 >
-                  {item.ten_file ?? "Video"}
+                  {item.ten_file ?? t("detail.dinhKem.videoFallbackName")}
                 </a>
                 {canEdit && (
                   <button
@@ -970,17 +992,17 @@ function DinhKemSection({
                     disabled={deleteMutation.isPending}
                     className="rounded px-1.5 py-0.5 text-xs text-red-600 hover:bg-red-50"
                   >
-                    Xoá
+                    {t("detail.dinhKem.xoa")}
                   </button>
                 )}
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-[12px] text-ink-faint">Chưa có video</p>
+          <p className="text-[12px] text-ink-faint">{t("detail.dinhKem.chuaCoVideo")}</p>
         )}
       </div>
-      {busy && <p className="text-[12px] text-accent">Đang tải lên...</p>}
+      {busy && <p className="text-[12px] text-accent">{t("detail.dinhKem.dangTaiLen")}</p>}
     </div>
   );
 }
@@ -989,10 +1011,11 @@ function DinhKemSection({
 // giao nhau) - giup nguoi xu ly phat hien nhanh cac ca lien quan (vd may da doi van bi khieu nai
 // lai, hoac cung 1 case CRM tach nhieu phan anh).
 function RelatedList({ items, onNavigate }: { items: RelatedItem[]; onNavigate?: (id: string) => void }) {
+  const { t } = useTranslation();
   return (
     <section className="overflow-hidden rounded-lg border border-l-4 border-line border-l-gray-400 bg-surface shadow-card">
       <header className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-1.5">
-        <h3 className="text-[13px] font-bold uppercase tracking-wide text-ink-soft">Đơn liên quan ({items.length})</h3>
+        <h3 className="text-[13px] font-bold uppercase tracking-wide text-ink-soft">{t("detail.related.title", { n: items.length })}</h3>
       </header>
       <div className="flex flex-col divide-y divide-line px-1 py-1">
         {items.map((it) => (
@@ -1019,6 +1042,7 @@ function RelatedList({ items, onNavigate }: { items: RelatedItem[]; onNavigate?:
 }
 
 function EditDialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const { t } = useTranslation();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -1039,7 +1063,7 @@ function EditDialog({ title, onClose, children }: { title: string; onClose: () =
       <div className="w-full max-w-3xl rounded-lg bg-surface shadow-2xl">
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <h3 className="text-sm font-semibold text-ink">{title}</h3>
-          <button type="button" onClick={onClose} aria-label="Đóng" className="rounded p-1 text-ink-soft hover:bg-accent-soft hover:text-ink">
+          <button type="button" onClick={onClose} aria-label={t("detail.header.close")} className="rounded p-1 text-ink-soft hover:bg-accent-soft hover:text-ink">
             ✕
           </button>
         </div>
@@ -1058,11 +1082,12 @@ function NguoiPhuTrachInline({
   onSaved: () => void;
   nameOf: (e: string | null | undefined) => string;
 }) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const m = useMutation({
     mutationFn: (email: string | null) => api.post(`/khieu-nai/${kn.id}/phu-trach`, { email }),
-    onSuccess: () => { showToast("Đã cập nhật người phụ trách", "success"); onSaved(); },
-    onError: (e) => showToast(e instanceof ApiError ? `Lỗi: ${e.code}` : "Lỗi", "error"),
+    onSuccess: () => { showToast(t("detail.phuTrach.toastSuccess"), "success"); onSaved(); },
+    onError: (e) => showToast(e instanceof ApiError ? t("detail.phuTrach.toastErrorCode", { code: e.code }) : t("detail.phuTrach.toastErrorDefault"), "error"),
   });
   const mine = kn.nguoi_phu_trach === user.email;
   // Item: lam noi bat nguoi phu trach (PT) - ai cung de dang thay ngay ai dang xu ly ca nay, thay
@@ -1074,48 +1099,50 @@ function NguoiPhuTrachInline({
       }`}
     >
       <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/70 text-[10px]">👤</span>
-      {kn.nguoi_phu_trach ? nameOf(kn.nguoi_phu_trach) : "Chưa có người phụ trách"}
+      {kn.nguoi_phu_trach ? nameOf(kn.nguoi_phu_trach) : t("detail.phuTrach.chuaCo")}
       {canEdit && !mine && (
         <button type="button" disabled={m.isPending} onClick={() => m.mutate(user.email)} className="rounded border border-accent/40 bg-white px-1.5 py-0.5 font-medium text-accent hover:bg-accent-soft">
-          Nhận
+          {t("detail.phuTrach.nhan")}
         </button>
       )}
       {canEdit && kn.nguoi_phu_trach && (
-        <button type="button" disabled={m.isPending} onClick={() => m.mutate(null)} className="text-ink-faint hover:text-ink">Gỡ</button>
+        <button type="button" disabled={m.isPending} onClick={() => m.mutate(null)} className="text-ink-faint hover:text-ink">{t("detail.phuTrach.go")}</button>
       )}
     </span>
   );
 }
 
 function TiepNhanButton({ id, onDone, onError }: { id: string; onDone: () => void; onError: (m: string) => void }) {
+  const { t } = useTranslation();
   const m = useMutation({
     mutationFn: () => api.post<{ khieuNai: KhieuNai }>(`/khieu-nai/${id}/tiep-nhan`),
     onSuccess: onDone,
-    onError: (e) => onError(e instanceof ApiError ? `Tiếp nhận thất bại: ${e.code}` : "Tiếp nhận thất bại"),
+    onError: (e) => onError(e instanceof ApiError ? t("detail.tiepNhan.failedCode", { code: e.code }) : t("detail.tiepNhan.failedDefault")),
   });
   return (
     <Btn variant="primary" size="sm" disabled={m.isPending} onClick={() => m.mutate()}>
-      {m.isPending ? "Đang tiếp nhận..." : "✓ Tiếp nhận phản ánh"}
+      {m.isPending ? t("detail.tiepNhan.buttonLoading") : t("detail.tiepNhan.button")}
     </Btn>
   );
 }
 
 function MoLaiButton({ id, onDone, onError }: { id: string; onDone: () => void; onError: (m: string) => void }) {
+  const { t } = useTranslation();
   const m = useMutation({
     mutationFn: (ly_do: string) => api.post(`/khieu-nai/${id}/mo-lai`, { ly_do }),
     onSuccess: onDone,
-    onError: (e) => onError(e instanceof ApiError ? `Mở lại thất bại: ${e.code}` : "Mở lại thất bại"),
+    onError: (e) => onError(e instanceof ApiError ? t("detail.moLai.failedCode", { code: e.code }) : t("detail.moLai.failedDefault")),
   });
   return (
     <button
       type="button"
       className="rounded border border-line bg-white px-2 py-1 text-xs font-medium text-ink hover:bg-surface-2"
       onClick={() => {
-        const ly_do = window.prompt("Lý do mở lại ca (bắt buộc):");
+        const ly_do = window.prompt(t("detail.moLai.promptLyDo"));
         if (ly_do && ly_do.trim()) m.mutate(ly_do.trim());
       }}
     >
-      Mở lại ca
+      {t("detail.moLai.button")}
     </button>
   );
 }
@@ -1123,6 +1150,7 @@ function MoLaiButton({ id, onDone, onError }: { id: string; onDone: () => void; 
 // ---------- Thông tin khách hàng ----------
 
 function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean; onSaved: () => void }) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const mucDoOpts = useSettingsOptions("muc_do");
   const nhomYeuCauOpts = useSettingsOptions("nhom_yeu_cau");
@@ -1194,10 +1222,10 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
       return api.patch<{ khieuNai: KhieuNai }>(`/khieu-nai/${kn.id}`, body);
     },
     onSuccess: () => {
-      showToast("Đã lưu thông tin khách hàng", "success");
+      showToast(t("detail.customerInfo.toastSuccess"), "success");
       onSaved();
     },
-    onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
+    onError: (err) => showToast(err instanceof ApiError ? t("detail.customerInfo.toastErrorCode", { code: err.code }) : t("detail.customerInfo.toastErrorDefault"), "error"),
   });
 
   const filteredVanDeDauVao = (vanDeDauVaoOpts.data ?? []).filter(
@@ -1215,49 +1243,49 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
   if (!editable) {
     return (
       <>
-        <p className={groupLabelCls}>Thông tin khách hàng</p>
+        <p className={groupLabelCls}>{t("detail.customerInfo.heading")}</p>
         <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
-          <ReadField label="Phân loại KH" value={kn.phan_loai_kh} />
-          <ReadField label="Tên khách hàng" value={kn.ten_khach} />
-          <ReadField label="Số điện thoại" value={kn.sdt_khach} />
-          <ReadField label="ID Lada" value={kn.id_lada} />
-          <ReadField label="ID Truy xuất" value={kn.id_truy_van} />
+          <ReadField label={t("detail.customerInfo.phanLoaiKh")} value={kn.phan_loai_kh} />
+          <ReadField label={t("detail.customerInfo.tenKhach")} value={kn.ten_khach} />
+          <ReadField label={t("detail.customerInfo.sdt")} value={kn.sdt_khach} />
+          <ReadField label={t("detail.customerInfo.idLada")} value={kn.id_lada} />
+          <ReadField label={t("detail.customerInfo.idTruyXuat")} value={kn.id_truy_van} />
         </div>
 
-        <p className={groupLabelClsNotFirst}>Địa chỉ</p>
+        <p className={groupLabelClsNotFirst}>{t("detail.customerInfo.headingDiaChi")}</p>
         <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
-          <ReadField label="Tỉnh (cũ)" value={kn.tinh} />
-          <ReadField label="Quận/Huyện (cũ)" value={kn.quan_huyen} />
-          <ReadField label="Phường/Xã (cũ)" value={kn.phuong_xa} />
-          <ReadField label="Tỉnh (mới)" value={kn.tinh_moi} />
-          <ReadField label="Phường/Xã (mới)" value={kn.phuong_xa_moi} />
+          <ReadField label={t("detail.customerInfo.tinhCu")} value={kn.tinh} />
+          <ReadField label={t("detail.customerInfo.quanHuyenCu")} value={kn.quan_huyen} />
+          <ReadField label={t("detail.customerInfo.phuongXaCu")} value={kn.phuong_xa} />
+          <ReadField label={t("detail.customerInfo.tinhMoi")} value={kn.tinh_moi} />
+          <ReadField label={t("detail.customerInfo.phuongXaMoi")} value={kn.phuong_xa_moi} />
         </div>
 
-        <p className={groupLabelClsNotFirst}>Thông tin nguồn</p>
+        <p className={groupLabelClsNotFirst}>{t("detail.customerInfo.headingNguon")}</p>
         <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
-          <ReadField label="Người báo" value={kn.nguoi_bao} />
-          <ReadField label="Nguồn" value={kn.nguon ? (NGUON_LABEL[kn.nguon] ?? kn.nguon) : null} />
-          <ReadField label="Sale khu vực" value={kn.sale_khu_vuc} />
+          <ReadField label={t("detail.customerInfo.nguoiBao")} value={kn.nguoi_bao} />
+          <ReadField label={t("detail.customerInfo.nguon")} value={kn.nguon ? (NGUON_LABEL[kn.nguon] ?? kn.nguon) : null} />
+          <ReadField label={t("detail.customerInfo.saleKhuVuc")} value={kn.sale_khu_vuc} />
         </div>
 
-        <p className={groupLabelClsNotFirst}>Thông tin sản phẩm</p>
+        <p className={groupLabelClsNotFirst}>{t("detail.customerInfo.headingSanPham")}</p>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-          <ReadField label="Model" value={kn.model} />
-          <ReadField label="Hãng" value={kn.hang} />
+          <ReadField label={t("detail.customerInfo.model")} value={kn.model} />
+          <ReadField label={t("detail.customerInfo.hang")} value={kn.hang} />
         </div>
 
-        <p className={groupLabelClsNotFirst}>Thông tin phản ánh</p>
+        <p className={groupLabelClsNotFirst}>{t("detail.customerInfo.headingPhanAnh")}</p>
         <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
-          <ReadField label="Nhóm vấn đề" value={kn.nhom_van_de} />
-          <ReadField label="Nhóm yêu cầu" value={kn.nhom_yeu_cau} />
-          <ReadField label="Mức độ" value={kn.muc_do} />
-          <ReadField label="Vấn đề đầu vào" value={kn.van_de_dau_vao} />
+          <ReadField label={t("detail.customerInfo.nhomVanDe")} value={kn.nhom_van_de} />
+          <ReadField label={t("detail.customerInfo.nhomYeuCau")} value={kn.nhom_yeu_cau} />
+          <ReadField label={t("detail.customerInfo.mucDo")} value={kn.muc_do} />
+          <ReadField label={t("detail.customerInfo.vanDeDauVao")} value={kn.van_de_dau_vao} />
         </div>
         <div className="mt-2">
-          <ReadField label="Thông tin ban đầu" value={kn.thong_tin_ban_dau} />
+          <ReadField label={t("detail.customerInfo.thongTinBanDau")} value={kn.thong_tin_ban_dau} />
         </div>
         <div className="mt-2">
-          <ReadField label="Ghi chú người tạo" value={kn.ghi_chu_nguoi_tao} />
+          <ReadField label={t("detail.customerInfo.ghiChuNguoiTao")} value={kn.ghi_chu_nguoi_tao} />
         </div>
       </>
     );
@@ -1271,34 +1299,34 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
     <>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <fieldset className={fieldsetCls}>
-          <legend className={legendCls}>Thông tin khách hàng</legend>
+          <legend className={legendCls}>{t("detail.customerInfo.heading")}</legend>
           <div className={fieldGridCls}>
-            <Field label="Phân loại KH">
+            <Field label={t("detail.customerInfo.phanLoaiKh")}>
               <Combobox
                 options={(phanLoaiKhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.phan_loai_kh}
                 onChange={(v) => setField("phan_loai_kh", v)}
               />
             </Field>
-            <Field label="Tên khách hàng">
+            <Field label={t("detail.customerInfo.tenKhach")}>
               <Input value={form.ten_khach} onChange={(e) => setField("ten_khach", e.target.value)} />
             </Field>
-            <Field label="Số điện thoại">
+            <Field label={t("detail.customerInfo.sdt")}>
               <Input value={form.sdt_khach} onChange={(e) => setField("sdt_khach", e.target.value)} inputMode="tel" />
             </Field>
-            <Field label="ID Lada">
+            <Field label={t("detail.customerInfo.idLada")}>
               <Input value={form.id_lada} onChange={(e) => setField("id_lada", e.target.value)} />
             </Field>
-            <Field label="ID Truy xuất">
+            <Field label={t("detail.customerInfo.idTruyXuat")}>
               <Input value={form.id_truy_van} onChange={(e) => setField("id_truy_van", e.target.value)} />
             </Field>
           </div>
         </fieldset>
 
         <fieldset className={fieldsetCls}>
-          <legend className={legendCls}>Địa chỉ</legend>
+          <legend className={legendCls}>{t("detail.customerInfo.headingDiaChi")}</legend>
           <div className={fieldGridCls}>
-            <Field label="Tỉnh (cũ)">
+            <Field label={t("detail.customerInfo.tinhCu")}>
               <Combobox
                 options={(tinhOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.tinh}
@@ -1307,7 +1335,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
                 onCreate={createTinh}
               />
             </Field>
-            <Field label="Quận/Huyện (cũ)">
+            <Field label={t("detail.customerInfo.quanHuyenCu")}>
               <Combobox
                 options={(quanHuyenOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.quan_huyen}
@@ -1317,7 +1345,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
                 onCreate={(v) => createQuanHuyen(v, form.tinh)}
               />
             </Field>
-            <Field label="Phường/Xã (cũ)">
+            <Field label={t("detail.customerInfo.phuongXaCu")}>
               <Combobox
                 options={(phuongXaOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.phuong_xa}
@@ -1327,7 +1355,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
                 onCreate={(v) => createPhuongXa(v, form.quan_huyen)}
               />
             </Field>
-            <Field label="Tỉnh (mới)">
+            <Field label={t("detail.customerInfo.tinhMoi")}>
               <Combobox
                 options={(tinhMoiOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.tinh_moi}
@@ -1336,7 +1364,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
                 onCreate={createTinhMoi}
               />
             </Field>
-            <Field label="Phường/Xã (mới)">
+            <Field label={t("detail.customerInfo.phuongXaMoi")}>
               <Combobox
                 options={(phuongXaMoiOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.phuong_xa_moi}
@@ -1350,20 +1378,20 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
         </fieldset>
 
         <fieldset className={fieldsetCls}>
-          <legend className={legendCls}>Thông tin nguồn</legend>
+          <legend className={legendCls}>{t("detail.customerInfo.headingNguon")}</legend>
           <div className={fieldGridCls}>
-            <Field label="Người báo">
+            <Field label={t("detail.customerInfo.nguoiBao")}>
               <Input value={form.nguoi_bao} onChange={(e) => setField("nguoi_bao", e.target.value)} />
             </Field>
-            <Field label="Nguồn">
+            <Field label={t("detail.customerInfo.nguon")}>
               <Select
                 options={NGUON_OPTIONS}
-                placeholder="— Chọn —"
+                placeholder={t("detail.customerInfo.choosePlaceholder")}
                 value={form.nguon}
                 onChange={(e) => setField("nguon", e.target.value)}
               />
             </Field>
-            <Field label="Sale khu vực">
+            <Field label={t("detail.customerInfo.saleKhuVuc")}>
               <Combobox
                 options={(saleKhuVucOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.sale_khu_vuc}
@@ -1376,16 +1404,16 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
         </fieldset>
 
         <fieldset className={fieldsetCls}>
-          <legend className={legendCls}>Thông tin sản phẩm</legend>
+          <legend className={legendCls}>{t("detail.customerInfo.headingSanPham")}</legend>
           <div className={fieldGridCls}>
-            <Field label="Model">
+            <Field label={t("detail.customerInfo.model")}>
               <Combobox
                 options={(modelOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.model}
                 onChange={(v) => setField("model", v)}
               />
             </Field>
-            <Field label="Hãng">
+            <Field label={t("detail.customerInfo.hang")}>
               <Combobox
                 options={(hangOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.hang}
@@ -1398,9 +1426,9 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
         </fieldset>
 
         <fieldset className={fieldsetCls}>
-          <legend className={legendCls}>Thông tin phản ánh</legend>
+          <legend className={legendCls}>{t("detail.customerInfo.headingPhanAnh")}</legend>
           <div className={fieldGridCls}>
-            <Field label="Nhóm vấn đề">
+            <Field label={t("detail.customerInfo.nhomVanDe")}>
               <Combobox
                 options={(nhomVanDeOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.nhom_van_de}
@@ -1410,21 +1438,21 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
                 }}
               />
             </Field>
-            <Field label="Nhóm yêu cầu">
+            <Field label={t("detail.customerInfo.nhomYeuCau")}>
               <Combobox
                 options={(nhomYeuCauOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.nhom_yeu_cau}
                 onChange={(v) => setField("nhom_yeu_cau", v)}
               />
             </Field>
-            <Field label="Mức độ">
+            <Field label={t("detail.customerInfo.mucDo")}>
               <Combobox
                 options={sortMucDoOptions(mucDoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.muc_do}
                 onChange={(v) => setField("muc_do", v)}
               />
             </Field>
-            <Field label="Vấn đề đầu vào">
+            <Field label={t("detail.customerInfo.vanDeDauVao")}>
               <Combobox
                 options={filteredVanDeDauVao.map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.van_de_dau_vao}
@@ -1433,12 +1461,12 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
               />
             </Field>
             <div className="sm:col-span-3">
-              <Field label="Thông tin ban đầu">
+              <Field label={t("detail.customerInfo.thongTinBanDau")}>
                 <Textarea rows={2} value={form.thong_tin_ban_dau} onChange={(e) => setField("thong_tin_ban_dau", e.target.value)} />
               </Field>
             </div>
             <div className="sm:col-span-3">
-              <Field label="Ghi chú người tạo">
+              <Field label={t("detail.customerInfo.ghiChuNguoiTao")}>
                 <Textarea rows={2} value={form.ghi_chu_nguoi_tao} onChange={(e) => setField("ghi_chu_nguoi_tao", e.target.value)} />
               </Field>
             </div>
@@ -1447,7 +1475,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
 
         <div className="flex justify-end">
           <Btn type="submit" variant="primary" disabled={mutation.isPending}>
-            {mutation.isPending ? "Đang lưu..." : "Lưu thông tin khách hàng"}
+            {mutation.isPending ? t("detail.customerInfo.dangLuu") : t("detail.customerInfo.luuButton")}
           </Btn>
         </div>
       </form>
@@ -1460,6 +1488,7 @@ function CustomerInfoSection({ kn, editable, onSaved }: { kn: KhieuNai; editable
 function CrmSection({
   kn, user, onSaved, forceEditable,
 }: { kn: KhieuNai; user: AppUser; onSaved: () => void; forceEditable?: boolean }) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const editable = forceEditable ?? (user.vai_tro === "CSKH" || user.vai_tro === "Admin");
   const canResync =
@@ -1476,24 +1505,24 @@ function CrmSection({
     mutationFn: () => api.patch<{ khieuNai: KhieuNai; crm_sync_warning?: string }>(`/khieu-nai/${kn.id}`, { id_crm_karofi: crmId === "" ? null : crmId }),
     onSuccess: (data) => {
       if (data.crm_sync_warning) {
-        showToast(CRM_WARNING_MESSAGES[data.crm_sync_warning] ?? data.crm_sync_warning, "error");
+        showToast(getCrmWarningMessages(t)[data.crm_sync_warning] ?? data.crm_sync_warning, "error");
       } else {
-        showToast("Đã lưu ID CRM Karofi", "success");
+        showToast(t("detail.crm.toastSavedId"), "success");
       }
       onSaved();
     },
-    onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
+    onError: (err) => showToast(err instanceof ApiError ? t("detail.crm.toastErrorCode", { code: err.code }) : t("detail.crm.toastSaveFailed"), "error"),
   });
 
   const resync = useMutation({
     mutationFn: () => api.post<{ ok: true }>(`/khieu-nai/${kn.id}/dong-bo-crm`),
     onSuccess: () => {
-      showToast("Đã đồng bộ lại dữ liệu CRM", "success");
+      showToast(t("detail.crm.toastResyncSuccess"), "success");
       onSaved();
     },
     onError: (err) => {
       const code = err instanceof ApiError ? err.code : "ERROR";
-      showToast(CRM_WARNING_MESSAGES[code] ?? `Đồng bộ thất bại: ${code}`, "error");
+      showToast(getCrmWarningMessages(t)[code] ?? t("detail.crm.toastResyncFailed", { code }), "error");
       if (code === "DVBH_NOT_FOUND") onSaved(); // server da danh dau "ID CRM sai" -> tai lai de hien canh bao
     },
   });
@@ -1502,17 +1531,17 @@ function CrmSection({
     <>
       <div className="mb-2.5 flex flex-wrap items-end gap-2">
         <div className="w-full lg:w-36">
-          <Field label="ID CRM Karofi">
+          <Field label={t("detail.crm.idCrmLabel")}>
             {editable ? (
               <div className="flex flex-col gap-0.5">
-                <Input value={crmId} onChange={(e) => setCrmId(chuanHoaIdCrm(e.target.value))} placeholder="VD: SC261007210" autoCapitalize="characters" />
+                <Input value={crmId} onChange={(e) => setCrmId(chuanHoaIdCrm(e.target.value))} placeholder={t("detail.crm.placeholder")} autoCapitalize="characters" />
                 {kn.id_crm_karofi && (
                   <button
                     type="button"
                     onClick={() => setShowCaseDetail(true)}
                     className="self-start text-[11px] font-semibold text-link underline hover:text-sky-800"
                   >
-                    Xem chi tiết ĐVBH
+                    {t("detail.crm.xemChiTiet")}
                   </button>
                 )}
               </div>
@@ -1528,11 +1557,11 @@ function CrmSection({
               <p className="text-sm text-ink">—</p>
             )}
             {kn.id_crm_karofi && laIdCrmSai(kn) && (
-              <p className="mt-0.5 text-xs font-semibold text-red-600">ID CRM sai — không tìm thấy trên CRM Karofi</p>
+              <p className="mt-0.5 text-xs font-semibold text-red-600">{t("detail.crm.idSai")}</p>
             )}
             {kn.id_crm_karofi && laChoCrmMoi(kn) && (
               <p className="mt-0.5 text-xs text-amber-700">
-                Đang chờ đồng bộ — CRM chưa có case này (ca mới tạo, sau {CRM_SAI_SAU_GIO} giờ vẫn không có mới báo ID sai)
+                {t("detail.crm.choDongBo", { gio: CRM_SAI_SAU_GIO })}
               </p>
             )}
           </Field>
@@ -1542,7 +1571,7 @@ function CrmSection({
         )}
         {editable && (
           <Btn variant="secondary" size="sm" disabled={saveId.isPending || crmId === (kn.id_crm_karofi ?? "")} onClick={() => saveId.mutate()}>
-            {saveId.isPending ? "Đang lưu..." : "Lưu ID"}
+            {saveId.isPending ? t("detail.crm.dangLuu") : t("detail.crm.luuId")}
           </Btn>
         )}
         {canResync && (
@@ -1550,10 +1579,10 @@ function CrmSection({
             variant="secondary"
             size="sm"
             disabled={!kn.id_crm_karofi || resync.isPending}
-            title={kn.trang_thai === "Da ket thuc" ? "Phản ánh đã kết thúc, không thể đồng bộ lại" : undefined}
+            title={kn.trang_thai === "Da ket thuc" ? t("detail.crm.daKetThucTitle") : undefined}
             onClick={() => resync.mutate()}
           >
-            {resync.isPending ? "Đang đồng bộ..." : "Đồng bộ lại"}
+            {resync.isPending ? t("detail.crm.dangDongBo") : t("detail.crm.dongBoLai")}
           </Btn>
         )}
         <span
@@ -1561,18 +1590,18 @@ function CrmSection({
             kn.ngay_ktv_hoan_thanh ? "bg-green-50 text-green-700 ring-green-300" : "bg-amber-50 text-amber-700 ring-amber-300"
           }`}
         >
-          {kn.ngay_ktv_hoan_thanh ? `Đã hoàn thành: ${kn.ngay_ktv_hoan_thanh}` : "Chưa hoàn thành"}
+          {kn.ngay_ktv_hoan_thanh ? t("detail.crm.daHoanThanh", { date: kn.ngay_ktv_hoan_thanh }) : t("detail.crm.chuaHoanThanh")}
         </span>
       </div>
 
       <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
-        <ReadField label="Ngày tiếp nhận CRM" value={kn.ngay_tiep_nhan_crm} />
-        <ReadField label="Kết quả CRM" value={kn.ket_qua_crm} />
-        <ReadField label="Thông tin xử lý CRM" value={kn.thong_tin_xu_ly_crm} />
+        <ReadField label={t("detail.crm.ngayTiepNhanCrm")} value={kn.ngay_tiep_nhan_crm} />
+        <ReadField label={t("detail.crm.ketQuaCrm")} value={kn.ket_qua_crm} />
+        <ReadField label={t("detail.crm.thongTinXuLyCrm")} value={kn.thong_tin_xu_ly_crm} />
       </div>
       <div className="mt-2">
-        <p className="mb-1 text-xs font-medium text-ink-soft">Giải trình ĐVBH</p>
-        <Timeline events={giaiTrinhDvbhEvents(kn)} />
+        <p className="mb-1 text-xs font-medium text-ink-soft">{t("detail.crm.giaiTrinhDvbh")}</p>
+        <Timeline events={giaiTrinhDvbhEvents(t, kn)} />
       </div>
     </>
   );
@@ -1620,6 +1649,7 @@ interface CrmCaseDetailResponse {
 }
 
 function CrmCaseDetailModal({ idCrm, onClose }: { idCrm: string; onClose: () => void }) {
+  const { t } = useTranslation();
   const query = useQuery({
     queryKey: ["crm-case-detail", idCrm],
     queryFn: () => api.get<CrmCaseDetailResponse>(`/khieu-nai/tra-cuu?id_crm=${encodeURIComponent(idCrm)}`),
@@ -1628,7 +1658,7 @@ function CrmCaseDetailModal({ idCrm, onClose }: { idCrm: string; onClose: () => 
   const giaiTrinhEvents: TimelineEvent[] = (query.data?.giaiTrinh ?? []).map((g, i) => ({
     key: `case-gt-${i}`,
     tone: "teal",
-    badge: "GT tồn",
+    badge: t("detail.crmModal.gtTonBadge"),
     time: fmtVN.dateTime(g.ngay_giai_trinh),
     sortMs: parseVnNaive(g.ngay_giai_trinh),
     actor: g.nguoi_giai_trinh ?? null,
@@ -1636,84 +1666,84 @@ function CrmCaseDetailModal({ idCrm, onClose }: { idCrm: string; onClose: () => 
   }));
 
   return (
-    <Modal open onClose={onClose} title={`Chi tiết đơn ĐVBH — ${idCrm}`} width="lg">
+    <Modal open onClose={onClose} title={t("detail.crmModal.title", { id: idCrm })} width="lg">
       {query.isLoading ? (
-        <p className="py-6 text-center text-sm text-ink-soft">Đang tải...</p>
+        <p className="py-6 text-center text-sm text-ink-soft">{t("detail.crmModal.loading")}</p>
       ) : query.isError ? (
-        <p className="py-6 text-center text-sm text-red-600">Không thể kết nối CRM Karofi lúc này, thử lại sau.</p>
+        <p className="py-6 text-center text-sm text-red-600">{t("detail.crmModal.error")}</p>
       ) : !query.data?.found ? (
         <p className="py-6 text-center text-sm text-ink-soft">
-          {CRM_WARNING_MESSAGES[query.data?.warning ?? ""] ?? "Không tìm thấy trên CRM Karofi."}
+          {getCrmWarningMessages(t)[query.data?.warning ?? ""] ?? t("detail.crmModal.notFoundDefault")}
         </p>
       ) : (
         <div className="text-sm">
           {hasAny(p?.khach_hang, p?.ky_thuat_vien, p?.seri_san_pham, p?.khu_vuc, p?.tinh, p?.quan_huyen) && (
-            <CrmDetailSection title="Khách hàng & KTV">
-              <ReadField label="Khách hàng" value={p?.khach_hang} />
-              <ReadField label="Kỹ thuật viên" value={p?.ky_thuat_vien} />
-              <ReadField label="Seri sản phẩm" value={p?.seri_san_pham} />
-              <ReadField label="Khu vực" value={p?.khu_vuc} />
-              <ReadField label="Tỉnh" value={p?.tinh} />
-              <ReadField label="Quận/Huyện" value={p?.quan_huyen} />
+            <CrmDetailSection title={t("detail.crmModal.sectionKhachHang")}>
+              <ReadField label={t("detail.crmModal.khachHang")} value={p?.khach_hang} />
+              <ReadField label={t("detail.crmModal.ktv")} value={p?.ky_thuat_vien} />
+              <ReadField label={t("detail.crmModal.seri")} value={p?.seri_san_pham} />
+              <ReadField label={t("detail.crmModal.khuVuc")} value={p?.khu_vuc} />
+              <ReadField label={t("detail.crmModal.tinh")} value={p?.tinh} />
+              <ReadField label={t("detail.crmModal.quanHuyen")} value={p?.quan_huyen} />
             </CrmDetailSection>
           )}
           {hasAny(p?.hang, p?.san_pham_bao_hanh, p?.nhom_san_pham, p?.nhom_yeu_cau, p?.loai_yeu_cau, p?.hinh_thuc_bao_hanh, p?.ngay_mua) && (
-            <CrmDetailSection title="Sản phẩm & yêu cầu">
-              <ReadField label="Hãng" value={p?.hang} />
-              <ReadField label="Sản phẩm bảo hành" value={p?.san_pham_bao_hanh} />
-              <ReadField label="Nhóm sản phẩm" value={p?.nhom_san_pham} />
-              <ReadField label="Nhóm yêu cầu" value={p?.nhom_yeu_cau} />
-              <ReadField label="Loại yêu cầu" value={p?.loai_yeu_cau} />
-              <ReadField label="Hình thức bảo hành" value={p?.hinh_thuc_bao_hanh} />
-              <ReadField label="Ngày mua" value={p?.ngay_mua ? fmtVN.date(p.ngay_mua) : null} />
+            <CrmDetailSection title={t("detail.crmModal.sectionSanPham")}>
+              <ReadField label={t("detail.crmModal.hang")} value={p?.hang} />
+              <ReadField label={t("detail.crmModal.sanPhamBaoHanh")} value={p?.san_pham_bao_hanh} />
+              <ReadField label={t("detail.crmModal.nhomSanPham")} value={p?.nhom_san_pham} />
+              <ReadField label={t("detail.crmModal.nhomYeuCau")} value={p?.nhom_yeu_cau} />
+              <ReadField label={t("detail.crmModal.loaiYeuCau")} value={p?.loai_yeu_cau} />
+              <ReadField label={t("detail.crmModal.hinhThucBaoHanh")} value={p?.hinh_thuc_bao_hanh} />
+              <ReadField label={t("detail.crmModal.ngayMua")} value={p?.ngay_mua ? fmtVN.date(p.ngay_mua) : null} />
             </CrmDetailSection>
           )}
           {hasAny(p?.tien_do_hoan_thanh, p?.thoi_gian_cskh_tiep_nhan, p?.thoi_gian_hen_xu_ly, p?.thoi_gian_hoan_thanh, p?.dung_han, p?.xu_ly_24h_bucket, p?.ly_do_qua_han, p?.ly_do_huy, p?.ngay_import, p?.ngay_cap_nhat_gan_nhat) && (
-            <CrmDetailSection title="Tiến độ xử lý">
-              <ReadField label="Tiến độ hoàn thành" value={p?.tien_do_hoan_thanh} />
-              <ReadField label="CSKH tiếp nhận" value={p?.thoi_gian_cskh_tiep_nhan ? fmtVN.dateTime(p.thoi_gian_cskh_tiep_nhan) : null} />
-              <ReadField label="Hẹn xử lý" value={p?.thoi_gian_hen_xu_ly ? fmtVN.dateTime(p.thoi_gian_hen_xu_ly) : null} />
-              <ReadField label="Hoàn thành" value={p?.thoi_gian_hoan_thanh ? fmtVN.dateTime(p.thoi_gian_hoan_thanh) : null} />
-              <ReadField label="Đúng/Trễ hạn" value={p?.dung_han} />
-              <ReadField label="Nhóm xử lý 24h" value={p?.xu_ly_24h_bucket} />
-              <ReadField label="Lý do quá hạn" value={p?.ly_do_qua_han} />
-              <ReadField label="Lý do hủy" value={p?.ly_do_huy} />
-              <ReadField label="Ngày import" value={p?.ngay_import ? fmtVN.dateTime(p.ngay_import) : null} />
-              <ReadField label="Cập nhật gần nhất" value={p?.ngay_cap_nhat_gan_nhat ? fmtVN.dateTime(p.ngay_cap_nhat_gan_nhat) : null} />
+            <CrmDetailSection title={t("detail.crmModal.sectionTienDo")}>
+              <ReadField label={t("detail.crmModal.tienDoHoanThanh")} value={p?.tien_do_hoan_thanh} />
+              <ReadField label={t("detail.crmModal.cskhTiepNhan")} value={p?.thoi_gian_cskh_tiep_nhan ? fmtVN.dateTime(p.thoi_gian_cskh_tiep_nhan) : null} />
+              <ReadField label={t("detail.crmModal.henXuLy")} value={p?.thoi_gian_hen_xu_ly ? fmtVN.dateTime(p.thoi_gian_hen_xu_ly) : null} />
+              <ReadField label={t("detail.crmModal.hoanThanh")} value={p?.thoi_gian_hoan_thanh ? fmtVN.dateTime(p.thoi_gian_hoan_thanh) : null} />
+              <ReadField label={t("detail.crmModal.dungTreHan")} value={p?.dung_han} />
+              <ReadField label={t("detail.crmModal.nhomXuLy24h")} value={p?.xu_ly_24h_bucket} />
+              <ReadField label={t("detail.crmModal.lyDoQuaHan")} value={p?.ly_do_qua_han} />
+              <ReadField label={t("detail.crmModal.lyDoHuy")} value={p?.ly_do_huy} />
+              <ReadField label={t("detail.crmModal.ngayImport")} value={p?.ngay_import ? fmtVN.dateTime(p.ngay_import) : null} />
+              <ReadField label={t("detail.crmModal.capNhatGanNhat")} value={p?.ngay_cap_nhat_gan_nhat ? fmtVN.dateTime(p.ngay_cap_nhat_gan_nhat) : null} />
             </CrmDetailSection>
           )}
           {hasAny(p?.doi_tac, p?.nganh, p?.loai_nganh, p?.nhom_kh, p?.cach_thuc_xu_ly) && (
-            <CrmDetailSection title="Nghiệp vụ / tổ chức">
-              <ReadField label="Đối tác" value={p?.doi_tac} />
-              <ReadField label="Ngành hàng" value={p?.nganh} />
-              <ReadField label="Loại ngành hàng" value={p?.loai_nganh} />
-              <ReadField label="Nhóm KH" value={p?.nhom_kh} />
-              <ReadField label="Cách thức xử lý" value={p?.cach_thuc_xu_ly} />
+            <CrmDetailSection title={t("detail.crmModal.sectionNghiepVu")}>
+              <ReadField label={t("detail.crmModal.doiTac")} value={p?.doi_tac} />
+              <ReadField label={t("detail.crmModal.nganhHang")} value={p?.nganh} />
+              <ReadField label={t("detail.crmModal.loaiNganhHang")} value={p?.loai_nganh} />
+              <ReadField label={t("detail.crmModal.nhomKh")} value={p?.nhom_kh} />
+              <ReadField label={t("detail.crmModal.cachThucXuLy")} value={p?.cach_thuc_xu_ly} />
             </CrmDetailSection>
           )}
           {hasAny(p?.dt_san_pham, p?.dt_linh_kien, p?.dt_dich_vu) && (
-            <CrmDetailSection title="Định giá">
-              <ReadField label="Định giá sản phẩm" value={tienVN(p?.dt_san_pham)} />
-              <ReadField label="Định giá linh kiện" value={tienVN(p?.dt_linh_kien)} />
-              <ReadField label="Định giá dịch vụ" value={tienVN(p?.dt_dich_vu)} />
+            <CrmDetailSection title={t("detail.crmModal.sectionDinhGia")}>
+              <ReadField label={t("detail.crmModal.dinhGiaSanPham")} value={tienVN(p?.dt_san_pham)} />
+              <ReadField label={t("detail.crmModal.dinhGiaLinhKien")} value={tienVN(p?.dt_linh_kien)} />
+              <ReadField label={t("detail.crmModal.dinhGiaDichVu")} value={tienVN(p?.dt_dich_vu)} />
             </CrmDetailSection>
           )}
           {p?.mo_ta_loi && (
-            <p className="mt-3 whitespace-pre-wrap border-t border-line pt-2"><b>Mô tả lỗi: </b>{p.mo_ta_loi}</p>
+            <p className="mt-3 whitespace-pre-wrap border-t border-line pt-2"><b>{t("detail.crmModal.moTaLoiBold")}</b>{p.mo_ta_loi}</p>
           )}
           {p?.noi_dung_xu_ly && (
-            <p className="mt-2 whitespace-pre-wrap border-t border-line pt-2"><b>Nội dung xử lý: </b>{p.noi_dung_xu_ly}</p>
+            <p className="mt-2 whitespace-pre-wrap border-t border-line pt-2"><b>{t("detail.crmModal.noiDungXuLyBold")}</b>{p.noi_dung_xu_ly}</p>
           )}
           {p?.luu_y_loi_linh_kien && (
-            <p className="mt-2 whitespace-pre-wrap border-t border-line pt-2"><b>Lưu ý lỗi linh kiện: </b>{p.luu_y_loi_linh_kien}</p>
+            <p className="mt-2 whitespace-pre-wrap border-t border-line pt-2"><b>{t("detail.crmModal.luuYLoiLinhKienBold")}</b>{p.luu_y_loi_linh_kien}</p>
           )}
           {p?.link_hinh_anh && p.link_hinh_anh.length > 0 && (
             <div className="mt-2 border-t border-line pt-2">
-              <p className="mb-1 text-xs font-semibold text-ink-soft">Hình ảnh ({p.link_hinh_anh.length})</p>
+              <p className="mb-1 text-xs font-semibold text-ink-soft">{t("detail.crmModal.hinhAnhCount", { n: p.link_hinh_anh.length })}</p>
               <div className="flex flex-wrap gap-2">
                 {p.link_hinh_anh.map((url, i) => (
                   <a key={i} href={url} target="_blank" rel="noreferrer">
-                    <img src={url} alt={`Hình ${i + 1}`} className="h-20 w-20 rounded border border-line object-cover" />
+                    <img src={url} alt={t("detail.crmModal.hinhAnhAlt", { n: i + 1 })} className="h-20 w-20 rounded border border-line object-cover" />
                   </a>
                 ))}
               </div>
@@ -1722,13 +1752,13 @@ function CrmCaseDetailModal({ idCrm, onClose }: { idCrm: string; onClose: () => 
           {p?.link_crm && (
             <p className="mt-2 border-t border-line pt-2">
               <a href={p.link_crm} target="_blank" rel="noreferrer" className="font-semibold text-link underline">
-                Xem trên CRM ↗
+                {t("detail.crmModal.xemTrenCrm")}
               </a>
             </p>
           )}
           {giaiTrinhEvents.length > 0 && (
             <div className="mt-3 border-t border-line pt-2">
-              <p className="mb-1 text-xs font-semibold text-ink-soft">Log giải trình tồn ({giaiTrinhEvents.length})</p>
+              <p className="mb-1 text-xs font-semibold text-ink-soft">{t("detail.crmModal.logGiaiTrinhCount", { n: giaiTrinhEvents.length })}</p>
               <Timeline events={giaiTrinhEvents} />
             </div>
           )}
@@ -1741,6 +1771,7 @@ function CrmCaseDetailModal({ idCrm, onClose }: { idCrm: string; onClose: () => 
 // ---------- Đánh giá lỗi (TN CSKH) ----------
 
 function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean; onSaved: () => void }) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const [form, setForm] = useState<{
     loi_nha_san_xuat: DanhGia3;
@@ -1768,10 +1799,10 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
   const mutation = useMutation({
     mutationFn: () => api.patch<{ khieuNai: KhieuNai }>(`/khieu-nai/${kn.id}`, form),
     onSuccess: () => {
-      showToast("Đã lưu đánh giá lỗi", "success");
+      showToast(t("detail.tnCskh.toastSuccess"), "success");
       onSaved();
     },
-    onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
+    onError: (err) => showToast(err instanceof ApiError ? t("detail.tnCskh.toastErrorCode", { code: err.code }) : t("detail.tnCskh.toastErrorDefault"), "error"),
   });
 
   const submit = (e: FormEvent) => {
@@ -1783,11 +1814,11 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
     return (
       <>
         <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
-          <ReadField label="Lỗi nhà sản xuất" value={translateDanhGia(kn.loi_nha_san_xuat)} />
-          <ReadField label="Lỗi lắp đặt" value={translateDanhGia(kn.loi_lap_dat)} />
-          <ReadField label="Lỗi thái độ KTV" value={translateDanhGia(kn.loi_thai_do_ktv)} />
-          <ReadField label="Lỗi quy trình NSKX" value={translateDanhGia(kn.loi_quy_trinh_nskx)} />
-          <ReadField label="Kết luận phản ánh" value={translateDanhGia(kn.ket_luan_khieu_nai)} />
+          <ReadField label={t("detail.tnCskh.loiNsx")} value={translateDanhGia(kn.loi_nha_san_xuat)} />
+          <ReadField label={t("detail.tnCskh.loiLapDat")} value={translateDanhGia(kn.loi_lap_dat)} />
+          <ReadField label={t("detail.tnCskh.loiThaiDoKtv")} value={translateDanhGia(kn.loi_thai_do_ktv)} />
+          <ReadField label={t("detail.tnCskh.loiQuyTrinhNskx")} value={translateDanhGia(kn.loi_quy_trinh_nskx)} />
+          <ReadField label={t("detail.tnCskh.ketLuanPhanAnh")} value={translateDanhGia(kn.ket_luan_khieu_nai)} />
         </div>
       </>
     );
@@ -1796,14 +1827,14 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
   return (
     <>
       <form onSubmit={submit} className="flex flex-col gap-1.5">
-        <DanhGiaRow label="Lỗi nhà sản xuất" value={form.loi_nha_san_xuat} onChange={(v) => setField("loi_nha_san_xuat", v)} />
-        <DanhGiaRow label="Lỗi lắp đặt" value={form.loi_lap_dat} onChange={(v) => setField("loi_lap_dat", v)} />
-        <DanhGiaRow label="Lỗi thái độ KTV" value={form.loi_thai_do_ktv} onChange={(v) => setField("loi_thai_do_ktv", v)} />
-        <DanhGiaRow label="Lỗi quy trình NSKX" value={form.loi_quy_trinh_nskx} onChange={(v) => setField("loi_quy_trinh_nskx", v)} />
-        <DanhGiaRow label="Kết luận phản ánh" value={form.ket_luan_khieu_nai} onChange={(v) => setField("ket_luan_khieu_nai", v)} />
+        <DanhGiaRow label={t("detail.tnCskh.loiNsx")} value={form.loi_nha_san_xuat} onChange={(v) => setField("loi_nha_san_xuat", v)} />
+        <DanhGiaRow label={t("detail.tnCskh.loiLapDat")} value={form.loi_lap_dat} onChange={(v) => setField("loi_lap_dat", v)} />
+        <DanhGiaRow label={t("detail.tnCskh.loiThaiDoKtv")} value={form.loi_thai_do_ktv} onChange={(v) => setField("loi_thai_do_ktv", v)} />
+        <DanhGiaRow label={t("detail.tnCskh.loiQuyTrinhNskx")} value={form.loi_quy_trinh_nskx} onChange={(v) => setField("loi_quy_trinh_nskx", v)} />
+        <DanhGiaRow label={t("detail.tnCskh.ketLuanPhanAnh")} value={form.ket_luan_khieu_nai} onChange={(v) => setField("ket_luan_khieu_nai", v)} />
         <div className="flex items-center justify-end pt-1">
           <Btn type="submit" variant="primary" disabled={mutation.isPending}>
-            {mutation.isPending ? "Đang lưu..." : "Lưu đánh giá lỗi"}
+            {mutation.isPending ? t("detail.tnCskh.dangLuu") : t("detail.tnCskh.luuButton")}
           </Btn>
         </div>
       </form>
@@ -1813,11 +1844,13 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
 // Chi 3 lua chon co dinh -> nut bam thay vi dropdown, xep tung dong tu tren xuong de bam nhanh.
 function DanhGiaRow({ label, value, onChange }: { label: string; value: DanhGia3; onChange: (v: DanhGia3) => void }) {
+  const { t } = useTranslation();
+  const options = getDanhGiaOptions(t);
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line px-2.5 py-1.5">
       <span className="min-w-[150px] flex-1 text-sm font-medium text-ink">{label}</span>
       <div className="flex gap-1">
-        {DANH_GIA_OPTIONS.map((o) => {
+        {options.map((o) => {
           const active = value === o.value;
           const cls =
             o.value === "Co"
@@ -1845,6 +1878,7 @@ function DanhGiaRow({ label, value, onChange }: { label: string; value: DanhGia3
 // ---------- Đánh giá QL ----------
 
 function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean; onSaved: () => void }) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const danhGiaQlOpts = useSettingsOptions("danh_gia_cskh");
 
@@ -1874,10 +1908,10 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
         ql_chon_ly_do: form.ql_chon_ly_do.trim() === "" ? null : form.ql_chon_ly_do.trim(),
       }),
     onSuccess: () => {
-      showToast("Đã lưu đánh giá QL", "success");
+      showToast(t("detail.ql.toastSuccess"), "success");
       onSaved();
     },
-    onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
+    onError: (err) => showToast(err instanceof ApiError ? t("detail.ql.toastErrorCode", { code: err.code }) : t("detail.ql.toastErrorDefault"), "error"),
   });
 
   const submit = (e: FormEvent) => {
@@ -1889,12 +1923,12 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
     return (
       <>
         <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
-          <ReadField label="Đánh giá QL" value={kn.danh_gia_ql} />
-          <ReadField label="Giờ xử lý (hệ thống)" value={kn.ql_gio_xu_ly_he_thong ?? gioXuLy} />
-          <ReadField label="Ngày hẹn" value={kn.ql_chon_ngay_hen} />
-          <ReadField label="Lý do" value={kn.ql_chon_ly_do} />
-          <ReadField label="Người đánh giá" value={kn.ql_nguoi_danh_gia} />
-          <ReadField label="Ngày đánh giá" value={fmtVN.dateTime(kn.ngay_ql_danh_gia)} />
+          <ReadField label={t("detail.ql.danhGiaQl")} value={kn.danh_gia_ql} />
+          <ReadField label={t("detail.ql.gioXuLyHeThong")} value={kn.ql_gio_xu_ly_he_thong ?? gioXuLy} />
+          <ReadField label={t("detail.ql.ngayHen")} value={kn.ql_chon_ngay_hen} />
+          <ReadField label={t("detail.ql.lyDo")} value={kn.ql_chon_ly_do} />
+          <ReadField label={t("detail.ql.nguoiDanhGia")} value={kn.ql_nguoi_danh_gia} />
+          <ReadField label={t("detail.ql.ngayDanhGia")} value={fmtVN.dateTime(kn.ngay_ql_danh_gia)} />
         </div>
       </>
     );
@@ -1903,30 +1937,30 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
   return (
     <>
       <form onSubmit={submit} className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
-        <Field label="Đánh giá QL">
+        <Field label={t("detail.ql.danhGiaQl")}>
           <Select
             options={(danhGiaQlOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-            placeholder="— Chọn —"
+            placeholder={t("detail.ql.choosePlaceholder")}
             value={form.danh_gia_ql}
             onChange={(e) => setField("danh_gia_ql", e.target.value)}
           />
         </Field>
         <div>
-          <p className="mb-1 text-xs font-medium text-ink-soft">Giờ xử lý (hệ thống)</p>
+          <p className="mb-1 text-xs font-medium text-ink-soft">{t("detail.ql.gioXuLyHeThong")}</p>
           <p className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-sm text-ink">{gioXuLy}</p>
-          <p className="mt-1 text-xs text-ink-soft">Tự tính từ ngày tiếp nhận đến khi kết thúc.</p>
+          <p className="mt-1 text-xs text-ink-soft">{t("detail.ql.gioXuLyHint")}</p>
         </div>
-        <Field label="Ngày hẹn">
+        <Field label={t("detail.ql.ngayHen")}>
           <Input type="date" value={form.ql_chon_ngay_hen} onChange={(e) => setField("ql_chon_ngay_hen", e.target.value)} />
         </Field>
-        <Field label="Lý do" hint="Free text - vì sao có ngày hẹn này">
+        <Field label={t("detail.ql.lyDo")} hint={t("detail.ql.lyDoHint")}>
           <Input value={form.ql_chon_ly_do} onChange={(e) => setField("ql_chon_ly_do", e.target.value)} />
         </Field>
-        <ReadField label="Người đánh giá" value={kn.ql_nguoi_danh_gia} />
-        <ReadField label="Ngày đánh giá" value={kn.ngay_ql_danh_gia} />
+        <ReadField label={t("detail.ql.nguoiDanhGia")} value={kn.ql_nguoi_danh_gia} />
+        <ReadField label={t("detail.ql.ngayDanhGia")} value={kn.ngay_ql_danh_gia} />
         <div className="col-span-2 flex items-end justify-end sm:col-span-3">
           <Btn type="submit" variant="primary" disabled={mutation.isPending}>
-            {mutation.isPending ? "Đang lưu..." : "Lưu đánh giá QL"}
+            {mutation.isPending ? t("detail.ql.dangLuu") : t("detail.ql.luuButton")}
           </Btn>
         </div>
       </form>
@@ -1937,6 +1971,7 @@ function QlSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean;
 // ---------- Nhánh đổi máy ----------
 
 function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: boolean; onSaved: () => void }) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const lyDoChamOpts = useSettingsOptions("ly_do_cham");
   const boPhanBanGiaoOpts = useSettingsOptions("bo_phan_ban_giao");
@@ -1968,10 +2003,10 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
       return api.patch<{ khieuNai: KhieuNai }>(`/khieu-nai/${kn.id}`, body);
     },
     onSuccess: () => {
-      showToast("Đã lưu thông tin đổi máy", "success");
+      showToast(t("detail.doiMay.toastSuccess"), "success");
       onSaved();
     },
-    onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Lưu thất bại", "error"),
+    onError: (err) => showToast(err instanceof ApiError ? t("detail.doiMay.toastErrorCode", { code: err.code }) : t("detail.doiMay.toastErrorDefault"), "error"),
   });
 
   const submit = (e: FormEvent) => {
@@ -1982,23 +2017,23 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
   if (!editable) {
     return (
       <>
-        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">Đổi máy</p>
+        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">{t("detail.doiMay.headingDoiMay")}</p>
         <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
-          <ReadField label="ID Lada phát sinh" value={kn.id_lada_phat_sinh} />
-          <ReadField label="Mã duyệt đổi linh kiện" value={kn.ma_duyet_doi_linh_kien} />
-          <ReadField label="Ngày ghi nhận đổi máy" value={kn.ngay_ghi_nhan_doi_may} />
-          <ReadField label="Ngày đóng đổi máy" value={kn.ngay_dong_doi_may} />
-          <ReadField label="Kết quả đổi máy" value={ketQuaDoiMayLabel(kn.ket_qua_doi_may)} />
-          <ReadField label="Người xác nhận đổi máy" value={kn.nguoi_xac_nhan_doi_may} />
+          <ReadField label={t("detail.doiMay.idLadaPhatSinh")} value={kn.id_lada_phat_sinh} />
+          <ReadField label={t("detail.doiMay.maDuyetDoiLinhKien")} value={kn.ma_duyet_doi_linh_kien} />
+          <ReadField label={t("detail.doiMay.ngayGhiNhanDoiMay")} value={kn.ngay_ghi_nhan_doi_may} />
+          <ReadField label={t("detail.doiMay.ngayDongDoiMay")} value={kn.ngay_dong_doi_may} />
+          <ReadField label={t("detail.doiMay.ketQuaDoiMay")} value={ketQuaDoiMayLabel(t, kn.ket_qua_doi_may)} />
+          <ReadField label={t("detail.doiMay.nguoiXacNhanDoiMay")} value={kn.nguoi_xac_nhan_doi_may} />
         </div>
         <div className="mt-2">
-          <ReadField label="Giải trình chậm đổi máy" value={kn.giai_trinh_cham_doi_may} />
+          <ReadField label={t("detail.doiMay.giaiTrinhChamDoiMay")} value={kn.giai_trinh_cham_doi_may} />
         </div>
 
-        <p className="mb-1.5 mt-3 border-t border-line pt-3 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">Khác</p>
+        <p className="mb-1.5 mt-3 border-t border-line pt-3 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">{t("detail.doiMay.headingKhac")}</p>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-          <ReadField label="Bộ phận bàn giao" value={kn.bo_phan_ban_giao} />
-          <ReadField label="Cảm cờ" value={camCoLabel(kn.cam_co)} />
+          <ReadField label={t("detail.doiMay.boPhanBanGiao")} value={kn.bo_phan_ban_giao} />
+          <ReadField label={t("detail.doiMay.camCoReadLabel")} value={camCoLabel(t, kn.cam_co)} />
         </div>
       </>
     );
@@ -2008,33 +2043,33 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
     <>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <fieldset className="rounded-lg border border-line bg-white p-2.5">
-          <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">Đổi máy</legend>
+          <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">{t("detail.doiMay.headingDoiMay")}</legend>
           <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3">
-            <Field label="ID Lada phát sinh">
+            <Field label={t("detail.doiMay.idLadaPhatSinh")}>
               <Input value={form.id_lada_phat_sinh} onChange={(e) => setField("id_lada_phat_sinh", e.target.value)} />
             </Field>
-            <Field label="Mã duyệt đổi linh kiện">
+            <Field label={t("detail.doiMay.maDuyetDoiLinhKien")}>
               <Input value={form.ma_duyet_doi_linh_kien} onChange={(e) => setField("ma_duyet_doi_linh_kien", e.target.value)} />
             </Field>
-            <Field label="Kết quả đổi máy">
+            <Field label={t("detail.doiMay.ketQuaDoiMay")}>
               <Select
-                options={KET_QUA_DOI_MAY_OPTIONS}
-                placeholder="— Chọn —"
+                options={getKetQuaDoiMayOptions(t)}
+                placeholder={t("detail.doiMay.choosePlaceholder")}
                 value={form.ket_qua_doi_may}
                 onChange={(e) => setField("ket_qua_doi_may", e.target.value)}
               />
             </Field>
-            <Field label="Ngày ghi nhận đổi máy">
+            <Field label={t("detail.doiMay.ngayGhiNhanDoiMay")}>
               <Input type="date" value={form.ngay_ghi_nhan_doi_may} onChange={(e) => setField("ngay_ghi_nhan_doi_may", e.target.value)} />
             </Field>
-            <Field label="Ngày đóng đổi máy">
+            <Field label={t("detail.doiMay.ngayDongDoiMay")}>
               <Input type="date" value={form.ngay_dong_doi_may} onChange={(e) => setField("ngay_dong_doi_may", e.target.value)} />
             </Field>
-            <Field label="Người xác nhận đổi máy">
+            <Field label={t("detail.doiMay.nguoiXacNhanDoiMay")}>
               <Input value={form.nguoi_xac_nhan_doi_may} onChange={(e) => setField("nguoi_xac_nhan_doi_may", e.target.value)} />
             </Field>
             <div className="lg:col-span-3">
-              <Field label="Giải trình chậm đổi máy" hint="Báo cáo chậm #2 — lý do chậm riêng của nhánh đổi máy (từ danh mục)">
+              <Field label={t("detail.doiMay.giaiTrinhChamDoiMay")} hint={t("detail.doiMay.giaiTrinhChamHint")}>
                 <Combobox
                   options={(lyDoChamOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                   value={form.giai_trinh_cham_doi_may}
@@ -2046,9 +2081,9 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
         </fieldset>
 
         <fieldset className="rounded-lg border border-line bg-white p-2.5">
-          <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">Khác</legend>
+          <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">{t("detail.doiMay.headingKhac")}</legend>
           <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
-            <Field label="Bộ phận bàn giao">
+            <Field label={t("detail.doiMay.boPhanBanGiao")}>
               <Combobox
                 options={(boPhanBanGiaoOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
                 value={form.bo_phan_ban_giao}
@@ -2056,15 +2091,15 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
               />
             </Field>
             <div className="text-xs text-ink-soft">
-              <span className="mb-1 block font-medium">Cắm cờ</span>
-              <span>Dùng nút cắm cờ ở đầu popup.</span>
+              <span className="mb-1 block font-medium">{t("detail.doiMay.camCoEditLabel")}</span>
+              <span>{t("detail.doiMay.camCoEditNote")}</span>
             </div>
           </div>
         </fieldset>
 
         <div className="flex justify-end">
           <Btn type="submit" variant="primary" disabled={mutation.isPending}>
-            {mutation.isPending ? "Đang lưu..." : "Lưu thông tin đổi máy"}
+            {mutation.isPending ? t("detail.doiMay.dangLuu") : t("detail.doiMay.luuButton")}
           </Btn>
         </div>
       </form>
@@ -2087,68 +2122,83 @@ function useNameMap() {
   }, [q.data]);
 }
 
-const LS_LABEL: Record<string, string> = {
-  tao_moi: "Tạo phản ánh",
-  cap_nhat: "Cập nhật thông tin",
-  chuyen_trang_thai: "Chuyển trạng thái",
-  danh_gia_loi: "Đánh giá nguyên nhân lỗi",
-  danh_gia_ql: "Đánh giá QL",
-  huy: "Hủy phản ánh",
-  mo_lai: "Mở lại ca",
-  phu_trach: "Đổi người phụ trách",
-  tiep_nhan: "Tiếp nhận",
-};
+function getLsLabel(t: TFn): Record<string, string> {
+  return {
+    tao_moi: t("detail.tienTrinh.lsLabel.taoMoi"),
+    cap_nhat: t("detail.tienTrinh.lsLabel.capNhat"),
+    chuyen_trang_thai: t("detail.tienTrinh.lsLabel.chuyenTrangThai"),
+    danh_gia_loi: t("detail.tienTrinh.lsLabel.danhGiaLoi"),
+    danh_gia_ql: t("detail.tienTrinh.lsLabel.danhGiaQl"),
+    huy: t("detail.tienTrinh.lsLabel.huy"),
+    mo_lai: t("detail.tienTrinh.lsLabel.moLai"),
+    phu_trach: t("detail.tienTrinh.lsLabel.phuTrach"),
+    tiep_nhan: t("detail.tienTrinh.lsLabel.tiepNhan"),
+  };
+}
 
 // Nhãn field ngắn gọn cho log "cập nhật 1 trường" (item: badge cụ thể thay vì chung chung).
-const LICH_SU_FIELD_LABEL: Record<string, string> = {
-  id_crm_karofi: "ID CRM", id_lada: "ID Lada", id_truy_van: "ID Truy xuất", nguon: "Nguồn", ten_khach: "Tên khách", sdt_khach: "SĐT",
-  muc_do: "Mức độ", nhom_van_de: "Nhóm vấn đề", van_de_dau_vao: "Vấn đề đầu vào",
-  cam_co: "Cắm cờ", trang_thai: "Trạng thái", nguoi_phu_trach: "Người phụ trách",
-  loi_nha_san_xuat: "Lỗi nhà sản xuất", loi_lap_dat: "Lỗi lắp đặt",
-  loi_thai_do_ktv: "Lỗi thái độ KTV", loi_quy_trinh_nskx: "Lỗi quy trình NSKX",
-};
+function getLichSuFieldLabel(t: TFn): Record<string, string> {
+  return {
+    id_crm_karofi: t("detail.tienTrinh.fieldLabel.idCrmKarofi"),
+    id_lada: t("detail.tienTrinh.fieldLabel.idLada"),
+    id_truy_van: t("detail.tienTrinh.fieldLabel.idTruyXuat"),
+    nguon: t("detail.tienTrinh.fieldLabel.nguon"),
+    ten_khach: t("detail.tienTrinh.fieldLabel.tenKhach"),
+    sdt_khach: t("detail.tienTrinh.fieldLabel.sdtKhach"),
+    muc_do: t("detail.tienTrinh.fieldLabel.mucDo"),
+    nhom_van_de: t("detail.tienTrinh.fieldLabel.nhomVanDe"),
+    van_de_dau_vao: t("detail.tienTrinh.fieldLabel.vanDeDauVao"),
+    cam_co: t("detail.tienTrinh.fieldLabel.camCo"),
+    trang_thai: t("detail.tienTrinh.fieldLabel.trangThai"),
+    nguoi_phu_trach: t("detail.tienTrinh.fieldLabel.nguoiPhuTrach"),
+    loi_nha_san_xuat: t("detail.tienTrinh.fieldLabel.loiNhaSanXuat"),
+    loi_lap_dat: t("detail.tienTrinh.fieldLabel.loiLapDat"),
+    loi_thai_do_ktv: t("detail.tienTrinh.fieldLabel.loiThaiDoKtv"),
+    loi_quy_trinh_nskx: t("detail.tienTrinh.fieldLabel.loiQuyTrinhNskx"),
+  };
+}
 
 type LsTone = "blue" | "violet" | "teal" | "amber" | "green" | "red" | "gray";
 
 // Học theo phong cách timeline "GT tồn" — mỗi hành động hệ thống có 1 badge riêng, cụ thể
 // (vd "Cập nhật ID CRM" thay vì chung chung "Cập nhật thông tin") thay vì show mỗi
 // LS_LABEL[hanh_dong] như trước.
-function lichSuBadge(l: LichSu): { badge: string; tone: LsTone } {
+function lichSuBadge(t: TFn, l: LichSu): { badge: string; tone: LsTone } {
   switch (l.hanh_dong) {
     case "tao_moi":
-      return { badge: "Tạo phản ánh", tone: "green" };
+      return { badge: t("detail.tienTrinh.badge.taoPhanAnh"), tone: "green" };
     case "cap_nhat": {
       const fields = (l.truong ?? "").split(",").filter(Boolean);
       if (fields.length === 1) {
-        const label = LICH_SU_FIELD_LABEL[fields[0]] ?? fields[0];
-        return { badge: `Cập nhật ${label}`, tone: fields[0] === "id_crm_karofi" ? "teal" : fields[0] === "id_lada" ? "violet" : "blue" };
+        const label = getLichSuFieldLabel(t)[fields[0]] ?? fields[0];
+        return { badge: t("detail.tienTrinh.badge.capNhatField", { label }), tone: fields[0] === "id_crm_karofi" ? "teal" : fields[0] === "id_lada" ? "violet" : "blue" };
       }
-      return { badge: "Cập nhật thông tin", tone: "blue" };
+      return { badge: t("detail.tienTrinh.badge.capNhatThongTin"), tone: "blue" };
     }
     case "danh_gia_loi":
-      return { badge: "Chốt lỗi", tone: "amber" };
+      return { badge: t("detail.tienTrinh.badge.chotLoi"), tone: "amber" };
     case "danh_gia_ql":
-      return { badge: "Đánh giá QL", tone: "amber" };
+      return { badge: t("detail.tienTrinh.badge.danhGiaQl"), tone: "amber" };
     case "chuyen_trang_thai":
       return l.gia_tri_moi === "Da ket thuc"
-        ? { badge: "Chốt kết thúc", tone: "green" }
-        : { badge: "Đóng ca", tone: "blue" };
+        ? { badge: t("detail.tienTrinh.badge.chotKetThuc"), tone: "green" }
+        : { badge: t("detail.tienTrinh.badge.dongCa"), tone: "blue" };
     case "mo_lai":
-      return { badge: "Mở lại ca", tone: "amber" };
+      return { badge: t("detail.tienTrinh.badge.moLaiCa"), tone: "amber" };
     case "huy":
-      return { badge: "Hủy phản ánh", tone: "red" };
+      return { badge: t("detail.tienTrinh.badge.huyPhanAnh"), tone: "red" };
     case "phu_trach":
-      return { badge: "Đổi người phụ trách", tone: "gray" };
+      return { badge: t("detail.tienTrinh.badge.doiNguoiPhuTrach"), tone: "gray" };
     case "tiep_nhan":
-      return { badge: "Tiếp nhận", tone: "green" };
+      return { badge: t("detail.tienTrinh.badge.tiepNhan"), tone: "green" };
     default:
-      return { badge: LS_LABEL[l.hanh_dong] ?? l.hanh_dong, tone: "gray" };
+      return { badge: getLsLabel(t)[l.hanh_dong] ?? l.hanh_dong, tone: "gray" };
   }
 }
 
-function lichSuSummary(l: LichSu): string {
+function lichSuSummary(t: TFn, l: LichSu): string {
   if (l.hanh_dong === "danh_gia_loi") {
-    const label = LICH_SU_FIELD_LABEL[l.truong ?? ""] ?? l.truong ?? "";
+    const label = getLichSuFieldLabel(t)[l.truong ?? ""] ?? l.truong ?? "";
     return `${label}: ${translateDanhGia((l.gia_tri_moi ?? null) as DanhGia3 | null)}`;
   }
   return l.gia_tri_moi ?? "";
@@ -2171,6 +2221,7 @@ function TienTrinhSection({
   addOnly?: boolean;
   overdue?: boolean;
 }) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const nameOf = useNameMap();
   const lyDoChamOpts = useSettingsOptions("ly_do_cham");
@@ -2186,17 +2237,17 @@ function TienTrinhSection({
     onSuccess: () => {
       setNoiDung("");
       setLyDo("");
-      showToast("Đã thêm ghi chú tiến trình", "success");
+      showToast(t("detail.tienTrinh.toastSuccess"), "success");
       onSaved();
     },
-    onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Thêm ghi chú thất bại", "error"),
+    onError: (err) => showToast(err instanceof ApiError ? t("detail.tienTrinh.toastErrorCode", { code: err.code }) : t("detail.tienTrinh.toastErrorDefault"), "error"),
   });
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (overdue) {
       if (!noiDung.trim() || !lyDo.trim()) {
-        showToast("Quá hạn giải trình — cần điền cả Nội dung ghi chép và Lý do xử lý chậm", "error");
+        showToast(t("detail.tienTrinh.validationQuaHan"), "error");
         return;
       }
     } else if (!noiDung.trim() && !lyDo.trim()) {
@@ -2206,17 +2257,17 @@ function TienTrinhSection({
   };
 
   const events: TimelineEvent[] = [
-    ...items.map((t) => ({
-      key: `t-${t.id}`,
+    ...items.map((item) => ({
+      key: `t-${item.id}`,
       tone: "violet" as LsTone,
-      badge: "Ghi chú tiến trình",
-      time: fmtVN.dateTime(t.ngay_tao),
-      sortMs: parseVnNaive(t.ngay_tao),
-      actor: nameOf(t.nguoi_tao),
-      summary: [t.noi_dung_ghi_chep, t.ly_do_xu_ly_cham ? `Lý do chậm: ${t.ly_do_xu_ly_cham}` : null].filter(Boolean).join("\n"),
+      badge: t("detail.tienTrinh.ghiChuTienTrinhBadge"),
+      time: fmtVN.dateTime(item.ngay_tao),
+      sortMs: parseVnNaive(item.ngay_tao),
+      actor: nameOf(item.nguoi_tao),
+      summary: [item.noi_dung_ghi_chep, item.ly_do_xu_ly_cham ? t("detail.tienTrinh.lyDoChamSummary", { reason: item.ly_do_xu_ly_cham }) : null].filter(Boolean).join("\n"),
     })),
     ...lichSu.map((l) => {
-      const { badge, tone } = lichSuBadge(l);
+      const { badge, tone } = lichSuBadge(t, l);
       return {
         key: `l-${l.id}`,
         tone,
@@ -2224,19 +2275,19 @@ function TienTrinhSection({
         time: fmtVN.dateTime(l.thoi_diem),
         sortMs: parseVnNaive(l.thoi_diem),
         actor: nameOf(l.nguoi),
-        summary: lichSuSummary(l),
+        summary: lichSuSummary(t, l),
       };
     }),
   ].sort((a, b) => b.sortMs - a.sortMs);
 
   const addForm = (
     <form onSubmit={submit} className="mb-4 flex flex-col gap-2">
-      <Field label="Nội dung ghi chép">
-        <Textarea rows={addOnly ? 4 : 2} value={noiDung} onChange={(e) => setNoiDung(e.target.value)} placeholder="Ghi chú xử lý..." autoFocus={addOnly} />
+      <Field label={t("detail.tienTrinh.noiDungGhiChep")}>
+        <Textarea rows={addOnly ? 4 : 2} value={noiDung} onChange={(e) => setNoiDung(e.target.value)} placeholder={t("detail.tienTrinh.placeholderGhiChu")} autoFocus={addOnly} />
       </Field>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="flex-1">
-          <Field label="Lý do xử lý chậm (nếu có)">
+          <Field label={t("detail.tienTrinh.lyDoCham")}>
             <Combobox
               options={(lyDoChamOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
               value={lyDo}
@@ -2245,7 +2296,7 @@ function TienTrinhSection({
           </Field>
         </div>
         <Btn type="submit" variant="primary" disabled={mutation.isPending}>
-          {mutation.isPending ? "Đang lưu..." : "Thêm ghi chú"}
+          {mutation.isPending ? t("detail.tienTrinh.dangLuu") : t("detail.tienTrinh.themGhiChu")}
         </Btn>
       </div>
     </form>
@@ -2275,19 +2326,21 @@ function ActionBar({
   onDone: () => void;
   onError: (msg: string) => void;
 }) {
+  const { t } = useTranslation();
+  const lyDoHuyOptions = getLyDoHuyOptions(t);
   const [confirmChot, setConfirmChot] = useState(false);
   const [huyOpen, setHuyOpen] = useState(false);
-  const [lyDoHuy, setLyDoHuy] = useState(LY_DO_HUY_OPTIONS[0]);
+  const [lyDoHuy, setLyDoHuy] = useState(lyDoHuyOptions[0]);
   const [ghiChuHuy, setGhiChuHuy] = useState("");
 
   const canDongCa = (user.vai_tro === "TN CSKH" || user.vai_tro === "Admin") && kn.trang_thai === "Dang xu ly";
-  const dongCaReady = dongCaChecklist(kn).every((c) => c.ok);
+  const dongCaReady = dongCaChecklist(t, kn).every((c) => c.ok);
 
   // QL/Admin duoc chot thang tu "Dang xu ly" - bo qua buoc "Dong ca" cua TN CSKH (yeu cau ra soat
   // 2026-09) - nhung van phai du 4 loi + ket luan (dieu kien von do "Dong ca" dam nhan).
   const chotTrucTiep = kn.trang_thai === "Dang xu ly";
   const canChot = (user.vai_tro === "QL" || user.vai_tro === "Admin") && (kn.trang_thai === "Cho chot ket thuc" || chotTrucTiep);
-  const chotReady = !chotTrucTiep || dongCaChecklist(kn).every((c) => c.ok);
+  const chotReady = !chotTrucTiep || dongCaChecklist(t, kn).every((c) => c.ok);
   const canHuy =
     (user.vai_tro === "CSKH" || user.vai_tro === "TN CSKH" || user.vai_tro === "QL" || user.vai_tro === "Admin") &&
     kn.trang_thai !== "Da ket thuc" && kn.trang_thai !== "Huy";
@@ -2295,7 +2348,7 @@ function ActionBar({
   const dongCa = useMutation({
     mutationFn: () => api.post<{ ok: true }>(`/khieu-nai/${kn.id}/dong-ca`),
     onSuccess: onDone,
-    onError: (err) => onError(err instanceof ApiError ? mapDongCaError(err.code) : "Đóng ca thất bại"),
+    onError: (err) => onError(err instanceof ApiError ? mapDongCaError(t, err.code) : t("detail.action.dongCaFailedDefault")),
   });
   const chot = useMutation({
     mutationFn: () => api.post<{ ok: true }>(`/khieu-nai/${kn.id}/chot`),
@@ -2305,20 +2358,20 @@ function ActionBar({
       onError(
         err instanceof ApiError
           ? err.code === "CAN_DANH_GIA_QL"
-            ? "Cần nhập Đánh giá QL trước khi chốt"
+            ? t("detail.action.errorCanDanhGiaQl")
             : err.code === "CAN_DANH_GIA_DAY_DU"
-              ? "Cần đánh giá đủ 4 lỗi + kết luận trước khi chốt"
+              ? t("detail.action.errorCanDanhGiaDayDu")
               : err.code === "QUA_HAN_GIAI_TRINH"
-                ? "Quá hạn giải trình lý do chậm — thêm ghi chú tiến trình trước khi chốt"
-                : `Chốt thất bại: ${err.code}`
-          : "Chốt thất bại",
+                ? t("detail.action.errorQuaHanGiaiTrinhChot")
+                : t("detail.action.chotFailedCode", { code: err.code })
+          : t("detail.action.chotFailedDefault"),
       );
     },
   });
   const huy = useMutation({
     mutationFn: () => api.post<{ ok: true }>(`/khieu-nai/${kn.id}/huy`, { ly_do_huy: lyDoHuy, ghi_chu: ghiChuHuy.trim() || undefined }),
     onSuccess: () => { setHuyOpen(false); onDone(); },
-    onError: (err) => onError(err instanceof ApiError ? `Hủy thất bại: ${err.code}` : "Hủy thất bại"),
+    onError: (err) => onError(err instanceof ApiError ? t("detail.action.huyFailedCode", { code: err.code }) : t("detail.action.huyFailedDefault")),
   });
 
   if (!canDongCa && !canChot && !canHuy) return null;
@@ -2330,10 +2383,10 @@ function ActionBar({
           variant="primary"
           size="sm"
           disabled={!dongCaReady || dongCa.isPending}
-          title={!dongCaReady ? "Cần đánh giá đủ 4 lỗi + kết luận" : undefined}
+          title={!dongCaReady ? t("detail.action.dongCaTitle") : undefined}
           onClick={() => dongCa.mutate()}
         >
-          {dongCa.isPending ? "Đang đóng ca..." : "Đóng ca"}
+          {dongCa.isPending ? t("detail.action.dangDongCa") : t("detail.action.dongCa")}
         </Btn>
       )}
       {canChot && (
@@ -2341,33 +2394,33 @@ function ActionBar({
           variant="primary"
           size="sm"
           disabled={chot.isPending || !chotReady}
-          title={!chotReady ? "Cần đánh giá đủ 4 lỗi + kết luận trước khi chốt" : undefined}
+          title={!chotReady ? t("detail.action.chotTitle") : undefined}
           onClick={() => setConfirmChot(true)}
         >
-          Chốt
+          {t("detail.action.chot")}
         </Btn>
       )}
       {canHuy && (
         <Btn variant="danger" size="sm" disabled={huy.isPending} onClick={() => setHuyOpen(true)}>
-          Hủy phản ánh
+          {t("detail.action.huyPhanAnh")}
         </Btn>
       )}
 
       {confirmChot && (
         <ConfirmBox
-          title="Xác nhận chốt phản ánh"
+          title={t("detail.action.xacNhanChotTitle")}
           body={
             <>
-              <p>Mã đơn: <span className="font-mono">{kn.id}</span></p>
-              <p>Kết luận phản ánh: <b>{translateDanhGia(kn.ket_luan_khieu_nai)}</b></p>
-              <p>Đánh giá QL: <b>{kn.danh_gia_ql || "(chưa nhập — không chốt được)"}</b></p>
+              <p>{t("detail.action.maDon")}<span className="font-mono">{kn.id}</span></p>
+              <p>{t("detail.action.ketLuanPhanAnhLabel")}<b>{translateDanhGia(kn.ket_luan_khieu_nai)}</b></p>
+              <p>{t("detail.action.danhGiaQlLabel")}<b>{kn.danh_gia_ql || t("detail.action.danhGiaQlChuaNhap")}</b></p>
               {chotTrucTiep && (
-                <p className="mt-1 text-amber-700">Chốt thẳng từ "Đang xử lý" — bỏ qua bước "Đóng ca" của TN CSKH.</p>
+                <p className="mt-1 text-amber-700">{t("detail.action.chotThangNote")}</p>
               )}
-              <p className="mt-1 text-ink-soft">Sau khi chốt, ca chuyển sang “Đã kết thúc” và bị khoá.</p>
+              <p className="mt-1 text-ink-soft">{t("detail.action.sauKhiChotNote")}</p>
             </>
           }
-          confirmLabel={chot.isPending ? "Đang chốt..." : "Chốt"}
+          confirmLabel={chot.isPending ? t("detail.action.dangChot") : t("detail.action.chot")}
           confirmDisabled={chot.isPending || !kn.danh_gia_ql || !chotReady}
           onConfirm={() => chot.mutate()}
           onCancel={() => setConfirmChot(false)}
@@ -2376,21 +2429,21 @@ function ActionBar({
 
       {huyOpen && (
         <ConfirmBox
-          title="Hủy phản ánh"
+          title={t("detail.action.huyTitle")}
           body={
             <div className="flex flex-col gap-2">
-              <p>Mã đơn: <span className="font-mono">{kn.id}</span></p>
-              <label className="text-xs font-medium text-ink-soft">Lý do hủy *</label>
+              <p>{t("detail.action.maDon")}<span className="font-mono">{kn.id}</span></p>
+              <label className="text-xs font-medium text-ink-soft">{t("detail.action.lyDoHuyLabel")}</label>
               <Select
-                options={LY_DO_HUY_OPTIONS.map((v) => ({ value: v, label: v }))}
+                options={lyDoHuyOptions.map((v) => ({ value: v, label: v }))}
                 value={lyDoHuy}
                 onChange={(e) => setLyDoHuy(e.target.value)}
               />
-              <label className="text-xs font-medium text-ink-soft">Ghi chú thêm</label>
+              <label className="text-xs font-medium text-ink-soft">{t("detail.action.ghiChuThemLabel")}</label>
               <Textarea rows={2} value={ghiChuHuy} onChange={(e) => setGhiChuHuy(e.target.value)} />
             </div>
           }
-          confirmLabel={huy.isPending ? "Đang hủy..." : "Xác nhận hủy"}
+          confirmLabel={huy.isPending ? t("detail.action.dangHuy") : t("detail.action.xacNhanHuy")}
           confirmDisabled={huy.isPending || !lyDoHuy}
           danger
           onConfirm={() => huy.mutate()}
@@ -2412,13 +2465,14 @@ function ConfirmBox({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4" onClick={onCancel}>
       <div className="w-full max-w-md rounded-lg bg-surface p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h3 className="mb-2 text-sm font-semibold text-ink">{title}</h3>
         <div className="space-y-1 text-sm text-ink">{body}</div>
         <div className="mt-4 flex justify-end gap-2">
-          <Btn variant="secondary" onClick={onCancel}>Không</Btn>
+          <Btn variant="secondary" onClick={onCancel}>{t("detail.action.confirmBoxNo")}</Btn>
           <Btn variant={danger ? "danger" : "primary"} disabled={confirmDisabled} onClick={onConfirm}>
             {confirmLabel}
           </Btn>
@@ -2428,9 +2482,9 @@ function ConfirmBox({
   );
 }
 
-function mapDongCaError(code: string): string {
-  if (code === "CAN_DANH_GIA_DAY_DU") return "Cần đánh giá đầy đủ 4 lỗi và kết luận trước khi đóng ca";
-  if (code === "INVALID_STATE") return "Trạng thái hiện tại không cho phép đóng ca";
-  if (code === "QUA_HAN_GIAI_TRINH") return "Quá hạn giải trình lý do chậm — thêm ghi chú tiến trình trước khi đóng ca";
-  return `Đóng ca thất bại: ${code}`;
+function mapDongCaError(t: TFn, code: string): string {
+  if (code === "CAN_DANH_GIA_DAY_DU") return t("detail.action.dongCaError.canDanhGiaDayDu");
+  if (code === "INVALID_STATE") return t("detail.action.dongCaError.invalidState");
+  if (code === "QUA_HAN_GIAI_TRINH") return t("detail.action.dongCaError.quaHanGiaiTrinh");
+  return t("detail.action.dongCaError.default", { code });
 }
