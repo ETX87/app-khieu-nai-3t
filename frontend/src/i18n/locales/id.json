@@ -113,5 +113,105 @@
       "syncInterrupted": "Sinkronisasi berhenti setelah {{xong}} kasus — klik lagi untuk melanjutkan",
       "syncFailed": "Sinkronisasi kasus tertunda gagal"
     }
+  },
+  "list": {
+    "title": "Keluhan",
+    "filters": "Filter",
+    "clearFilters": "Hapus filter ({{count}})",
+    "all": "Semua",
+    "allTon": "Semua tertunda",
+    "allStatus": "Semua status",
+    "allSeverity": "Semua tingkat",
+    "allIssueGroup": "Semua kelompok masalah",
+    "allRequestGroup": "Semua kelompok permintaan",
+    "from": "Dari",
+    "to": "sampai",
+    "allCrmStatus": "Semua status CRM",
+    "waitingTnCskhClose": "Menunggu CSKH menutup",
+    "overdueExplain": "Terlambat penjelasan",
+    "myCases": "Kasus saya",
+    "allCreator": "Semua pembuat",
+    "allDuration": "Semua durasi tertunda",
+    "closeMonth": "Bulan penutupan",
+    "searchPlaceholder": "Cari: nama pelanggan · telepon · ID Lada · ID pelacakan · ID kasus · kode CRM",
+    "search": "Cari",
+    "selected": "{{count}} kasus dipilih",
+    "closing": "Menutup kasus...",
+    "closeCases": "Tutup kasus ({{count}})",
+    "deselect": "Batalkan pilihan",
+    "loadError": "Tidak dapat memuat data.",
+    "selectAllEligible": "Pilih semua kasus yang memenuhi syarat untuk ditutup ({{count}})",
+    "selectAllTitle": "Pilih semua kasus yang memenuhi syarat untuk ditutup di halaman ini",
+    "selectOneTitle": "Pilih untuk penutupan massal",
+    "selectOneAria": "Pilih {{id}} untuk ditutup",
+    "totalFooter": "Total {{total}}{{approx}} keluhan — Halaman {{page}}/{{totalPages}}{{approx}}",
+    "prev": "Sebelumnya",
+    "next": "Berikutnya",
+    "confirmCloseTitle": "Tutup {{count}} kasus?",
+    "confirmCloseBody1Pre": "Kasus tanpa penilaian QL akan ditandai",
+    "confirmCloseBody1Bold": "Penilaian QL = \"Selesai\"",
+    "confirmCloseBody1Post": ". Kasus yang sudah punya penilaian QL tetap sama.",
+    "confirmCloseBody2Pre": "Semua akan pindah ke status",
+    "confirmCloseBody2Bold": "Selesai",
+    "confirmCloseBody2Post": ".",
+    "confirmCloseNote": "Kasus yang terlambat penjelasan atau baru saja berubah status akan dilewati dan dilaporkan kembali.",
+    "no": "Tidak",
+    "col": {
+      "idModelLada": "ID · Model · Lada",
+      "customerProvince": "Pelanggan / Provinsi",
+      "source": "Sumber",
+      "severity": "Tingkat",
+      "issueGroup": "Kelompok masalah",
+      "status": "Status",
+      "processingHours": "Jam proses",
+      "indicator": "Indikator",
+      "updated": "Diperbarui",
+      "ktvDone": "Teknisi selesai"
+    },
+    "notApplicable": "Tidak berlaku",
+    "done": "Selesai",
+    "crmIdWrong": "ID CRM salah",
+    "pendingSync": "Menunggu sinkron",
+    "indicator": {
+      "readyToClose": "Siap difinalisasi",
+      "readyToCloseCase": "Siap ditutup",
+      "pendingSyncCrm": "Menunggu sinkron CRM",
+      "awaitingReview": "Menunggu penilaian"
+    },
+    "caseCountReason": "{{n}} kasus {{reason}}",
+    "toast": {
+      "closedCount": "Berhasil menutup {{count}} kasus",
+      "closedPartial": "Berhasil menutup {{okCount}} kasus. Gagal: {{detail}}",
+      "bulkCloseFailed": "Penutupan massal gagal",
+      "bulkCloseFailedCode": "Penutupan massal gagal: {{code}}"
+    },
+    "quickCountTitle": "Jumlah kasus dalam rentang bulan ini (sama seperti Beranda) — bisa berbeda dari tampilan jika memfilter rentang tanggal/bulan lain",
+    "statusOption": {
+      "choTiepNhan": "Menunggu diterima",
+      "dangXuLy": "Sedang diproses",
+      "choChotKetThuc": "Menunggu penutupan",
+      "daKetThuc": "Selesai",
+      "huy": "Dibatalkan"
+    },
+    "sortOption": {
+      "newest": "Diterima terbaru",
+      "oldest": "Diterima terlama",
+      "updatedRecent": "Baru diperbarui",
+      "severityAsc": "Tingkat (A→Z)"
+    },
+    "pageSizeOption": "{{n}} baris",
+    "tonToiThieuDays": "Tertunda ≥ {{n}} hari",
+    "crmOption": {
+      "all": "Tertunda sinkron CRM (semua)",
+      "cho": "Menunggu sinkron (ID benar)",
+      "sai": "ID CRM salah"
+    },
+    "dongCaErr": {
+      "QUA_HAN_GIAI_TRINH": "terlambat penjelasan",
+      "CAN_DANH_GIA_DAY_DU": "penilaian belum lengkap (4 kesalahan + kesimpulan)",
+      "CAN_DANH_GIA_QL": "belum ada penilaian QL",
+      "INVALID_STATE": "status telah berubah",
+      "NOT_FOUND": "tidak ditemukan"
+    }
   }
 }

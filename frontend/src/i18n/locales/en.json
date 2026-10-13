@@ -113,5 +113,105 @@
       "syncInterrupted": "Sync stopped after {{xong}} cases — click again to continue",
       "syncFailed": "Pending case sync failed"
     }
+  },
+  "list": {
+    "title": "Complaints",
+    "filters": "Filters",
+    "clearFilters": "Clear filters ({{count}})",
+    "all": "All",
+    "allTon": "All open",
+    "allStatus": "All statuses",
+    "allSeverity": "All severities",
+    "allIssueGroup": "All issue groups",
+    "allRequestGroup": "All request groups",
+    "from": "From",
+    "to": "to",
+    "allCrmStatus": "All CRM statuses",
+    "waitingTnCskhClose": "Awaiting CSKH closure",
+    "overdueExplain": "Overdue explanation",
+    "myCases": "My cases",
+    "allCreator": "All creators",
+    "allDuration": "All open durations",
+    "closeMonth": "Closed month",
+    "searchPlaceholder": "Search: customer name · phone · Lada ID · tracking ID · case ID · CRM code",
+    "search": "Search",
+    "selected": "{{count}} cases selected",
+    "closing": "Closing cases...",
+    "closeCases": "Close cases ({{count}})",
+    "deselect": "Deselect",
+    "loadError": "Could not load data.",
+    "selectAllEligible": "Select all cases eligible to close ({{count}})",
+    "selectAllTitle": "Select all cases eligible to close on this page",
+    "selectOneTitle": "Select for bulk closing",
+    "selectOneAria": "Select {{id}} to close",
+    "totalFooter": "Total {{total}}{{approx}} complaints — Page {{page}}/{{totalPages}}{{approx}}",
+    "prev": "Previous",
+    "next": "Next",
+    "confirmCloseTitle": "Close {{count}} case(s)?",
+    "confirmCloseBody1Pre": "Cases without a QL review will be marked",
+    "confirmCloseBody1Bold": "QL review = \"Completed\"",
+    "confirmCloseBody1Post": ". Cases with a QL review keep their value.",
+    "confirmCloseBody2Pre": "All will move to status",
+    "confirmCloseBody2Bold": "Closed",
+    "confirmCloseBody2Post": ".",
+    "confirmCloseNote": "Cases overdue on explanation or with a status just changed will be skipped and reported.",
+    "no": "No",
+    "col": {
+      "idModelLada": "ID · Model · Lada",
+      "customerProvince": "Customer / Province",
+      "source": "Source",
+      "severity": "Severity",
+      "issueGroup": "Issue group",
+      "status": "Status",
+      "processingHours": "Processing hours",
+      "indicator": "Indicator",
+      "updated": "Updated",
+      "ktvDone": "Technician done"
+    },
+    "notApplicable": "Not applicable",
+    "done": "Done",
+    "crmIdWrong": "Wrong CRM ID",
+    "pendingSync": "Pending sync",
+    "indicator": {
+      "readyToClose": "Ready to finalize",
+      "readyToCloseCase": "Ready to close",
+      "pendingSyncCrm": "Pending CRM sync",
+      "awaitingReview": "Awaiting review"
+    },
+    "caseCountReason": "{{n}} case(s) {{reason}}",
+    "toast": {
+      "closedCount": "Closed {{count}} case(s)",
+      "closedPartial": "Closed {{okCount}} case(s). Could not close: {{detail}}",
+      "bulkCloseFailed": "Bulk close failed",
+      "bulkCloseFailedCode": "Bulk close failed: {{code}}"
+    },
+    "quickCountTitle": "Case count for the current month range (same as Home) — may differ from what's shown if filtering a different date/month range",
+    "statusOption": {
+      "choTiepNhan": "Awaiting intake",
+      "dangXuLy": "Processing",
+      "choChotKetThuc": "Awaiting closure",
+      "daKetThuc": "Closed",
+      "huy": "Cancelled"
+    },
+    "sortOption": {
+      "newest": "Newest received",
+      "oldest": "Oldest received",
+      "updatedRecent": "Recently updated",
+      "severityAsc": "Severity (A→Z)"
+    },
+    "pageSizeOption": "{{n}} rows",
+    "tonToiThieuDays": "Open ≥ {{n}} days",
+    "crmOption": {
+      "all": "All pending CRM sync",
+      "cho": "Awaiting sync (correct ID)",
+      "sai": "Wrong CRM ID"
+    },
+    "dongCaErr": {
+      "QUA_HAN_GIAI_TRINH": "overdue explanation",
+      "CAN_DANH_GIA_DAY_DU": "incomplete evaluation (4 issues + conclusion)",
+      "CAN_DANH_GIA_QL": "missing QL review",
+      "INVALID_STATE": "status has changed",
+      "NOT_FOUND": "not found"
+    }
   }
 }

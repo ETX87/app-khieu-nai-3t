@@ -113,5 +113,105 @@
       "syncInterrupted": "Đồng bộ dừng giữa chừng sau {{xong}} ca — bấm lại để tiếp tục",
       "syncFailed": "Đồng bộ ca tồn thất bại"
     }
+  },
+  "list": {
+    "title": "Phản ánh",
+    "filters": "Bộ lọc",
+    "clearFilters": "Xoá lọc ({{count}})",
+    "all": "Tất cả",
+    "allTon": "Tất cả tồn",
+    "allStatus": "Mọi trạng thái",
+    "allSeverity": "Mọi mức độ",
+    "allIssueGroup": "Mọi nhóm vấn đề",
+    "allRequestGroup": "Mọi nhóm yêu cầu",
+    "from": "Từ",
+    "to": "đến",
+    "allCrmStatus": "Mọi tình trạng CRM",
+    "waitingTnCskhClose": "Chờ TN CSKH đóng ca",
+    "overdueExplain": "Quá hạn giải trình",
+    "myCases": "Ca của tôi",
+    "allCreator": "Mọi người tạo",
+    "allDuration": "Mọi thời gian tồn",
+    "closeMonth": "Tháng đóng",
+    "searchPlaceholder": "Tìm: tên khách · SĐT · ID Lada · ID Truy xuất · mã KN · mã CRM",
+    "search": "Tìm",
+    "selected": "Đã chọn {{count}} ca",
+    "closing": "Đang đóng ca...",
+    "closeCases": "Đóng ca ({{count}})",
+    "deselect": "Bỏ chọn",
+    "loadError": "Không thể tải dữ liệu.",
+    "selectAllEligible": "Chọn tất cả ca đủ điều kiện đóng ca ({{count}})",
+    "selectAllTitle": "Chọn tất cả ca đủ điều kiện đóng ca trong trang",
+    "selectOneTitle": "Chọn để đóng ca hàng loạt",
+    "selectOneAria": "Chọn {{id}} để đóng ca",
+    "totalFooter": "Tổng {{total}}{{approx}} phản ánh — Trang {{page}}/{{totalPages}}{{approx}}",
+    "prev": "Trước",
+    "next": "Sau",
+    "confirmCloseTitle": "Đóng {{count}} ca?",
+    "confirmCloseBody1Pre": "Ca chưa có Đánh giá QL sẽ được ghi",
+    "confirmCloseBody1Bold": "Đánh giá QL = \"Đã hoàn thành\"",
+    "confirmCloseBody1Post": ". Ca đã có Đánh giá QL giữ nguyên.",
+    "confirmCloseBody2Pre": "Tất cả chuyển sang trạng thái",
+    "confirmCloseBody2Bold": "Đã kết thúc",
+    "confirmCloseBody2Post": ".",
+    "confirmCloseNote": "Ca quá hạn giải trình hoặc vừa đổi trạng thái sẽ được bỏ qua và báo lại.",
+    "no": "Không",
+    "col": {
+      "idModelLada": "Mã · Model · Lada",
+      "customerProvince": "Khách / Tỉnh",
+      "source": "Nguồn",
+      "severity": "Mức độ",
+      "issueGroup": "Nhóm vấn đề",
+      "status": "Trạng thái",
+      "processingHours": "Số giờ xử lý",
+      "indicator": "Chỉ báo",
+      "updated": "Cập nhật",
+      "ktvDone": "KTV hoàn thành"
+    },
+    "notApplicable": "Không áp dụng",
+    "done": "Xong",
+    "crmIdWrong": "ID CRM sai",
+    "pendingSync": "Chờ đồng bộ",
+    "indicator": {
+      "readyToClose": "Sẵn sàng chốt",
+      "readyToCloseCase": "Sẵn sàng đóng ca",
+      "pendingSyncCrm": "Chờ đồng bộ CRM",
+      "awaitingReview": "Chờ đánh giá"
+    },
+    "caseCountReason": "{{n}} ca {{reason}}",
+    "toast": {
+      "closedCount": "Đã đóng {{count}} ca",
+      "closedPartial": "Đã đóng {{okCount}} ca. Không đóng được: {{detail}}",
+      "bulkCloseFailed": "Đóng ca hàng loạt thất bại",
+      "bulkCloseFailedCode": "Đóng ca hàng loạt thất bại: {{code}}"
+    },
+    "quickCountTitle": "Số ca trong phạm vi tháng hiện tại (giống Trang chủ) - có thể khác số ca thực tế hiển thị nếu đang lọc theo khoảng ngày/tháng khác",
+    "statusOption": {
+      "choTiepNhan": "Chờ tiếp nhận",
+      "dangXuLy": "Đang xử lý",
+      "choChotKetThuc": "Chờ chốt kết thúc",
+      "daKetThuc": "Đã kết thúc",
+      "huy": "Hủy"
+    },
+    "sortOption": {
+      "newest": "Tiếp nhận mới nhất",
+      "oldest": "Tiếp nhận cũ nhất",
+      "updatedRecent": "Cập nhật gần nhất",
+      "severityAsc": "Mức độ (A→Z)"
+    },
+    "pageSizeOption": "{{n}} dòng",
+    "tonToiThieuDays": "Tồn ≥ {{n}} ngày",
+    "crmOption": {
+      "all": "Tồn đồng bộ CRM (tất cả)",
+      "cho": "Chờ đồng bộ (ID đúng)",
+      "sai": "ID CRM sai"
+    },
+    "dongCaErr": {
+      "QUA_HAN_GIAI_TRINH": "quá hạn giải trình",
+      "CAN_DANH_GIA_DAY_DU": "chưa đủ đánh giá 4 lỗi + kết luận",
+      "CAN_DANH_GIA_QL": "chưa có Đánh giá QL",
+      "INVALID_STATE": "trạng thái đã thay đổi",
+      "NOT_FOUND": "không tìm thấy"
+    }
   }
 }
