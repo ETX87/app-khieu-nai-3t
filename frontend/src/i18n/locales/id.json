@@ -53,5 +53,65 @@
     "vi": "Tiếng Việt",
     "en": "English",
     "id": "Bahasa Indonesia"
+  },
+  "home": {
+    "heroTitle": "Sistem pencatatan keluhan",
+    "heroSubtitle": "Menghubungkan teknisi lapangan - CSKH - Penanganan cepat dan efektif",
+    "createNew": "+ Keluhan baru",
+    "statsLabel": "Data: kasus tertunda (kapan saja) + kasus selesai/dibatalkan dalam",
+    "monthRange": "bulan {{m}}/{{y}}",
+    "currentMonthRange": "bulan ini ({{m}}/{{y}})",
+    "allSources": "Semua sumber",
+    "stat": {
+      "total": "Total (cakupan)",
+      "pending": "Menunggu diterima",
+      "processing": "Sedang diproses",
+      "pendingClose": "Menunggu penutupan",
+      "done": "Selesai",
+      "cancelled": "Dibatalkan",
+      "pendingSyncCrm": "Menunggu sinkron CRM",
+      "crmIdWrong": "ID CRM salah",
+      "pendingTnCskh": "Menunggu TN CSKH",
+      "overdueExplain": "Terlambat penjelasan"
+    },
+    "pendingUsers": "{{count}} pengguna menunggu persetujuan",
+    "openUsers": "Buka halaman Pengguna →",
+    "myWork": "Pekerjaan saya — {{title}}",
+    "myTitle": {
+      "ql": "Kasus menunggu saya tutup",
+      "tncskh": "Kasus sedang diproses (siap ditutup)",
+      "cskhAdmin": "Keluhan menunggu diterima",
+      "default": "Kasus yang saya tangani"
+    },
+    "syncTooltip": "Dibagi otomatis beberapa batch (40 kasus/batch); melewati kasus yang baru disinkron dalam 1 menit terakhir",
+    "syncingShort": "Menyinkron batch {{luot}}...",
+    "syncingDetail": "Menyinkron batch {{luot}} · {{xong}}/{{tong}} kasus",
+    "syncPending": "Sinkron {{n}} kasus tertunda CRM",
+    "noMyWork": "Tidak ada kasus yang perlu Anda tangani.",
+    "processingTitle": "Keluhan sedang diproses",
+    "noProcessing": "Tidak ada keluhan yang sedang diproses.",
+    "byGroupTitle": "Keluhan menurut kelompok masalah",
+    "createModalTitle": "Keluhan baru",
+    "pendingChoices": "{{count}} pilihan baru akan disimpan saat Anda klik Buat",
+    "missing": "Masih kurang: {{list}}",
+    "creating": "Sedang membuat...",
+    "createBtn": "Buat keluhan",
+    "col": {
+      "id": "No. Kasus",
+      "customer": "Pelanggan",
+      "issue": "Masalah",
+      "received": "Diterima",
+      "status": "Status"
+    },
+    "toast": {
+      "noSyncNeededWithSkip": "Tidak ada kasus yang perlu disinkron — {{boQua}} kasus baru saja disinkron dalam 1 menit terakhir",
+      "noSyncNeeded": "Tidak ada kasus tertunda yang perlu disinkron",
+      "syncedSummary": "Berhasil sinkron {{xong}} kasus ({{luot}} batch): {{okN}} ID benar",
+      "syncedNotFound": ", {{saiN}} tidak ditemukan di CRM",
+      "syncedConnError": ", {{loiN}} kesalahan koneksi",
+      "syncedSkipped": " · melewati {{boQua}} kasus yang disinkron <1 menit lalu",
+      "syncInterrupted": "Sinkronisasi berhenti setelah {{xong}} kasus — klik lagi untuk melanjutkan",
+      "syncFailed": "Sinkronisasi kasus tertunda gagal"
+    }
   }
 }

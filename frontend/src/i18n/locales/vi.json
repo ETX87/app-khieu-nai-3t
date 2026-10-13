@@ -53,5 +53,65 @@
     "vi": "Tiếng Việt",
     "en": "English",
     "id": "Bahasa Indonesia"
+  },
+  "home": {
+    "heroTitle": "Hệ thống ghi nhận phản ánh",
+    "heroSubtitle": "Kết nối KTV hiện trường - CSKH - Xử lý nhanh chóng - Hiệu quả",
+    "createNew": "+ Tạo phản ánh mới",
+    "statsLabel": "Số liệu: ca đang tồn (mọi lúc) + ca đóng/hủy trong",
+    "monthRange": "tháng {{m}}/{{y}}",
+    "currentMonthRange": "tháng hiện tại ({{m}}/{{y}})",
+    "allSources": "Mọi nguồn",
+    "stat": {
+      "total": "Tổng (phạm vi)",
+      "pending": "Chờ tiếp nhận",
+      "processing": "Đang xử lý",
+      "pendingClose": "Chờ chốt kết thúc",
+      "done": "Đã kết thúc",
+      "cancelled": "Đã hủy",
+      "pendingSyncCrm": "Chờ đồng bộ CRM",
+      "crmIdWrong": "ID CRM sai",
+      "pendingTnCskh": "Chờ TN CSKH",
+      "overdueExplain": "Quá hạn giải trình"
+    },
+    "pendingUsers": "{{count}} người dùng đang chờ duyệt",
+    "openUsers": "Mở màn Người dùng →",
+    "myWork": "Việc của tôi — {{title}}",
+    "myTitle": {
+      "ql": "Ca chờ tôi chốt",
+      "tncskh": "Ca đang xử lý (sẵn sàng đóng)",
+      "cskhAdmin": "Phản ánh chờ tiếp nhận",
+      "default": "Ca tôi phụ trách"
+    },
+    "syncTooltip": "Tự chia nhiều lượt (40 ca/lượt); bỏ qua ca vừa đồng bộ trong 1 phút gần đây",
+    "syncingShort": "Đang đồng bộ lượt {{luot}}...",
+    "syncingDetail": "Đang đồng bộ lượt {{luot}} · {{xong}}/{{tong}} ca",
+    "syncPending": "Đồng bộ {{n}} ca tồn CRM",
+    "noMyWork": "Không có ca nào cần bạn xử lý.",
+    "processingTitle": "Phản ánh đang xử lý",
+    "noProcessing": "Không có phản ánh đang xử lý.",
+    "byGroupTitle": "Phản ánh theo nhóm vấn đề",
+    "createModalTitle": "Tạo phản ánh mới",
+    "pendingChoices": "{{count}} lựa chọn mới sẽ được lưu khi bấm Tạo",
+    "missing": "Còn thiếu: {{list}}",
+    "creating": "Đang tạo...",
+    "createBtn": "Tạo phản ánh",
+    "col": {
+      "id": "Mã KN",
+      "customer": "Khách hàng",
+      "issue": "Vấn đề",
+      "received": "Tiếp nhận",
+      "status": "Trạng thái"
+    },
+    "toast": {
+      "noSyncNeededWithSkip": "Không có ca cần đồng bộ — {{boQua}} ca vừa được đồng bộ trong 1 phút gần đây",
+      "noSyncNeeded": "Không có ca tồn nào cần đồng bộ",
+      "syncedSummary": "Đã đồng bộ {{xong}} ca ({{luot}} lượt): {{okN}} ID đúng",
+      "syncedNotFound": ", {{saiN}} chưa tìm thấy trên CRM",
+      "syncedConnError": ", {{loiN}} lỗi kết nối",
+      "syncedSkipped": " · bỏ qua {{boQua}} ca vừa đồng bộ <1 phút",
+      "syncInterrupted": "Đồng bộ dừng giữa chừng sau {{xong}} ca — bấm lại để tiếp tục",
+      "syncFailed": "Đồng bộ ca tồn thất bại"
+    }
   }
 }

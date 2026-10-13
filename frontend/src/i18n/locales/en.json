@@ -53,5 +53,65 @@
     "vi": "Tiếng Việt",
     "en": "English",
     "id": "Bahasa Indonesia"
+  },
+  "home": {
+    "heroTitle": "Complaint intake system",
+    "heroSubtitle": "Connecting field technicians - CSKH - Fast, effective resolution",
+    "createNew": "+ New complaint",
+    "statsLabel": "Figures: open cases (any time) + closed/cancelled cases in",
+    "monthRange": "{{m}}/{{y}}",
+    "currentMonthRange": "current month ({{m}}/{{y}})",
+    "allSources": "All sources",
+    "stat": {
+      "total": "Total (scope)",
+      "pending": "Awaiting intake",
+      "processing": "Processing",
+      "pendingClose": "Awaiting closure",
+      "done": "Closed",
+      "cancelled": "Cancelled",
+      "pendingSyncCrm": "Pending CRM sync",
+      "crmIdWrong": "Wrong CRM ID",
+      "pendingTnCskh": "Awaiting CSKH receipt",
+      "overdueExplain": "Overdue explanation"
+    },
+    "pendingUsers": "{{count}} users awaiting approval",
+    "openUsers": "Open Users →",
+    "myWork": "My work — {{title}}",
+    "myTitle": {
+      "ql": "Cases awaiting my closure",
+      "tncskh": "Cases in progress (ready to close)",
+      "cskhAdmin": "Complaints awaiting intake",
+      "default": "Cases assigned to me"
+    },
+    "syncTooltip": "Automatically split into batches (40 cases/batch); skips cases synced in the last minute",
+    "syncingShort": "Syncing batch {{luot}}...",
+    "syncingDetail": "Syncing batch {{luot}} · {{xong}}/{{tong}} cases",
+    "syncPending": "Sync {{n}} pending CRM cases",
+    "noMyWork": "No cases need your attention.",
+    "processingTitle": "Complaints in progress",
+    "noProcessing": "No complaints in progress.",
+    "byGroupTitle": "Complaints by issue group",
+    "createModalTitle": "New complaint",
+    "pendingChoices": "{{count}} new choices will be saved when you click Create",
+    "missing": "Missing: {{list}}",
+    "creating": "Creating...",
+    "createBtn": "Create complaint",
+    "col": {
+      "id": "Case ID",
+      "customer": "Customer",
+      "issue": "Issue",
+      "received": "Received",
+      "status": "Status"
+    },
+    "toast": {
+      "noSyncNeededWithSkip": "No cases need syncing — {{boQua}} cases were just synced in the last minute",
+      "noSyncNeeded": "No pending cases need syncing",
+      "syncedSummary": "Synced {{xong}} cases ({{luot}} batches): {{okN}} correct IDs",
+      "syncedNotFound": ", {{saiN}} not found on CRM",
+      "syncedConnError": ", {{loiN}} connection errors",
+      "syncedSkipped": " · skipped {{boQua}} cases synced <1 min ago",
+      "syncInterrupted": "Sync stopped after {{xong}} cases — click again to continue",
+      "syncFailed": "Pending case sync failed"
+    }
   }
 }
