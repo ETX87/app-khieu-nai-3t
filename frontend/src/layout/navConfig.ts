@@ -17,12 +17,13 @@ export const ROLE_MODULES: Record<VaiTro, ModuleKey[]> = {
 // Roles without an assigned vai_tro yet see nothing (should not normally happen once approved).
 export const DEFAULT_MODULES: ModuleKey[] = ["trang-chu", "khieu-nai"];
 
-export const MODULE_LABELS: Record<ModuleKey, string> = {
-  "trang-chu": "Trang chủ",
-  "khieu-nai": "Phản ánh",
-  "bao-cao": "Báo cáo",
-  settings: "Cấu hình",
-  users: "Người dùng",
+// Khoa i18n tuong ung tung module, dung voi t(MODULE_I18N_KEY[m]) o Sidebar/BottomNav.
+export const MODULE_I18N_KEY: Record<ModuleKey, string> = {
+  "trang-chu": "nav.trangChu",
+  "khieu-nai": "nav.phanAnh",
+  "bao-cao": "nav.baoCao",
+  settings: "nav.settings",
+  users: "nav.users",
 };
 
 export const ALL_MODULES: ModuleKey[] = ["trang-chu", "khieu-nai", "bao-cao", "settings", "users"];
@@ -30,13 +31,13 @@ export const ALL_MODULES: ModuleKey[] = ["trang-chu", "khieu-nai", "bao-cao", "s
 // Nhom sidebar theo section - module khong thuoc nhom nao (vd "trang-chu") duoc render rieng,
 // khong bi bao trong khung nhom nao ca.
 export interface NavGroup {
-  label: string;
+  labelKey: string;
   modules: ModuleKey[];
 }
 
 // "bao-cao" khong nam trong nhom nao - render dung canh "trang-chu" o dau sidebar (item: bao cao
 // gan trang chu tren menu), xem Sidebar.tsx.
 export const NAV_GROUPS: NavGroup[] = [
-  { label: "Quản lý phản ánh", modules: ["khieu-nai"] },
-  { label: "Hệ thống", modules: ["settings", "users"] },
+  { labelKey: "nav.groupPhanAnh", modules: ["khieu-nai"] },
+  { labelKey: "nav.groupHeThong", modules: ["settings", "users"] },
 ];

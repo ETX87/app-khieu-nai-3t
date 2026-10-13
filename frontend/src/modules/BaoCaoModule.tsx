@@ -422,7 +422,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
   // luong ca/ngay tang -> doi sang loc theo thang (2026-09-21): tai phat cach nhau qua 1 thang se
   // khong con duoc gop nhom, doi lay chi phi doc D1 chac chan theo khoi luong 1 thang.
   const [thang, setThang] = useState("");
-  const [locNguonThang, setLocNguonThang] = useState("");
+  const [locNguonThang, setLocNguonThang] = useState(user.cong_ty ?? "");
   const [locNhomYeuCauThang, setLocNhomYeuCauThang] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
   // Tach noi dung thanh tab de man hinh bao cao khong qua dai (item): cac truy van van chay ngam
@@ -440,7 +440,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
   const [ngayDen, setNgayDen] = useState(todayISO);
   const [locNguoiTiepNhan, setLocNguoiTiepNhan] = useState("");
   const [locNguoiTao, setLocNguoiTao] = useState("");
-  const [locNguon, setLocNguon] = useState("");
+  const [locNguon, setLocNguon] = useState(user.cong_ty ?? "");
   const [locNhomYeuCau, setLocNhomYeuCau] = useState("");
   const [locMucDo, setLocMucDo] = useState("");
   const [locPhanLoaiKh, setLocPhanLoaiKh] = useState("");

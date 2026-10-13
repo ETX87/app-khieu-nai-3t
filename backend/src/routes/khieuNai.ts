@@ -385,6 +385,8 @@ app.get("/stats", async (c) => {
   const conditions = [thangSql];
   const binds: unknown[] = [...thangBinds];
   if (onlyMine) { conditions.push("nguoi_tao = ?"); binds.push(user.email); }
+  const nguon = c.req.query("nguon");
+  if (nguon) { conditions.push("nguon = ?"); binds.push(nguon); }
   const where = `WHERE ${conditions.join(" AND ")}`;
 
   const row = await c.env.DB.prepare(

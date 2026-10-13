@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 import type { AppUser } from "../api/types";
-import { MODULE_LABELS, NAV_GROUPS, type ModuleKey } from "./navConfig";
+import { MODULE_I18N_KEY, NAV_GROUPS, type ModuleKey } from "./navConfig";
 import { NAV_ICONS } from "./BottomNav";
 import { NotificationBell } from "./NotificationBell";
 import { APP_VERSION } from "../version";
+import { NGUON_OPTIONS } from "../modules/KhieuNaiForm";
 
 interface SidebarProps {
   modules: ModuleKey[];
@@ -34,16 +37,18 @@ const COLLAPSED_KEY = "khieunai_sidebar_collapsed";
 function NavButton({
   moduleKey, active, onSelect, collapsed,
 }: { moduleKey: ModuleKey; active: boolean; onSelect: (m: ModuleKey) => void; collapsed: boolean }) {
+  const { t } = useTranslation();
+  const label = t(MODULE_I18N_KEY[moduleKey]);
   return (
     <button
       onClick={() => onSelect(moduleKey)}
-      title={collapsed ? MODULE_LABELS[moduleKey] : undefined}
+      title={collapsed ? label : undefined}
       className={`flex w-full items-center gap-2.5 rounded-lg px-3.5 py-3 text-left text-base font-medium transition-colors md:py-2.5 md:text-[13.5px] ${
         collapsed ? "md:justify-center" : ""
       } ${active ? "bg-white/[0.22] font-semibold text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]" : "text-white/85 hover:bg-white/10 hover:text-white"}`}
     >
       <span className="shrink-0 [&_svg]:h-[22px] [&_svg]:w-[22px] md:[&_svg]:h-[18px] md:[&_svg]:w-[18px]">{NAV_ICONS[moduleKey]}</span>
-      <span className={collapsed ? "md:hidden" : ""}>{MODULE_LABELS[moduleKey]}</span>
+      <span className={collapsed ? "md:hidden" : ""}>{label}</span>
     </button>
   );
 }
@@ -59,6 +64,8 @@ const ChevronIcon = ({ flipped }: { flipped: boolean }) => (
 );
 
 export function Sidebar({ modules, active, onSelect, user, open, onClose, onOpenDetail }: SidebarProps) {
+  const { t, i18n } = useTranslation();
+  const auth = useAuth();
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(COLLAPSED_KEY) === "1";
@@ -94,6 +101,17 @@ export function Sidebar({ modules, active, onSelect, user, open, onClose, onOpen
     onClose();
   };
 
+  const changeCongTy = async (v: string) => {
+    await api.patch("/auth/me", { cong_ty: v });
+    auth.refetch();
+  };
+  const changeNgonNgu = async (v: string) => {
+    await api.patch("/auth/me", { ngon_ngu: v });
+    void i18n.changeLanguage(v);
+    auth.refetch();
+  };
+  const selCls = "w-full rounded-lg border border-white/15 bg-white/10 px-2 py-1 text-xs text-white [&>option]:text-ink";
+
   return (
     <>
       {open && (
@@ -111,15 +129,15 @@ export function Sidebar({ modules, active, onSelect, user, open, onClose, onOpen
         <div className={`flex items-center gap-3 border-b border-white/10 px-4 py-4 ${collapsed ? "md:justify-center md:px-2" : ""}`}>
           <img src="/icon-192.png" alt="3T" className="h-10 w-10 shrink-0 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.25)] ring-1 ring-white/30" />
           <div className={`min-w-0 flex-1 ${collapsed ? "md:hidden" : ""}`}>
-            <h1 className="truncate text-base font-bold text-white">Phản ánh 3T</h1>
-            <p className="truncate text-xs text-white/70">Tiếp nhận · Xử lý · Đồng hành</p>
+            <h1 className="truncate text-base font-bold text-white">{t("sidebar.appTitle")}</h1>
+            <p className="truncate text-xs text-white/70">{t("sidebar.appSubtitle")}</p>
           </div>
           <div className="hidden shrink-0 md:block">
             <NotificationBell onOpenDetail={onOpenDetail} onDark />
           </div>
           <button
             onClick={onClose}
-            aria-label="Đóng menu"
+            aria-label={t("sidebar.closeMenu")}
             className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white md:hidden"
           >
             ✕
@@ -142,9 +160,9 @@ export function Sidebar({ modules, active, onSelect, user, open, onClose, onOpen
             const visible = group.modules.filter(has);
             if (visible.length === 0) return null;
             return (
-              <div key={group.label} className="space-y-1">
+              <div key={group.labelKey} className="space-y-1">
                 <p className={`px-3.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-white/55 ${collapsed ? "md:hidden" : ""}`}>
-                  {group.label}
+                  {t(group.labelKey)}
                 </p>
                 {visible.map((m) => (
                   <NavButton key={m} moduleKey={m} active={active === m} onSelect={select} collapsed={collapsed} />
@@ -156,23 +174,39 @@ export function Sidebar({ modules, active, onSelect, user, open, onClose, onOpen
 
         <button
           onClick={toggleCollapsed}
-          aria-label={collapsed ? "Mở rộng menu" : "Thu gọn menu"}
-          title={collapsed ? "Mở rộng menu" : "Thu gọn menu"}
+          aria-label={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
+          title={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
           className="hidden items-center justify-center gap-1.5 border-t border-white/10 py-2 text-xs font-medium text-white/70 hover:bg-white/10 hover:text-white md:flex"
         >
           <ChevronIcon flipped={collapsed} />
-          <span className={collapsed ? "md:hidden" : ""}>Thu gọn</span>
+          <span className={collapsed ? "md:hidden" : ""}>{t("sidebar.collapseShort")}</span>
         </button>
 
         <div className={`border-t border-white/10 px-4 py-3 ${collapsed ? "md:px-2 md:text-center" : ""}`}>
           <p className={`truncate text-sm font-semibold text-white ${collapsed ? "md:hidden" : ""}`}>{user.ten ?? user.email}</p>
-          <p className={`text-xs text-white/70 ${collapsed ? "md:hidden" : "mb-2"}`}>{ROLE_LABEL[user.vai_tro ?? ""] ?? "Chưa gán vai trò"}</p>
-          <button onClick={logout} title="Đăng xuất" className="rounded-lg bg-white/10 px-2.5 py-1 text-xs font-semibold text-white hover:bg-white/20">
-            <span className={collapsed ? "md:hidden" : ""}>Đăng xuất</span>
+          <p className={`text-xs text-white/70 ${collapsed ? "md:hidden" : "mb-2"}`}>{ROLE_LABEL[user.vai_tro ?? ""] ?? t("sidebar.noRole")}</p>
+          <div className={`mb-2 flex flex-col gap-1.5 ${collapsed ? "md:hidden" : ""}`}>
+            <label className="text-left text-[10px] font-semibold uppercase tracking-wide text-white/50">
+              {t("sidebar.congTy")}
+              <select className={`mt-0.5 ${selCls}`} value={user.cong_ty ?? ""} onChange={(e) => void changeCongTy(e.target.value)}>
+                {NGUON_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+            <label className="text-left text-[10px] font-semibold uppercase tracking-wide text-white/50">
+              {t("sidebar.ngonNgu")}
+              <select className={`mt-0.5 ${selCls}`} value={user.ngon_ngu} onChange={(e) => void changeNgonNgu(e.target.value)}>
+                <option value="vi">{t("ngonNguPicker.vi")}</option>
+                <option value="en">{t("ngonNguPicker.en")}</option>
+                <option value="id">{t("ngonNguPicker.id")}</option>
+              </select>
+            </label>
+          </div>
+          <button onClick={logout} title={t("sidebar.logout")} className="rounded-lg bg-white/10 px-2.5 py-1 text-xs font-semibold text-white hover:bg-white/20">
+            <span className={collapsed ? "md:hidden" : ""}>{t("sidebar.logout")}</span>
             <span className={collapsed ? "hidden md:inline" : "hidden"}>⎋</span>
           </button>
           <p className="mt-2 text-[10px] text-white/50">
-            <span className={collapsed ? "md:hidden" : ""}>Phiên bản {APP_VERSION}</span>
+            <span className={collapsed ? "md:hidden" : ""}>{t("sidebar.version")} {APP_VERSION}</span>
             <span className={collapsed ? "hidden md:inline" : "hidden"}>{APP_VERSION}</span>
           </p>
         </div>

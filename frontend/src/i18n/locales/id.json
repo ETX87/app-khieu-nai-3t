@@ -1,0 +1,57 @@
+{
+  "nav": {
+    "trangChu": "Beranda",
+    "phanAnh": "Keluhan",
+    "baoCao": "Laporan",
+    "settings": "Pengaturan",
+    "users": "Pengguna",
+    "account": "Akun",
+    "groupPhanAnh": "Manajemen Keluhan",
+    "groupHeThong": "Sistem"
+  },
+  "common": {
+    "save": "Simpan",
+    "cancel": "Batal",
+    "delete": "Hapus",
+    "search": "Cari",
+    "noData": "Tidak ada data",
+    "loading": "Memuat..."
+  },
+  "sidebar": {
+    "appTitle": "Keluhan 3T",
+    "appSubtitle": "Terima · Tangani · Dukung",
+    "closeMenu": "Tutup menu",
+    "logout": "Keluar",
+    "collapse": "Ciutkan menu",
+    "expand": "Perluas menu",
+    "collapseShort": "Ciutkan",
+    "version": "Versi",
+    "noRole": "Belum ada peran",
+    "congTy": "Perusahaan",
+    "ngonNgu": "Bahasa"
+  },
+  "auth": {
+    "appTitle": "Penerimaan Keluhan 3T",
+    "appSubtitle": "Sistem pencatatan keluhan garansi pembersih air Karofi",
+    "loginGoogle": "Masuk dengan Google",
+    "loginDev": "Masuk dev (bypass)",
+    "pending": "Akun menunggu persetujuan admin",
+    "rejected": "Akun ditolak",
+    "disabled": "Akun dinonaktifkan",
+    "supportLine": "Butuh bantuan? Hubungi administrator:",
+    "retry": "Periksa lagi",
+    "loginOtherAccount": "Masuk dengan akun lain"
+  },
+  "congTyPicker": {
+    "title": "Pilih perusahaan",
+    "body": "Pilih perusahaan tempat Anda bekerja. Pilihan ini akan digunakan sebagai Sumber default saat membuat keluhan baru dan memfilter laporan — dapat diubah kapan saja di bagian bawah menu.",
+    "nskx": "NSKX",
+    "t3": "3T",
+    "plp": "PLP"
+  },
+  "ngonNguPicker": {
+    "vi": "Tiếng Việt",
+    "en": "English",
+    "id": "Bahasa Indonesia"
+  }
+}

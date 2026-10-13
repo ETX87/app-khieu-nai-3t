@@ -1,0 +1,57 @@
+{
+  "nav": {
+    "trangChu": "Trang chủ",
+    "phanAnh": "Phản ánh",
+    "baoCao": "Báo cáo",
+    "settings": "Cấu hình",
+    "users": "Người dùng",
+    "account": "Tài khoản",
+    "groupPhanAnh": "Quản lý phản ánh",
+    "groupHeThong": "Hệ thống"
+  },
+  "common": {
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "search": "Tìm kiếm",
+    "noData": "Không có dữ liệu",
+    "loading": "Đang tải..."
+  },
+  "sidebar": {
+    "appTitle": "Phản ánh 3T",
+    "appSubtitle": "Tiếp nhận · Xử lý · Đồng hành",
+    "closeMenu": "Đóng menu",
+    "logout": "Đăng xuất",
+    "collapse": "Thu gọn menu",
+    "expand": "Mở rộng menu",
+    "collapseShort": "Thu gọn",
+    "version": "Phiên bản",
+    "noRole": "Chưa gán vai trò",
+    "congTy": "Công ty",
+    "ngonNgu": "Ngôn ngữ"
+  },
+  "auth": {
+    "appTitle": "Tiếp nhận phản ánh 3T",
+    "appSubtitle": "Hệ thống ghi nhận phản ánh bảo hành máy lọc nước Karofi",
+    "loginGoogle": "Đăng nhập với Google",
+    "loginDev": "Đăng nhập dev (bypass)",
+    "pending": "Tài khoản đang chờ Admin duyệt",
+    "rejected": "Tài khoản bị từ chối",
+    "disabled": "Tài khoản bị khóa",
+    "supportLine": "Cần hỗ trợ? Liên hệ quản trị viên:",
+    "retry": "Kiểm tra lại",
+    "loginOtherAccount": "Đăng nhập tài khoản khác"
+  },
+  "congTyPicker": {
+    "title": "Chọn công ty",
+    "body": "Chọn công ty bạn đang làm việc. Lựa chọn này sẽ dùng làm Nguồn mặc định khi tạo phản ánh mới và lọc báo cáo — có thể đổi lại bất cứ lúc nào ở góc dưới thanh menu.",
+    "nskx": "NSKX",
+    "t3": "3T",
+    "plp": "PLP"
+  },
+  "ngonNguPicker": {
+    "vi": "Tiếng Việt",
+    "en": "English",
+    "id": "Bahasa Indonesia"
+  }
+}

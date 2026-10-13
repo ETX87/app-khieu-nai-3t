@@ -8,9 +8,10 @@ import { StatusBadge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
 import { ThangFilter } from "../components/ui/ThangFilter";
+import { FilterSelect } from "../components/ui/FilterSelect";
 import { fmtVN } from "../lib/formatVN";
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
-import { KhieuNaiForm, type KhieuNaiFormHandle, type KhieuNaiFormHeaderState } from "./KhieuNaiForm";
+import { KhieuNaiForm, type KhieuNaiFormHandle, type KhieuNaiFormHeaderState, NGUON_OPTIONS } from "./KhieuNaiForm";
 import { KhieuNaiCard } from "./KhieuNaiCard";
 import { KpiCard as StatCard } from "../components/ui/KpiCard";
 import { useRef, useState } from "react";
@@ -39,9 +40,16 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
   const canCreate = ["CSKH", "NV Sale", "Tổng đài viên", "TN CSKH", "QL", "Admin"].includes(user.vai_tro ?? "");
 
   const [thang, setThang] = useState("");
+  const [nguon, setNguon] = useState(user.cong_ty ?? "");
   const statsQuery = useQuery({
-    queryKey: ["khieu-nai-stats", thang],
-    queryFn: () => api.get<KhieuNaiStats>(`/khieu-nai/stats${thang ? `?thang=${thang}` : ""}`),
+    queryKey: ["khieu-nai-stats", thang, nguon],
+    queryFn: () => {
+      const q = new URLSearchParams();
+      if (thang) q.set("thang", thang);
+      if (nguon) q.set("nguon", nguon);
+      const qs = q.toString();
+      return api.get<KhieuNaiStats>(`/khieu-nai/stats${qs ? `?${qs}` : ""}`);
+    },
   });
 
   const activeQuery = useQuery({
@@ -171,7 +179,13 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
           Số liệu: ca đang tồn (mọi lúc) + ca đóng/hủy trong{" "}
           <b className="text-ink">{thang ? `tháng ${thang.slice(5)}/${thang.slice(0, 4)}` : `tháng hiện tại (${s ? `${s.thang.slice(5)}/${s.thang.slice(0, 4)}` : "..."})`}</b>
         </p>
-        <ThangFilter value={thang} onChange={setThang} />
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterSelect
+            className="rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/15 lg:px-2 lg:py-1 lg:text-xs"
+            value={nguon} onChange={setNguon} allLabel="Mọi nguồn" options={NGUON_OPTIONS}
+          />
+          <ThangFilter value={thang} onChange={setThang} />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-10">
@@ -322,7 +336,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
       >
         <KhieuNaiForm
           ref={createFormRef}
-          userEmail={user.email}
+          userCongTy={user.cong_ty}
           onStateChange={setCreateHeader}
           onCreated={(id) => {
             setCreateOpen(false);

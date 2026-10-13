@@ -1,0 +1,57 @@
+{
+  "nav": {
+    "trangChu": "Home",
+    "phanAnh": "Complaints",
+    "baoCao": "Reports",
+    "settings": "Settings",
+    "users": "Users",
+    "account": "Account",
+    "groupPhanAnh": "Complaint Management",
+    "groupHeThong": "System"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "search": "Search",
+    "noData": "No data",
+    "loading": "Loading..."
+  },
+  "sidebar": {
+    "appTitle": "3T Complaints",
+    "appSubtitle": "Receive · Handle · Support",
+    "closeMenu": "Close menu",
+    "logout": "Log out",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu",
+    "collapseShort": "Collapse",
+    "version": "Version",
+    "noRole": "No role assigned",
+    "congTy": "Company",
+    "ngonNgu": "Language"
+  },
+  "auth": {
+    "appTitle": "3T Complaint Intake",
+    "appSubtitle": "Karofi water purifier warranty complaint system",
+    "loginGoogle": "Sign in with Google",
+    "loginDev": "Dev sign-in (bypass)",
+    "pending": "Account pending admin approval",
+    "rejected": "Account rejected",
+    "disabled": "Account disabled",
+    "supportLine": "Need help? Contact the administrator:",
+    "retry": "Check again",
+    "loginOtherAccount": "Sign in with a different account"
+  },
+  "congTyPicker": {
+    "title": "Choose your company",
+    "body": "Choose the company you work for. This will be used as the default Source when creating new complaints and filtering reports — you can change it anytime at the bottom of the menu.",
+    "nskx": "NSKX",
+    "t3": "3T",
+    "plp": "PLP"
+  },
+  "ngonNguPicker": {
+    "vi": "Tiếng Việt",
+    "en": "English",
+    "id": "Bahasa Indonesia"
+  }
+}

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { MODULE_LABELS, type ModuleKey } from "./navConfig";
+import { useTranslation } from "react-i18next";
+import { MODULE_I18N_KEY, type ModuleKey } from "./navConfig";
 
 const ICON_PROPS = { width: 25, height: 25, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
@@ -52,6 +53,7 @@ interface BottomNavProps {
 }
 
 export function BottomNav({ modules, active, onSelect, onMore }: BottomNavProps) {
+  const { t } = useTranslation();
   // Hiện tất cả module (tối đa 4) + một mục "Tài khoản" luôn có (mở ngăn kéo: hồ sơ + đăng xuất).
   const primary = modules.slice(0, 4);
 
@@ -68,12 +70,12 @@ export function BottomNav({ modules, active, onSelect, onMore }: BottomNavProps)
           <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${active === m ? "bg-accent-soft" : ""}`}>
             {NAV_ICONS[m]}
           </span>
-          <span className="truncate">{MODULE_LABELS[m]}</span>
+          <span className="truncate">{t(MODULE_I18N_KEY[m])}</span>
         </button>
       ))}
       <button onClick={onMore} className="flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-ink-soft">
         <span className="flex h-8 w-14 items-center justify-center">{ACCOUNT_ICON}</span>
-        <span>Tài khoản</span>
+        <span>{t("nav.account")}</span>
       </button>
     </nav>
   );

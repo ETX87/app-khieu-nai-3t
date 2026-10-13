@@ -12,6 +12,8 @@ export interface AppUser {
   trang_thai_duyet: TrangThaiDuyet;
   bi_khoa: boolean;
   xem_tat_ca: boolean; // NV Sale/Tong dai vien: Admin bat de xem (chi doc) moi ca, khong chi ca minh tao
+  cong_ty: string | null; // "Lada" (NSKX) | "CRM" (3T) | "PLP" - chon sau khi dang nhap, mac dinh Nguon khi tao/loc
+  ngon_ngu: string; // "vi" | "en" | "id"
 }
 
 export interface Env {

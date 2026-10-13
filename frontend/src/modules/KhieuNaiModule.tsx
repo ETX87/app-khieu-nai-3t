@@ -110,7 +110,9 @@ const EMPTY_FILTERS: Filters = {
   q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
 };
 
-function loadFilters(): Filters {
+// defaultNguon: cong ty nguoi dung da chon (user.cong_ty) - chi ap dung khi CHUA tung co bo loc
+// luu trong may (lan dau mo man nay), khong ghi de bo loc nguoi dung da tu chon truoc do.
+function loadFilters(defaultNguon: string): Filters {
   try {
     const raw = localStorage.getItem(FILTER_KEY);
     if (raw) {
@@ -120,7 +122,7 @@ function loadFilters(): Filters {
       return saved;
     }
   } catch { /* ignore */ }
-  return EMPTY_FILTERS;
+  return { ...EMPTY_FILTERS, nguon: defaultNguon };
 }
 
 function sanSangDongCa(r: KhieuNai): boolean {
@@ -168,7 +170,7 @@ export function KhieuNaiModule({
   // duoc ke ca bam trung 1 thong bao 2 lan lien tiep.
   openDetailRequest?: { id: string } | null;
 }) {
-  const [f, setF] = useState<Filters>(loadFilters);
+  const [f, setF] = useState<Filters>(() => loadFilters(user.cong_ty ?? ""));
   const [qInput, setQInput] = useState(f.q);
   const [page, setPage] = useState(1);
   // Mac dinh thu gon bo loc (item): chi hien so luong dang loc + nut xoa loc, bam "Bo loc" moi mo
@@ -686,7 +688,7 @@ export function KhieuNaiModule({
       >
         <KhieuNaiForm
           ref={createFormRef}
-          userEmail={user.email}
+          userCongTy={user.cong_ty}
           onStateChange={setCreateHeader}
           onCreated={(id) => { setCreateOpen(false); query.refetch(); setDetailId(id); }}
           onCancel={() => setCreateOpen(false)}

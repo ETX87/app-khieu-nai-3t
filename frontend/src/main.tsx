@@ -5,6 +5,7 @@ import { AuthProvider } from "./auth/AuthContext";
 import { ToastProvider } from "./components/ui/Toast";
 import App from "./App";
 import "./index.css";
+import "./i18n";
 
 const queryClient = new QueryClient({
   defaultOptions: {

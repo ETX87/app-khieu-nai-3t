@@ -7,6 +7,8 @@ export interface AppUser {
   trang_thai_duyet: "Cho duyet" | "Da duyet" | "Tu choi";
   bi_khoa: boolean;
   xem_tat_ca: boolean; // NV Sale/Tong dai vien: Admin bat de xem (chi doc) moi ca
+  cong_ty: string | null; // "Lada" (NSKX) | "CRM" (3T) | "PLP" - chon sau dang nhap, mac dinh Nguon khi tao/loc
+  ngon_ngu: string; // "vi" | "en" | "id"
 }
 
 export interface AdminUserRow extends AppUser {

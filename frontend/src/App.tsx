@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "./auth/AuthContext";
 import { SessionExpiredOverlay } from "./auth/SessionExpiredOverlay";
 import { LoginScreen } from "./login/LoginScreen";
+import { ChonCongTyModal } from "./components/ChonCongTyModal";
 import { Sidebar } from "./layout/Sidebar";
 import { BottomNav } from "./layout/BottomNav";
 import { NotificationBell } from "./layout/NotificationBell";
@@ -92,6 +94,15 @@ function MainApp({ user }: { user: AppUser }) {
 
 export default function App() {
   const auth = useAuth();
+  const { i18n } = useTranslation();
+
+  // Dong bo ngon ngu hien thi theo luu o tai khoan - chay khi dang nhap xong hoac sau khi doi ngon
+  // ngu qua switcher (AuthContext refetch() cap nhat lai auth.user.ngon_ngu).
+  useEffect(() => {
+    if (auth.user?.ngon_ngu && auth.user.ngon_ngu !== i18n.language) {
+      void i18n.changeLanguage(auth.user.ngon_ngu);
+    }
+  }, [auth.user?.ngon_ngu, i18n]);
 
   if (auth.status === "loading") {
     return (
@@ -107,6 +118,8 @@ export default function App() {
   if (auth.status === "disabled") return <LoginScreen variant="disabled" />;
 
   if (!auth.user) return null;
+
+  if (auth.user.cong_ty == null) return <ChonCongTyModal />;
 
   return (
     <>

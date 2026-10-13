@@ -144,6 +144,30 @@ app.get("/me", verifySessionMiddleware, loadUser, async (c) => {
   return c.json({ user });
 });
 
+// Tu cap nhat cong ty (nguon mac dinh)/ngon ngu CUA CHINH MINH - khong qua requireRole, moi user da
+// dang nhap deu goi duoc, khac voi PATCH /users/:email (chi Admin, sua nguoi khac).
+const CONG_TY_VALUES = ["Lada", "CRM", "PLP"];
+const NGON_NGU_VALUES = ["vi", "en", "id"];
+app.patch("/me", verifySessionMiddleware, loadUser, async (c) => {
+  const body = await c.req.json();
+  const sets: string[] = [];
+  const binds: unknown[] = [];
+  if (body.cong_ty !== undefined) {
+    if (body.cong_ty !== null && !CONG_TY_VALUES.includes(body.cong_ty)) return c.json({ error: "INVALID_CONG_TY" }, 400);
+    sets.push("cong_ty = ?");
+    binds.push(body.cong_ty);
+  }
+  if (body.ngon_ngu !== undefined) {
+    if (!NGON_NGU_VALUES.includes(body.ngon_ngu)) return c.json({ error: "INVALID_NGON_NGU" }, 400);
+    sets.push("ngon_ngu = ?");
+    binds.push(body.ngon_ngu);
+  }
+  if (sets.length === 0) return c.json({ error: "NO_FIELDS" }, 400);
+  binds.push(c.get("user").email);
+  await c.env.DB.prepare(`UPDATE users SET ${sets.join(", ")} WHERE email = ?`).bind(...binds).run();
+  return c.json({ ok: true });
+});
+
 app.get("/nguoi-directory", verifySessionMiddleware, loadUser, async (c) => {
   const rows = await c.env.DB.prepare(
     "SELECT email, ten FROM users WHERE trang_thai_duyet = 'Da duyet' AND ten IS NOT NULL",
