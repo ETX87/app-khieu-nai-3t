@@ -213,5 +213,45 @@
       "INVALID_STATE": "status has changed",
       "NOT_FOUND": "not found"
     }
+  },
+  "settings": {
+    "pageTitle": "Catalog settings",
+    "gdriveTitle": "Google Drive connection",
+    "gdriveDesc": "Used to store photos/videos attached to cases (up to 5 photos + 3 videos per complaint). Choose any Google account (not necessarily the one you log in with) — the system creates a dedicated folder on that account's Drive.",
+    "gdriveConnected": "Connected: {{email}}",
+    "gdriveBy": "By {{by}} · {{at}}",
+    "gdriveReconnect": "Reconnect / change account",
+    "gdriveNotConnected": "Not connected — attaching photos/videos will fail until connected.",
+    "gdriveConnect": "Connect Google Drive",
+    "listTitle": "Value list — {{label}}",
+    "itemsCount": "{{count}} items",
+    "newValue": "New value",
+    "newValuePlaceholder": "Enter value...",
+    "belongsToGroup": "Belongs to issue group",
+    "choosePlaceholder": "— Choose —",
+    "adding": "Adding...",
+    "add": "Add",
+    "active": "Active",
+    "hidden": "Hidden",
+    "all": "All",
+    "searchInList": "Search in list...",
+    "col": {
+      "value": "Value",
+      "belongsTo": "Belongs to",
+      "status": "Status",
+      "action": "Action"
+    },
+    "noValues": "No values.",
+    "hide": "Hide",
+    "unhide": "Unhide",
+    "toast": {
+      "added": "New value added",
+      "addFailed": "Failed to add",
+      "addFailedCode": "Error: {{code}}",
+      "unhidden": "Value unhidden",
+      "hiddenMsg": "Value hidden — open the \"Hidden\" tab to unhide",
+      "updateFailed": "Update failed",
+      "updateFailedCode": "Error: {{code}}"
+    }
   }
 }

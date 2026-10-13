@@ -213,5 +213,45 @@
       "INVALID_STATE": "trạng thái đã thay đổi",
       "NOT_FOUND": "không tìm thấy"
     }
+  },
+  "settings": {
+    "pageTitle": "Cấu hình danh mục",
+    "gdriveTitle": "Kết nối Google Drive",
+    "gdriveDesc": "Dùng để lưu ảnh/video đính kèm khi báo ca (tối đa 5 ảnh + 3 video/1 phản ánh). Chọn 1 tài khoản Google bất kỳ (không nhất thiết trùng tài khoản đăng nhập app) — hệ thống tạo 1 thư mục riêng trên Drive của tài khoản đó.",
+    "gdriveConnected": "Đã kết nối: {{email}}",
+    "gdriveBy": "Bởi {{by}} · {{at}}",
+    "gdriveReconnect": "Kết nối lại / đổi tài khoản",
+    "gdriveNotConnected": "Chưa kết nối — chức năng đính kèm ảnh/video sẽ báo lỗi cho đến khi kết nối.",
+    "gdriveConnect": "Kết nối Google Drive",
+    "listTitle": "Danh sách giá trị — {{label}}",
+    "itemsCount": "{{count}} mục",
+    "newValue": "Giá trị mới",
+    "newValuePlaceholder": "Nhập giá trị...",
+    "belongsToGroup": "Thuộc nhóm vấn đề",
+    "choosePlaceholder": "— Chọn —",
+    "adding": "Đang thêm...",
+    "add": "Thêm",
+    "active": "Đang dùng",
+    "hidden": "Đã ẩn",
+    "all": "Tất cả",
+    "searchInList": "Tìm trong danh sách...",
+    "col": {
+      "value": "Giá trị",
+      "belongsTo": "Thuộc nhóm",
+      "status": "Trạng thái",
+      "action": "Hành động"
+    },
+    "noValues": "Không có giá trị nào.",
+    "hide": "Ẩn",
+    "unhide": "Bật lại",
+    "toast": {
+      "added": "Đã thêm giá trị mới",
+      "addFailed": "Thêm thất bại",
+      "addFailedCode": "Lỗi: {{code}}",
+      "unhidden": "Đã bật lại giá trị",
+      "hiddenMsg": "Đã ẩn giá trị — mở tab \"Đã ẩn\" để bật lại",
+      "updateFailed": "Cập nhật thất bại",
+      "updateFailedCode": "Lỗi: {{code}}"
+    }
   }
 }

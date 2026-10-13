@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api, ApiError } from "../api/client";
 import type { SettingsNhom } from "../api/types";
 import { useSettingsOptions } from "../api/useSettingsOptions";
@@ -62,36 +63,34 @@ interface GoogleDriveStatus {
 }
 
 function GoogleDriveCard() {
+  const { t } = useTranslation();
   const statusQuery = useQuery({
     queryKey: ["google-drive-status"],
     queryFn: () => api.get<GoogleDriveStatus>("/settings/google-drive/status"),
   });
   const s = statusQuery.data;
   return (
-    <Card title="Kết nối Google Drive">
-      <p className="mb-2 text-xs text-ink-soft">
-        Dùng để lưu ảnh/video đính kèm khi báo ca (tối đa 5 ảnh + 3 video/1 phản ánh). Chọn 1 tài khoản Google bất kỳ
-        (không nhất thiết trùng tài khoản đăng nhập app) — hệ thống tạo 1 thư mục riêng trên Drive của tài khoản đó.
-      </p>
-      {statusQuery.isLoading && <p className="text-sm text-ink-soft">Đang tải...</p>}
+    <Card title={t("settings.gdriveTitle")}>
+      <p className="mb-2 text-xs text-ink-soft">{t("settings.gdriveDesc")}</p>
+      {statusQuery.isLoading && <p className="text-sm text-ink-soft">{t("common.loading")}</p>}
       {s?.connected ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm">
           <div>
-            <p className="font-medium text-green-800">Đã kết nối: {s.google_email}</p>
+            <p className="font-medium text-green-800">{t("settings.gdriveConnected", { email: s.google_email })}</p>
             <p className="text-xs text-ink-soft">
-              Bởi {s.authorized_by ?? "—"} · {s.authorized_at}
+              {t("settings.gdriveBy", { by: s.authorized_by ?? "—", at: s.authorized_at })}
             </p>
           </div>
           <Btn size="sm" variant="secondary" onClick={() => { window.location.href = "/api/settings/google-drive/authorize"; }}>
-            Kết nối lại / đổi tài khoản
+            {t("settings.gdriveReconnect")}
           </Btn>
         </div>
       ) : (
         !statusQuery.isLoading && (
           <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
-            <p className="text-amber-800">Chưa kết nối — chức năng đính kèm ảnh/video sẽ báo lỗi cho đến khi kết nối.</p>
+            <p className="text-amber-800">{t("settings.gdriveNotConnected")}</p>
             <Btn size="sm" onClick={() => { window.location.href = "/api/settings/google-drive/authorize"; }}>
-              Kết nối Google Drive
+              {t("settings.gdriveConnect")}
             </Btn>
           </div>
         )
@@ -101,11 +100,12 @@ function GoogleDriveCard() {
 }
 
 export function SettingsModule() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<SettingsNhom>("nhom_van_de");
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold text-ink lg:text-[21px]">Cấu hình danh mục</h2>
+      <h2 className="text-xl font-bold text-ink lg:text-[21px]">{t("settings.pageTitle")}</h2>
 
       <GoogleDriveCard />
 
@@ -139,6 +139,7 @@ export function SettingsModule() {
 interface OptRow { id: string | number; gia_tri: string; parent: string | null; active: number | boolean }
 
 function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const qc = useQueryClient();
   const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
@@ -168,12 +169,12 @@ function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
         parent: nhom === "van_de_dau_vao" ? (parent.trim() === "" ? undefined : parent.trim()) : undefined,
       }),
     onSuccess: () => {
-      showToast("Đã thêm giá trị mới", "success");
+      showToast(t("settings.toast.added"), "success");
       setGiaTri("");
       setParent("");
       invalidate();
     },
-    onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Thêm thất bại", "error"),
+    onError: (err) => showToast(err instanceof ApiError ? t("settings.toast.addFailedCode", { code: err.code }) : t("settings.toast.addFailed"), "error"),
   });
 
   const toggleMutation = useMutation({
@@ -182,11 +183,11 @@ function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
     onSuccess: (_d, vars) => {
       invalidate();
       showToast(
-        vars.active ? "Đã bật lại giá trị" : 'Đã ẩn giá trị — mở tab "Đã ẩn" để bật lại',
+        vars.active ? t("settings.toast.unhidden") : t("settings.toast.hiddenMsg"),
         "success",
       );
     },
-    onError: (err) => showToast(err instanceof ApiError ? `Lỗi: ${err.code}` : "Cập nhật thất bại", "error"),
+    onError: (err) => showToast(err instanceof ApiError ? t("settings.toast.updateFailedCode", { code: err.code }) : t("settings.toast.updateFailed"), "error"),
   });
 
   const submit = (e: FormEvent) => {
@@ -212,52 +213,52 @@ function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
 
   return (
     <Card
-      title={`Danh sách giá trị — ${TABS_LABEL[nhom]}`}
-      actions={<span className="text-xs text-ink-soft">{rows.length} mục</span>}
+      title={t("settings.listTitle", { label: TABS_LABEL[nhom] })}
+      actions={<span className="text-xs text-ink-soft">{t("settings.itemsCount", { count: rows.length })}</span>}
     >
       <form onSubmit={submit} className="mb-3 flex flex-wrap items-end gap-2">
         <div className="w-full lg:w-64">
-          <label className="mb-1 block text-xs font-medium text-ink-soft">Giá trị mới</label>
-          <Input value={giaTri} onChange={(e) => setGiaTri(e.target.value)} placeholder="Nhập giá trị..." />
+          <label className="mb-1 block text-xs font-medium text-ink-soft">{t("settings.newValue")}</label>
+          <Input value={giaTri} onChange={(e) => setGiaTri(e.target.value)} placeholder={t("settings.newValuePlaceholder")} />
         </div>
         {nhom === "van_de_dau_vao" && (
           <div className="w-full lg:w-56">
-            <label className="mb-1 block text-xs font-medium text-ink-soft">Thuộc nhóm vấn đề</label>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">{t("settings.belongsToGroup")}</label>
             <Select
               options={(nhomVanDeOpts.data ?? []).map((o) => ({ value: o.gia_tri, label: o.gia_tri }))}
-              placeholder="— Chọn —"
+              placeholder={t("settings.choosePlaceholder")}
               value={parent}
               onChange={(e) => setParent(e.target.value)}
             />
           </div>
         )}
         <Btn type="submit" variant="primary" disabled={addMutation.isPending}>
-          {addMutation.isPending ? "Đang thêm..." : "Thêm"}
+          {addMutation.isPending ? t("settings.adding") : t("settings.add")}
         </Btn>
       </form>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        {chip("1", "Đang dùng")}
-        {chip("0", "Đã ẩn")}
-        {chip("all", "Tất cả")}
-        <Input className="ml-auto max-w-[220px]" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm trong danh sách..." />
+        {chip("1", t("settings.active"))}
+        {chip("0", t("settings.hidden"))}
+        {chip("all", t("settings.all"))}
+        <Input className="ml-auto max-w-[220px]" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("settings.searchInList")} />
       </div>
 
-      {listQuery.isLoading && <p className="py-4 text-sm text-ink-soft">Đang tải...</p>}
+      {listQuery.isLoading && <p className="py-4 text-sm text-ink-soft">{t("common.loading")}</p>}
       {listQuery.data && (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line bg-surface-2 text-left text-xs font-semibold text-ink-soft">
-              <th className="px-2 py-2">Giá trị</th>
-              {nhom === "van_de_dau_vao" && <th className="px-2 py-2">Thuộc nhóm</th>}
-              <th className="px-2 py-2">Trạng thái</th>
-              <th className="px-2 py-2 text-right">Hành động</th>
+              <th className="px-2 py-2">{t("settings.col.value")}</th>
+              {nhom === "van_de_dau_vao" && <th className="px-2 py-2">{t("settings.col.belongsTo")}</th>}
+              <th className="px-2 py-2">{t("settings.col.status")}</th>
+              <th className="px-2 py-2 text-right">{t("settings.col.action")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-2 py-6 text-center text-ink-soft">Không có giá trị nào.</td>
+                <td colSpan={4} className="px-2 py-6 text-center text-ink-soft">{t("settings.noValues")}</td>
               </tr>
             )}
             {rows.map((o) => {
@@ -267,7 +268,7 @@ function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
                   <td className="px-2 py-2">{o.gia_tri}</td>
                   {nhom === "van_de_dau_vao" && <td className="px-2 py-2 text-ink-soft">{o.parent ?? "—"}</td>}
                   <td className="px-2 py-2">
-                    <span className={`text-xs ${on ? "text-green-700" : "text-ink-faint"}`}>{on ? "Đang dùng" : "Đã ẩn"}</span>
+                    <span className={`text-xs ${on ? "text-green-700" : "text-ink-faint"}`}>{on ? t("settings.active") : t("settings.hidden")}</span>
                   </td>
                   <td className="px-2 py-2 text-right">
                     <Btn
@@ -276,7 +277,7 @@ function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
                       disabled={toggleMutation.isPending}
                       onClick={() => toggleMutation.mutate({ id: o.id, active: !on })}
                     >
-                      {on ? "Ẩn" : "Bật lại"}
+                      {on ? t("settings.hide") : t("settings.unhide")}
                     </Btn>
                   </td>
                 </tr>

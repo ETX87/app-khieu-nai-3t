@@ -213,5 +213,45 @@
       "INVALID_STATE": "status telah berubah",
       "NOT_FOUND": "tidak ditemukan"
     }
+  },
+  "settings": {
+    "pageTitle": "Pengaturan katalog",
+    "gdriveTitle": "Koneksi Google Drive",
+    "gdriveDesc": "Digunakan untuk menyimpan foto/video lampiran saat melaporkan kasus (maks. 5 foto + 3 video/keluhan). Pilih akun Google mana saja (tidak harus sama dengan akun login aplikasi) — sistem akan membuat folder khusus di Drive akun tersebut.",
+    "gdriveConnected": "Terhubung: {{email}}",
+    "gdriveBy": "Oleh {{by}} · {{at}}",
+    "gdriveReconnect": "Hubungkan ulang / ganti akun",
+    "gdriveNotConnected": "Belum terhubung — fitur lampiran foto/video akan gagal sampai terhubung.",
+    "gdriveConnect": "Hubungkan Google Drive",
+    "listTitle": "Daftar nilai — {{label}}",
+    "itemsCount": "{{count}} item",
+    "newValue": "Nilai baru",
+    "newValuePlaceholder": "Masukkan nilai...",
+    "belongsToGroup": "Termasuk kelompok masalah",
+    "choosePlaceholder": "— Pilih —",
+    "adding": "Menambahkan...",
+    "add": "Tambah",
+    "active": "Aktif",
+    "hidden": "Disembunyikan",
+    "all": "Semua",
+    "searchInList": "Cari dalam daftar...",
+    "col": {
+      "value": "Nilai",
+      "belongsTo": "Termasuk",
+      "status": "Status",
+      "action": "Aksi"
+    },
+    "noValues": "Tidak ada nilai.",
+    "hide": "Sembunyikan",
+    "unhide": "Tampilkan lagi",
+    "toast": {
+      "added": "Nilai baru ditambahkan",
+      "addFailed": "Gagal menambahkan",
+      "addFailedCode": "Kesalahan: {{code}}",
+      "unhidden": "Nilai ditampilkan kembali",
+      "hiddenMsg": "Nilai disembunyikan — buka tab \"Disembunyikan\" untuk menampilkan lagi",
+      "updateFailed": "Gagal memperbarui",
+      "updateFailedCode": "Kesalahan: {{code}}"
+    }
   }
 }
