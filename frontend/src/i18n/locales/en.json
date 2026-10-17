@@ -120,6 +120,12 @@
     "clearFilters": "Clear filters ({{count}})",
     "all": "All",
     "allTon": "All open",
+    "loaiKh": {
+      "thuong": "Regular",
+      "vip": "VIP",
+      "vip6h": "VIP > 6H",
+      "vip6hTitle": "VIP customers with handling time over 6 hours (from receipt to close/cancel, or until now if still open)"
+    },
     "allStatus": "All statuses",
     "allSeverity": "All severities",
     "allIssueGroup": "All issue groups",

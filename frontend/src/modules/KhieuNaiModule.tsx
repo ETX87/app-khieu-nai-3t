@@ -74,6 +74,7 @@ function getTonToiThieuOptions(t: (k: string, o?: Record<string, unknown>) => st
 interface Filters {
   trangThai: string;
   nguon: string; // "" | "Lada" (NSKX) | "CRM" (3T) | "PLP" - cac nut loc nhanh tren toolbar
+  loaiKh: string; // "" | "thuong" | "vip" | "vip6h" (VIP xu ly qua 6 gio, ke ca ca da dong)
   mucDo: string;
   nhomVanDe: string;
   nhomYeuCau: string;
@@ -108,6 +109,15 @@ function getNguonQuickOptions(t: (k: string) => string) {
   ];
 }
 
+function getLoaiKhQuickOptions(t: (k: string) => string) {
+  return [
+    { value: "", label: t("list.all"), title: undefined },
+    { value: "thuong", label: t("list.loaiKh.thuong"), title: undefined },
+    { value: "vip", label: t("list.loaiKh.vip"), title: undefined },
+    { value: "vip6h", label: t("list.loaiKh.vip6h"), title: t("list.loaiKh.vip6hTitle") },
+  ];
+}
+
 // Gia tri gia (khong trung voi trang_thai that nao) danh cho nut "Tat ca ton" - map sang query
 // param rieng "chua_dong" o backend (trang_thai NOT IN Da ket thuc/Huy) thay vi trang_thai = ?.
 const TRANG_THAI_TON = "__ton__";
@@ -120,7 +130,7 @@ function getTrangThaiQuickOptions(t: (k: string) => string) {
 }
 
 const EMPTY_FILTERS: Filters = {
-  trangThai: "", nguon: "", mucDo: "", nhomVanDe: "", nhomYeuCau: "", tuNgay: "", denNgay: "",
+  trangThai: "", nguon: "", loaiKh: "", mucDo: "", nhomVanDe: "", nhomYeuCau: "", tuNgay: "", denNgay: "",
   chuaDongBo: "", choTnCskh: false, quaHanGiaiTrinh: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "", thangDong: "",
   q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
 };
@@ -194,6 +204,7 @@ export function KhieuNaiModule({
   const TON_TOI_THIEU_OPTIONS = getTonToiThieuOptions(t);
   const CRM_TRANG_THAI_OPTIONS = getCrmTrangThaiOptions(t);
   const NGUON_QUICK_OPTIONS = getNguonQuickOptions(t);
+  const LOAI_KH_QUICK_OPTIONS = getLoaiKhQuickOptions(t);
   const TRANG_THAI_QUICK_OPTIONS = getTrangThaiQuickOptions(t);
   const DONG_CA_ERR = getDongCaErr(t);
   const [f, setF] = useState<Filters>(() => loadFilters(user.cong_ty ?? ""));
@@ -317,6 +328,7 @@ export function KhieuNaiModule({
       if (f.trangThai === TRANG_THAI_TON) p.set("chua_dong", "1");
       else if (f.trangThai) p.set("trang_thai", f.trangThai);
       if (f.nguon) p.set("nguon", f.nguon);
+      if (f.loaiKh) p.set("loai_kh", f.loaiKh);
       if (f.mucDo) p.set("muc_do", f.mucDo);
       if (f.nhomVanDe) p.set("nhom_van_de", f.nhomVanDe);
       if (f.nhomYeuCau) p.set("nhom_yeu_cau", f.nhomYeuCau);
@@ -477,7 +489,7 @@ export function KhieuNaiModule({
   const totalPages = Math.max(1, Math.ceil(total / pageSizeN));
 
   const activeFilterCount =
-    [f.trangThai, f.nguon, f.mucDo, f.nhomVanDe, f.nhomYeuCau, f.tuNgay, f.denNgay, f.chuaDongBo, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.q].filter(Boolean).length +
+    [f.trangThai, f.nguon, f.loaiKh, f.mucDo, f.nhomVanDe, f.nhomYeuCau, f.tuNgay, f.denNgay, f.chuaDongBo, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.q].filter(Boolean).length +
     (f.choTnCskh ? 1 : 0) + (f.quaHanGiaiTrinh ? 1 : 0) + (f.caCuaToi ? 1 : 0);
 
   const handleSort = (field: string) => {
@@ -524,6 +536,21 @@ export function KhieuNaiModule({
                 onClick={() => set("nguon", o.value)}
                 className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
                   f.nguon === o.value ? "bg-accent text-white shadow-brand" : "text-ink-soft hover:bg-surface hover:text-accent-ink"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-0.5 rounded-xl bg-surface-2 p-1 ring-1 ring-inset ring-line">
+            {LOAI_KH_QUICK_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                title={o.title}
+                onClick={() => set("loaiKh", o.value)}
+                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
+                  f.loaiKh === o.value ? "bg-accent text-white shadow-brand" : "text-ink-soft hover:bg-surface hover:text-accent-ink"
                 }`}
               >
                 {o.label}

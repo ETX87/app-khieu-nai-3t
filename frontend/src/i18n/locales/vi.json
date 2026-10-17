@@ -120,6 +120,12 @@
     "clearFilters": "Xoá lọc ({{count}})",
     "all": "Tất cả",
     "allTon": "Tất cả tồn",
+    "loaiKh": {
+      "thuong": "Thường",
+      "vip": "VIP",
+      "vip6h": "VIP > 6H",
+      "vip6hTitle": "Khách VIP có thời gian xử lý trên 6 giờ (từ tiếp nhận đến kết thúc/hủy, hoặc đến hiện tại nếu chưa xong)"
+    },
     "allStatus": "Mọi trạng thái",
     "allSeverity": "Mọi mức độ",
     "allIssueGroup": "Mọi nhóm vấn đề",

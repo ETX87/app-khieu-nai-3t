@@ -240,6 +240,7 @@ app.get("/", async (c) => {
   const chuaDongBo = c.req.query("chua_dong_bo");
   const chuaDong = c.req.query("chua_dong"); // "Tat ca ton" (item): chua Da ket thuc, chua Huy.
   const nguoiPhuTrach = c.req.query("nguoi_phu_trach");
+  const loaiKh = c.req.query("loai_kh"); // "thuong" | "vip" | "vip6h" - khop isVipKh() frontend (/vip/i)
   const sort = SORT_COLUMNS[c.req.query("sort") ?? ""] ?? "ngay_tiep_nhan";
   const dir = c.req.query("dir") === "asc" ? "ASC" : "DESC";
   let page = parseInt(c.req.query("page") ?? "1", 10);
@@ -258,6 +259,15 @@ app.get("/", async (c) => {
   if (nhomVanDe) { conditions.push("nhom_van_de = ?"); binds.push(nhomVanDe); }
   if (nhomYeuCau) { conditions.push("nhom_yeu_cau = ?"); binds.push(nhomYeuCau); }
   if (nguoiPhuTrach) { conditions.push("nguoi_phu_trach = ?"); binds.push(nguoiPhuTrach); }
+  if (loaiKh === "thuong") conditions.push("COALESCE(phan_loai_kh, '') NOT LIKE '%vip%'");
+  else if (loaiKh === "vip") conditions.push("phan_loai_kh LIKE '%vip%'");
+  else if (loaiKh === "vip6h") {
+    // VIP xu ly qua 6 gio: ngay_tiep_nhan -> ket thuc/huy (ca chua xong tinh den bay gio, gio VN), ke ca
+    // ca da dong - cung cach tinh voi gioXuLyHeThong().
+    conditions.push(
+      "phan_loai_kh LIKE '%vip%' AND (julianday(COALESCE(ngay_ket_thuc, ngay_huy, datetime('now','+7 hours'))) - julianday(ngay_tiep_nhan)) * 24 > 6",
+    );
+  }
   if (tuNgay) { conditions.push("ngay_tiep_nhan >= ?"); binds.push(`${tuNgay} 00:00:00`); }
   if (denNgay) { conditions.push("ngay_tiep_nhan <= ?"); binds.push(`${denNgay} 23:59:59`); }
   // chua_dong_bo: "1" = tat ca ca ton dong bo CRM | "cho" = Cho dong bo (ID dung) | "sai" = ID CRM sai.

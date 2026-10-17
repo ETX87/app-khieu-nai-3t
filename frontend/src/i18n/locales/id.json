@@ -120,6 +120,12 @@
     "clearFilters": "Hapus filter ({{count}})",
     "all": "Semua",
     "allTon": "Semua tertunda",
+    "loaiKh": {
+      "thuong": "Reguler",
+      "vip": "VIP",
+      "vip6h": "VIP > 6J",
+      "vip6hTitle": "Pelanggan VIP dengan waktu penanganan lebih dari 6 jam (dari penerimaan hingga selesai/batal, atau hingga sekarang jika belum selesai)"
+    },
     "allStatus": "Semua status",
     "allSeverity": "Semua tingkat",
     "allIssueGroup": "Semua kelompok masalah",
