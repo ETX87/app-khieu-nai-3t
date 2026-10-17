@@ -120,6 +120,15 @@
     "clearFilters": "Xoá lọc ({{count}})",
     "all": "Tất cả",
     "allTon": "Tất cả tồn",
+    "statusShort": {
+      "all": "Tất cả",
+      "ton": "Tồn",
+      "choTiepNhan": "Chờ",
+      "dangXuLy": "Đang",
+      "choChot": "Chờ chốt",
+      "daKetThuc": "Đã chốt",
+      "huy": "Hủy"
+    },
     "loaiKh": {
       "thuong": "Thường",
       "vip": "VIP",

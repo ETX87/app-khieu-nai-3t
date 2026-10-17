@@ -120,6 +120,15 @@
     "clearFilters": "Clear filters ({{count}})",
     "all": "All",
     "allTon": "All open",
+    "statusShort": {
+      "all": "All",
+      "ton": "Open",
+      "choTiepNhan": "Pending",
+      "dangXuLy": "Active",
+      "choChot": "To close",
+      "daKetThuc": "Closed",
+      "huy": "Cancelled"
+    },
     "loaiKh": {
       "thuong": "Regular",
       "vip": "VIP",

@@ -120,6 +120,15 @@
     "clearFilters": "Hapus filter ({{count}})",
     "all": "Semua",
     "allTon": "Semua tertunda",
+    "statusShort": {
+      "all": "Semua",
+      "ton": "Tertunda",
+      "choTiepNhan": "Menunggu",
+      "dangXuLy": "Proses",
+      "choChot": "Tunggu tutup",
+      "daKetThuc": "Selesai",
+      "huy": "Batal"
+    },
     "loaiKh": {
       "thuong": "Reguler",
       "vip": "VIP",

@@ -121,12 +121,17 @@ function getLoaiKhQuickOptions(t: (k: string) => string) {
 // Gia tri gia (khong trung voi trang_thai that nao) danh cho nut "Tat ca ton" - map sang query
 // param rieng "chua_dong" o backend (trang_thai NOT IN Da ket thuc/Huy) thay vi trang_thai = ?.
 const TRANG_THAI_TON = "__ton__";
+// Nut chua chon hien ten rut gon (short) cho thanh loc nam gon 1 dong; nut dang chon hien ten day du.
+const TRANG_THAI_SHORT_KEY: Record<string, string> = {
+  "": "all", [TRANG_THAI_TON]: "ton", "Cho tiep nhan": "choTiepNhan", "Dang xu ly": "dangXuLy",
+  "Cho chot ket thuc": "choChot", "Da ket thuc": "daKetThuc", Huy: "huy",
+};
 function getTrangThaiQuickOptions(t: (k: string) => string) {
   return [
     { value: "", label: t("list.all") },
     { value: TRANG_THAI_TON, label: t("list.allTon") },
     ...getStatusOptions(t),
-  ];
+  ].map((o) => ({ ...o, short: t(`list.statusShort.${TRANG_THAI_SHORT_KEY[o.value]}`) }));
 }
 
 const EMPTY_FILTERS: Filters = {
@@ -514,11 +519,12 @@ export function KhieuNaiModule({
       </div>
 
       <Card>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        {/* Thanh loc nhanh luon 1 dong (ten trang thai rut gon), man hep thi cuon ngang thay vi xuong dong. */}
+        <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-0.5">
           <button
             type="button"
             onClick={() => setFiltersOpen((o) => !o)}
-            className="flex items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-semibold text-ink-body hover:bg-accent-soft hover:text-accent-ink lg:px-2.5 lg:py-1 lg:text-xs"
+            className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-semibold text-ink-body hover:bg-accent-soft hover:text-accent-ink lg:px-2.5 lg:py-1 lg:text-xs"
           >
             {t("list.filters")}
             {activeFilterCount > 0 && (
@@ -528,13 +534,13 @@ export function KhieuNaiModule({
             )}
             <span className="text-xs text-ink-soft lg:text-[10px]">{filtersOpen ? "▲" : "▼"}</span>
           </button>
-          <div className="flex items-center gap-0.5 rounded-xl bg-surface-2 p-1 ring-1 ring-inset ring-line">
+          <div className="flex shrink-0 items-center gap-0.5 rounded-xl bg-surface-2 p-1 ring-1 ring-inset ring-line">
             {NGUON_QUICK_OPTIONS.map((o) => (
               <button
                 key={o.value}
                 type="button"
                 onClick={() => set("nguon", o.value)}
-                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
+                className={`whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
                   f.nguon === o.value ? "bg-accent text-white shadow-brand" : "text-ink-soft hover:bg-surface hover:text-accent-ink"
                 }`}
               >
@@ -542,14 +548,14 @@ export function KhieuNaiModule({
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-0.5 rounded-xl bg-surface-2 p-1 ring-1 ring-inset ring-line">
+          <div className="flex shrink-0 items-center gap-0.5 rounded-xl bg-surface-2 p-1 ring-1 ring-inset ring-line">
             {LOAI_KH_QUICK_OPTIONS.map((o) => (
               <button
                 key={o.value}
                 type="button"
                 title={o.title}
                 onClick={() => set("loaiKh", o.value)}
-                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
+                className={`whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
                   f.loaiKh === o.value ? "bg-accent text-white shadow-brand" : "text-ink-soft hover:bg-surface hover:text-accent-ink"
                 }`}
               >
@@ -557,17 +563,18 @@ export function KhieuNaiModule({
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap items-center gap-0.5 rounded-xl bg-surface-2 p-1 ring-1 ring-inset ring-line">
+          <div className="flex shrink-0 items-center gap-0.5 rounded-xl bg-surface-2 p-1 ring-1 ring-inset ring-line">
             {TRANG_THAI_QUICK_OPTIONS.map((o) => (
               <button
                 key={o.value}
                 type="button"
+                title={o.label}
                 onClick={() => set("trangThai", o.value)}
-                className={`flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
+                className={`flex items-center gap-1 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-colors lg:px-2.5 lg:py-1 lg:text-xs ${
                   f.trangThai === o.value ? "bg-accent text-white shadow-brand" : "text-ink-soft hover:bg-surface hover:text-accent-ink"
                 }`}
               >
-                {o.label}
+                {f.trangThai === o.value ? o.label : o.short}
                 {TRANG_THAI_QUICK_COUNT[o.value] != null && (
                   <span
                     title={t("list.quickCountTitle")}
@@ -582,7 +589,7 @@ export function KhieuNaiModule({
             ))}
           </div>
           {activeFilterCount > 0 && (
-            <button onClick={resetFilters} className="text-sm font-medium text-accent hover:underline lg:text-xs">
+            <button onClick={resetFilters} className="shrink-0 whitespace-nowrap text-sm font-medium text-accent hover:underline lg:text-xs">
               {t("list.clearFilters", { count: activeFilterCount })}
             </button>
           )}
