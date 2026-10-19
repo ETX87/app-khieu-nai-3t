@@ -1797,7 +1797,7 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
   const isDirty = editable && JSON.stringify(form) !== JSON.stringify(serverForm);
 
   const mutation = useMutation({
-    mutationFn: () => api.patch<{ khieuNai: KhieuNai }>(`/khieu-nai/${kn.id}`, form),
+    mutationFn: (payload: typeof form) => api.patch<{ khieuNai: KhieuNai }>(`/khieu-nai/${kn.id}`, payload),
     onSuccess: () => {
       showToast(t("detail.tnCskh.toastSuccess"), "success");
       onSaved();
@@ -1807,7 +1807,18 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    mutation.mutate();
+    mutation.mutate(form);
+  };
+
+  // "Xac nhan khong loi" 1 cham: dat ca 5 muc = Khong va luu luon. Hoi lai neu dang co muc "Co" (se bi ghi de).
+  const xacNhanKhongLoi = () => {
+    const tatCaKhong: typeof form = {
+      loi_nha_san_xuat: "Khong", loi_lap_dat: "Khong", loi_thai_do_ktv: "Khong",
+      loi_quy_trinh_nskx: "Khong", ket_luan_khieu_nai: "Khong",
+    };
+    if (Object.values(form).includes("Co") && !window.confirm(t("detail.tnCskh.khongLoiConfirm"))) return;
+    setForm(tatCaKhong);
+    mutation.mutate(tatCaKhong);
   };
 
   if (!editable) {
@@ -1832,7 +1843,16 @@ function TnCskhSection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
         <DanhGiaRow label={t("detail.tnCskh.loiThaiDoKtv")} value={form.loi_thai_do_ktv} onChange={(v) => setField("loi_thai_do_ktv", v)} />
         <DanhGiaRow label={t("detail.tnCskh.loiQuyTrinhNskx")} value={form.loi_quy_trinh_nskx} onChange={(v) => setField("loi_quy_trinh_nskx", v)} />
         <DanhGiaRow label={t("detail.tnCskh.ketLuanPhanAnh")} value={form.ket_luan_khieu_nai} onChange={(v) => setField("ket_luan_khieu_nai", v)} />
-        <div className="flex items-center justify-end pt-1">
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+          <Btn
+            type="button"
+            disabled={mutation.isPending}
+            onClick={xacNhanKhongLoi}
+            title={t("detail.tnCskh.khongLoiTitle")}
+            className="!border-green-300 !text-green-700 hover:!bg-green-50"
+          >
+            ✓ {t("detail.tnCskh.khongLoiButton")}
+          </Btn>
           <Btn type="submit" variant="primary" disabled={mutation.isPending}>
             {mutation.isPending ? t("detail.tnCskh.dangLuu") : t("detail.tnCskh.luuButton")}
           </Btn>
