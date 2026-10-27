@@ -18,6 +18,74 @@ Số liệu hiện trạng lấy từ DB production lúc lập báo cáo (truy v
 
 ---
 
+## 0b. Quyết định đã chốt (28/10/2026) & điều chỉnh kế hoạch
+
+| Câu hỏi | Quyết định | Ảnh hưởng tới kế hoạch |
+|---|---|---|
+| TNGS là ai | **= Giám sát** (vai trò `Giam sat` trên DVBH) | Mục 1 giữ nguyên: kéo bảng `giai_trinh` của GS, kèm tên/vai trò người giải trình |
+| Ca >48h thiếu giải trình | **Bắt cả 2 trường hợp, tách 2 loại lỗi:** **L1a "Quá 48h chưa được xử lý"** và **L1b "Quá 48h chưa xử lý tiếp"** | Thay quy tắc L1 cũ (mục 2.3) bằng L1a + L1b, chi tiết bên dưới |
+| Mốc tính chậm đóng ca | **Sau khi case được đóng trên CRM (ca 3T) hoặc trên Lada (ca NSKX)** | L2 có 2 nguồn mốc → cần **đồng bộ cả Lada**, không chỉ CRM (xem bên dưới) |
+| Cách tính 48h | **48 giờ, bỏ Chủ nhật và ngày lễ Việt Nam.** Không cần tính theo khung giờ trong ngày | Đơn giản hơn nhiều so với "16 giờ làm việc": chỉ cần lịch ngày nghỉ (CN + lễ) |
+| "Bên kia" nhận lỗi vi phạm | **Sau này tạo vi phạm và bắn API sang các bên xin thông tin** | App Khiếu nại **chủ động đẩy** (phương án P2) khi có bên đăng ký. Đợt này chỉ dựng sẵn hàng đợi gửi, chưa gửi đi đâu |
+
+### Quy tắc lỗi sau khi chốt
+
+Mọi mốc "48h" dưới đây đều tính **48 giờ bỏ Chủ nhật và ngày lễ**: giờ rơi vào ngày CN/lễ không được đếm.
+
+| Mã | Tên lỗi | Điều kiện phát sinh | Gắn cho | Lặp lại |
+|---|---|---|---|---|
+| **L1a** | Quá 48h chưa được xử lý | Ca chưa đóng/hủy, đã quá 48h kể từ **tiếp nhận**, mà **chưa có dòng tiến trình/giải trình nào** | CSKH phụ trách | 1 lần/ca |
+| **L1b** | Quá 48h chưa xử lý tiếp | Ca chưa đóng/hủy, **đã có** tiến trình, nhưng đã quá 48h kể từ **dòng tiến trình gần nhất** mà chưa có dòng mới | CSKH phụ trách | Mỗi lần lại trôi qua 48h không cập nhật thì thêm 1 lỗi |
+| **L2** | Chậm đóng ca | Case đã **đóng trên CRM** (ca có ID CRM) hoặc **đóng trên Lada** (ca NSKX), mà quá 48h vẫn chưa "Đóng ca" bên Khiếu nại | CSKH phụ trách | 1 lần/ca |
+
+- Ca vừa có L1 vừa có L2: tính đủ cả hai, vì là 2 hành vi khác nhau (không cập nhật / không đóng).
+- Luật khóa thao tác 24h hiện có **giữ nguyên**. Lỗi L1a/L1b là lớp ghi nhận riêng, không thay thế luật khóa.
+
+### Lịch ngày nghỉ (thay cho "lịch giờ làm việc" ở mục 4)
+
+- Bảng `ngay_nghi` (ngày, tên, loại: lễ/bù) quản lý trong **Cấu hình**.
+  - Tự nạp sẵn lễ dương lịch cố định: 1/1, 30/4, 1/5, 2/9 (+ ngày liền kề theo quy định từng năm).
+  - Lễ âm lịch (Tết Nguyên đán, Giỗ Tổ 10/3 ÂL) và ngày nghỉ bù: Admin nhập đầu mỗi năm theo thông báo của Nhà nước.
+- Chủ nhật tự động là ngày nghỉ, không cần nhập.
+- Hàm `cong48hBoNgayNghi(moc)` / `soGioTinh(a, b)`: cộng/đếm giờ, bỏ trọn các ngày CN/lễ. Có kiểm thử cho các trường hợp: mốc rơi vào CN, qua chuỗi Tết dài, qua cuối năm.
+
+### Đồng bộ trạng thái đóng ca từ Lada (bổ sung cho L2)
+
+- Ca NSKX dùng ID Lada. Hiện app chỉ tra cứu Lada để **điền form**, **không lưu** trạng thái/ngày đóng.
+- Bổ sung:
+  - Lưu `lada_trang_thai` và `lada_ngay_dong` vào ca.
+  - Đưa ca NSKX tồn vào cron đồng bộ. API Ecolada nhận **nhiều mã/lần gọi** (`codes: [...]`), nên 1 lượt gọi kéo được cả lô.
+- ⚠️ **Cần xác nhận:** API Ecolada có cột **"Trạng thái"** và **"Ngày Chốt Đơn"** của đơn. Cần chốt giá trị "Trạng thái" nào nghĩa là **case đã đóng**, và "Ngày Chốt Đơn" có đúng là thời điểm đóng case không.
+
+### Lỗi vi phạm & gửi sang bên khác
+
+- Bảng `loi_vi_pham` giữ thiết kế ở mục 2.3, thêm:
+  - Hàng đợi gửi `loi_vi_pham_gui`: lỗi, bên nhận, trạng thái chờ/đã gửi/lỗi, số lần thử, lần thử gần nhất.
+  - Danh mục **"Bên nhận vi phạm"** trong Cấu hình: tên, URL nhận, khóa API, loại lỗi nhận, bật/tắt.
+- Khi có bên đăng ký, lỗi **đã chốt** sẽ được đẩy sang. Lỗi mạng thì tự gửi lại theo cron.
+- Đợt này dựng sẵn hàng đợi gửi và định dạng dữ liệu gửi đi. **Chưa gửi tới bên nào** cho tới khi có thông tin bên nhận.
+
+### Lộ trình sau điều chỉnh
+
+| Giai đoạn | Nội dung | Ước lượng |
+|---|---|---|
+| GĐ1 – Nền tảng | Bảng ngày nghỉ + hàm tính 48h bỏ CN/lễ (kiểm thử) · cron đồng bộ **CRM + Lada** cho ca tồn mỗi 2h · lưu mốc đóng CRM/Lada | 3–4 ngày |
+| GĐ2 – CRM đầy đủ | Như mục 6 cũ (DVBH mở rộng API, bảng `crm_case`/`crm_giai_trinh`, giải trình GS hiện trong Tiến trình) | 4–5 ngày |
+| GĐ3 – Quản lý ca tồn | Như mục 6 cũ, thêm thẻ/lọc **"Sắp L1a / L1b / L2"** (còn <8h tính) | 4–5 ngày |
+| GĐ4 – Lỗi vi phạm | Cron phát hiện **L1a, L1b, L2** · thẻ CSKH · cảnh báo sớm · giải trình/miễn trừ · màn Lỗi vi phạm · hàng đợi gửi (chưa bật) | 5–6 ngày |
+| GĐ5 – Báo cáo đổi máy | Như mục 3 (vẫn chờ chốt định nghĩa ca đổi máy D1–D4) | 3–4 ngày |
+
+### Câu hỏi còn lại
+
+1. **"Có xử lý"** cho L1a/L1b tính là **mọi dòng tiến trình** CSKH ghi, hay chỉ dòng có **lý do xử lý chậm** (như luật khóa 24h)? *Đề xuất: mọi dòng tiến trình do người ghi.*
+2. **Ca NSKX:** giá trị "Trạng thái" nào trên Lada = đã đóng? Mốc thời gian lấy từ "Ngày Chốt Đơn" hay cột nào khác?
+3. **L2 kết thúc khi nào:** khi TN CSKH bấm **"Đóng ca"** (chuyển "Chờ chốt kết thúc"), hay khi QL **"Chốt"**? *Đề xuất: "Đóng ca".*
+4. **Ngày bắt đầu tính lỗi:** chỉ tính từ ngày bật tính năng, không truy hồi ca cũ (*đề xuất*)?
+5. **Ca đổi máy:** định nghĩa theo D1/D2/D3 hay D4 (mục 3.2)?
+6. Lỗi tự động chính thức sau N ngày nếu CSKH không giải trình, hay luôn chờ QL duyệt?
+
+---
+
 ## 1. Yêu cầu 1 — Kéo đủ thông tin ca CRM (kèm giải trình tồn của TNGS)
 
 ### 1.1. Hiện trạng (đã kiểm tra code 2 hệ)
@@ -287,7 +355,7 @@ Có thể làm **GĐ5 song song** với GĐ3–GĐ4, vì gần như độc lập
 
 ---
 
-## 7. Câu hỏi cần anh/chị chốt trước khi làm
+## 7. Câu hỏi ban đầu (đã trả lời 1, 3, 4, 5, 6 — xem mục 0b)
 
 1. **TNGS** có đúng là Giám sát (vai trò `Giam sat`) trên DVBH không?
 2. Giải trình tồn của Giám sát trên CRM **có được tính thay** giải trình của CSKH không? (Khuyến nghị: không, nhưng hiển thị cạnh nhau.)
