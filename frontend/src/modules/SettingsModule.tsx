@@ -108,6 +108,7 @@ export function SettingsModule() {
       <h2 className="text-xl font-bold text-ink lg:text-[21px]">{t("settings.pageTitle")}</h2>
 
       <GoogleDriveCard />
+      <NgayNghiCard />
 
       <div className="flex flex-col gap-4 md:flex-row md:items-start">
         <nav className="flex shrink-0 flex-col gap-3 md:w-52">
@@ -137,6 +138,103 @@ export function SettingsModule() {
 }
 
 interface OptRow { id: string | number; gia_tri: string; parent: string | null; active: number | boolean }
+
+// Ngay nghi le: moc "48h bo Chu nhat + ngay le" cua cac loi vi pham (backend lib/gioTinh.ts).
+interface NgayNghiRow { ngay: string; ten: string; created_by: string | null }
+
+function NgayNghiCard() {
+  const { t } = useTranslation();
+  const { showToast } = useToast();
+  const qc = useQueryClient();
+  const namNay = new Date().getFullYear();
+  const [nam, setNam] = useState(String(namNay));
+  const [ngay, setNgay] = useState("");
+  const [ten, setTen] = useState("");
+
+  const listQuery = useQuery({
+    queryKey: ["ngay-nghi", nam],
+    queryFn: () => api.get<{ items: NgayNghiRow[] }>(`/settings/ngay-nghi?nam=${nam}`),
+    select: (d) => d.items,
+  });
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["ngay-nghi"] });
+
+  const addMutation = useMutation({
+    mutationFn: () => api.post<{ ok: true }>("/settings/ngay-nghi", { ngay, ten: ten.trim() }),
+    onSuccess: () => {
+      showToast(t("settings.ngayNghi.toastAdded"), "success");
+      setNgay("");
+      setTen("");
+      invalidate();
+    },
+    onError: (err) => showToast(t("settings.ngayNghi.toastError", { code: err instanceof ApiError ? err.code : "?" }), "error"),
+  });
+  const delMutation = useMutation({
+    mutationFn: (d: string) => api.delete<{ ok: true }>(`/settings/ngay-nghi/${d}`),
+    onSuccess: () => {
+      showToast(t("settings.ngayNghi.toastDeleted"), "success");
+      invalidate();
+    },
+    onError: (err) => showToast(t("settings.ngayNghi.toastError", { code: err instanceof ApiError ? err.code : "?" }), "error"),
+  });
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!ngay || !ten.trim()) return;
+    addMutation.mutate();
+  };
+
+  return (
+    <Card
+      title={t("settings.ngayNghi.title")}
+      actions={
+        <Select
+          className="w-24"
+          value={nam}
+          onChange={(e) => setNam(e.target.value)}
+          options={[namNay - 1, namNay, namNay + 1].map((y) => ({ value: String(y), label: String(y) }))}
+        />
+      }
+    >
+      <p className="mb-3 text-xs text-ink-soft">{t("settings.ngayNghi.desc")}</p>
+      <form onSubmit={submit} className="mb-3 flex flex-wrap items-end gap-2">
+        <div className="w-full lg:w-44">
+          <label className="mb-1 block text-xs font-medium text-ink-soft">{t("settings.ngayNghi.ngay")}</label>
+          <Input type="date" value={ngay} onChange={(e) => setNgay(e.target.value)} />
+        </div>
+        <div className="w-full lg:w-64">
+          <label className="mb-1 block text-xs font-medium text-ink-soft">{t("settings.ngayNghi.ten")}</label>
+          <Input value={ten} onChange={(e) => setTen(e.target.value)} placeholder={t("settings.ngayNghi.tenPlaceholder")} />
+        </div>
+        <Btn type="submit" variant="primary" disabled={addMutation.isPending || !ngay || !ten.trim()}>
+          {addMutation.isPending ? t("settings.adding") : t("settings.add")}
+        </Btn>
+      </form>
+      {listQuery.isLoading && <p className="py-3 text-sm text-ink-soft">{t("common.loading")}</p>}
+      {listQuery.data && (
+        listQuery.data.length === 0 ? (
+          <p className="py-3 text-center text-sm text-ink-soft">{t("settings.ngayNghi.empty", { nam })}</p>
+        ) : (
+          <ul className="divide-y divide-line rounded-lg border border-line">
+            {listQuery.data.map((r) => (
+              <li key={r.ngay} className="flex items-center gap-3 px-3 py-2 text-sm">
+                <span className="w-28 shrink-0 font-semibold tabular-nums text-ink">{r.ngay.split("-").reverse().join("/")}</span>
+                <span className="min-w-0 flex-1 truncate text-ink-body">{r.ten}</span>
+                <Btn
+                  size="sm"
+                  variant="ghost"
+                  disabled={delMutation.isPending}
+                  onClick={() => { if (window.confirm(t("settings.ngayNghi.confirmDelete", { ngay: r.ngay, ten: r.ten }))) delMutation.mutate(r.ngay); }}
+                >
+                  {t("settings.ngayNghi.xoa")}
+                </Btn>
+              </li>
+            ))}
+          </ul>
+        )
+      )}
+    </Card>
+  );
+}
 
 function OptionsPanel({ nhom }: { nhom: SettingsNhom }) {
   const { t } = useTranslation();

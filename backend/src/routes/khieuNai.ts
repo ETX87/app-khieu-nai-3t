@@ -8,6 +8,7 @@ import { buildThangCondition, isValidThang } from "../lib/thangFilter";
 import { lookupDvbhCase, formatGiaiTrinhHistory } from "../lib/dvbhClient";
 import { uploadPublicFile, deletePublicFile } from "../lib/googleDrive";
 import { lookupOrderByIdLada } from "../lib/center3tClient";
+import { traCuuLadaPhatSinh } from "../lib/dongBoTuDong";
 import { chuanHoaTinh, timTinhChuan } from "../lib/tinhChuan";
 import { notifyRoles } from "../lib/notify";
 
@@ -1673,6 +1674,19 @@ app.patch("/:id", async (c) => {
       }
       continue;
     }
+    if (key === "id_lada_phat_sinh") {
+      // Moc "dong case tren Lada" cho loi L2 = Ngay Chot Don cua ID Lada phat sinh -> tra cuu ngay khi doi ma.
+      const code = typeof body.id_lada_phat_sinh === "string" && body.id_lada_phat_sinh.trim() !== "" ? body.id_lada_phat_sinh.trim() : null;
+      sets.push("id_lada_phat_sinh = ?");
+      binds.push(code);
+      if (code !== (cur.id_lada_phat_sinh ?? null)) {
+        for (const [fk, fv] of Object.entries(await traCuuLadaPhatSinh(c.env, code))) {
+          sets.push(`${fk} = ?`);
+          binds.push(fv);
+        }
+      }
+      continue;
+    }
     sets.push(`${key} = ?`);
     binds.push(body[key] ?? null);
   }
@@ -1975,39 +1989,41 @@ const DONG_BO_TON_MAX = 40;
 const DONG_BO_CACH_GIAY = 60;
 const VN_TS_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
 
-app.post("/dong-bo-cac-ca-ton", requireRole("CSKH", "TN CSKH", "QL", "Admin"), async (c) => {
-  const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+// Lo dong bo CRM dung chung cho nut "Dong bo n ca ton" (route ben duoi) va cron tu dong (lib/dongBoTuDong.ts).
+// `moc`: chi lay ca chua dong bo tu moc nay (bo ca vua dong bo gan day). Tra ket qua tung ca + dem.
+export async function dongBoCrmLo(
+  env: Env,
+  moc: string,
+  max: number,
+): Promise<{ results: { id: string; ok: boolean; error?: string }[]; tong: number; can: number }> {
   const ts = nowVN();
-  const batDau = typeof body.bat_dau === "string" && VN_TS_RE.test(body.bat_dau) ? body.bat_dau : ts;
-  const motPhutTruoc = new Date(Date.now() + 7 * 60 * 60 * 1000 - DONG_BO_CACH_GIAY * 1000).toISOString().slice(0, 19).replace("T", " ");
-  const moc = batDau < motPhutTruoc ? batDau : motPhutTruoc;
   const chuaDongBoGanDay = "(crm_last_sync_at IS NULL OR crm_last_sync_at < ?1)";
   const canDongBo = `((${TON_CRM_SQL}) OR (${CRM_SAI_DA_DONG_SQL}))`;
 
   const [dem, rows] = await Promise.all([
-    c.env.DB.prepare(
+    env.DB.prepare(
       `SELECT COUNT(*) AS tong, COALESCE(SUM(CASE WHEN ${chuaDongBoGanDay} THEN 1 ELSE 0 END), 0) AS can
        FROM khieu_nai WHERE ${canDongBo}`,
     ).bind(moc).first<{ tong: number; can: number }>(),
-    c.env.DB.prepare(
+    env.DB.prepare(
       `SELECT id, id_crm_karofi FROM khieu_nai WHERE ${canDongBo} AND ${chuaDongBoGanDay}
        ORDER BY trang_thai = 'Da ket thuc', ${CRM_SAI_SQL}, crm_last_sync_at IS NOT NULL, crm_last_sync_at ASC LIMIT ?2`,
-    ).bind(moc, DONG_BO_TON_MAX).all<{ id: string; id_crm_karofi: string }>(),
+    ).bind(moc, max).all<{ id: string; id_crm_karofi: string }>(),
   ]);
 
   const results: { id: string; ok: boolean; error?: string }[] = [];
   const stmts: D1PreparedStatement[] = [];
 
   for (const row of rows.results) {
-    const lookup = await tryLookupCrm(c.env, row.id_crm_karofi);
+    const lookup = await tryLookupCrm(env, row.id_crm_karofi);
     const traCuu = crmTraCuuFrom(lookup);
     // Loi mang/API (traCuu null) -> giu nguyen crm_tra_cuu cu, chi ghi moc da thu dong bo.
     stmts.push(
-      c.env.DB.prepare("UPDATE khieu_nai SET crm_last_sync_at = ?, crm_tra_cuu = COALESCE(?, crm_tra_cuu) WHERE id = ?")
+      env.DB.prepare("UPDATE khieu_nai SET crm_last_sync_at = ?, crm_tra_cuu = COALESCE(?, crm_tra_cuu) WHERE id = ?")
         .bind(ts, traCuu, row.id),
     );
     if (lookup.fields) {
-      stmts.push(crmUpdateStmt(c.env.DB, row.id, lookup.fields, ts));
+      stmts.push(crmUpdateStmt(env.DB, row.id, lookup.fields, ts));
       results.push({ id: row.id, ok: true });
     } else {
       results.push({ id: row.id, ok: false, error: lookup.warning ?? "DVBH_LOOKUP_FAILED" });
@@ -2015,15 +2031,24 @@ app.post("/dong-bo-cac-ca-ton", requireRole("CSKH", "TN CSKH", "QL", "Admin"), a
     await new Promise((r) => setTimeout(r, 200));
   }
   // Ghi 1 lan (1 subrequest D1) thay vi 2 cau UPDATE moi ca.
-  if (stmts.length > 0) await c.env.DB.batch(stmts);
+  if (stmts.length > 0) await env.DB.batch(stmts);
+  return { results, tong: dem?.tong ?? 0, can: dem?.can ?? 0 };
+}
 
-  const can = dem?.can ?? 0;
+app.post("/dong-bo-cac-ca-ton", requireRole("CSKH", "TN CSKH", "QL", "Admin"), async (c) => {
+  const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+  const ts = nowVN();
+  const batDau = typeof body.bat_dau === "string" && VN_TS_RE.test(body.bat_dau) ? body.bat_dau : ts;
+  const motPhutTruoc = new Date(Date.now() + 7 * 60 * 60 * 1000 - DONG_BO_CACH_GIAY * 1000).toISOString().slice(0, 19).replace("T", " ");
+  const moc = batDau < motPhutTruoc ? batDau : motPhutTruoc;
+
+  const { results, tong, can } = await dongBoCrmLo(c.env, moc, DONG_BO_TON_MAX);
   return c.json({
     results,
     bat_dau: batDau,
     con_lai: Math.max(0, can - results.length),
     // Ca ton bi bo qua vi vua dong bo trong 1 phut gan nhat (hoac o luot truoc cua chinh lan bam nay).
-    bo_qua_gan_day: Math.max(0, (dem?.tong ?? 0) - can),
+    bo_qua_gan_day: Math.max(0, tong - can),
   });
 });
 

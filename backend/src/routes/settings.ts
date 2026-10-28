@@ -83,6 +83,35 @@ app.patch("/options/:id", requireRole("Admin"), async (c) => {
   return c.json({ ok: true });
 });
 
+// ---------- Ngay nghi le (moc "48h bo Chu nhat + ngay le" cua loi vi pham, lib/gioTinh.ts) ----------
+// Chu nhat tu tinh trong code, khong nhap vao day. Le am lich + nghi bu Admin nhap dau moi nam.
+const NGAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+app.get("/ngay-nghi", async (c) => {
+  const nam = c.req.query("nam");
+  const r = nam && /^\d{4}$/.test(nam)
+    ? await c.env.DB.prepare("SELECT ngay, ten, created_by FROM ngay_nghi WHERE ngay LIKE ? ORDER BY ngay").bind(`${nam}-%`).all()
+    : await c.env.DB.prepare("SELECT ngay, ten, created_by FROM ngay_nghi ORDER BY ngay").all();
+  return c.json({ items: r.results });
+});
+
+app.post("/ngay-nghi", requireRole("Admin"), async (c) => {
+  const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+  const ngay = typeof body.ngay === "string" ? body.ngay.trim() : "";
+  const ten = typeof body.ten === "string" ? body.ten.trim() : "";
+  if (!NGAY_RE.test(ngay) || Number.isNaN(Date.parse(`${ngay}T00:00:00Z`))) return c.json({ error: "INVALID_NGAY" }, 400);
+  if (!ten) return c.json({ error: "MISSING_TEN" }, 400);
+  await c.env.DB.prepare(
+    "INSERT INTO ngay_nghi (ngay, ten, created_by) VALUES (?, ?, ?) ON CONFLICT(ngay) DO UPDATE SET ten = excluded.ten",
+  ).bind(ngay, ten, c.get("user").email).run();
+  return c.json({ ok: true }, 201);
+});
+
+app.delete("/ngay-nghi/:ngay", requireRole("Admin"), async (c) => {
+  await c.env.DB.prepare("DELETE FROM ngay_nghi WHERE ngay = ?").bind(c.req.param("ngay")).run();
+  return c.json({ ok: true });
+});
+
 // ---------- Ket noi Google Drive (upload anh/video dinh kem khieu nai) ----------
 // Copy pattern tu vi-pham-app (skill qlbh3t-cf-integrations) - OAuth 1 tai khoan Google THAT (khong
 // phai Service Account, khong co dung luong Drive mien phi), Admin uy quyen 1 lan, dung chung cho

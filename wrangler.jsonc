@@ -7,8 +7,10 @@
   "assets": { "directory": "./frontend/dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
   "d1_databases": [{ "binding": "DB", "database_name": "khieu-nai-db", "database_id": "fef4e5cf-fdda-4441-8383-41ec20f00fa0", "migrations_dir": "migrations" }],
   // Them 2026-09-21: keo danh ba "ETX nhan su" ve moi ngay luc 3h sang GIO VN = 20h UTC (xem
-  // backend/src/index.ts scheduled(), lib/etxNhanSuSync.ts). Day la cron DUY NHAT cua he nay.
-  "triggers": { "crons": ["0 20 * * *"] },
+  // backend/src/index.ts scheduled(), lib/etxNhanSuSync.ts).
+  // Them 2026-10-28: "15 0-15,23 * * *" = phut 15 moi gio tu 6h-22h gio VN - dong bo tu dong CRM + Lada
+  // phat sinh cho ca ton (lib/dongBoTuDong.ts). Chuoi nay phai khop CRON_DONG_BO trong backend/src/index.ts.
+  "triggers": { "crons": ["0 20 * * *", "15 0-15,23 * * *"] },
   // Service Binding tới Worker "dvbh" (RPC nội bộ qua Cloudflare) - fetch() thẳng URL bị chặn lỗi
   // 1042 (chống SSRF, Worker-gọi-Worker cùng tài khoản) - xem lib/dvbhClient.ts + linh-kien-app.
   "services": [{ "binding": "DVBH_SERVICE", "service": "dvbh", "remote": true }],

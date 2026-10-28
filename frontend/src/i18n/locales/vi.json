@@ -230,6 +230,19 @@
     }
   },
   "settings": {
+    "ngayNghi": {
+      "title": "Ngày nghỉ lễ",
+      "desc": "Dùng để tính hạn 48 giờ của các lỗi vi phạm (bỏ Chủ nhật và ngày lễ). Chủ nhật được tự động bỏ qua, không cần nhập. Lễ âm lịch (Tết, Giỗ Tổ) và ngày nghỉ bù nhập vào đầu mỗi năm.",
+      "ngay": "Ngày",
+      "ten": "Tên ngày nghỉ",
+      "tenPlaceholder": "VD: Tết Nguyên đán",
+      "empty": "Chưa có ngày nghỉ nào trong năm {{nam}}",
+      "xoa": "Xoá",
+      "confirmDelete": "Xoá ngày nghỉ {{ngay}} ({{ten}})?",
+      "toastAdded": "Đã lưu ngày nghỉ",
+      "toastDeleted": "Đã xoá ngày nghỉ",
+      "toastError": "Thao tác thất bại: {{code}}"
+    },
     "pageTitle": "Cấu hình danh mục",
     "gdriveTitle": "Kết nối Google Drive",
     "gdriveDesc": "Dùng để lưu ảnh/video đính kèm khi báo ca (tối đa 5 ảnh + 3 video/1 phản ánh). Chọn 1 tài khoản Google bất kỳ (không nhất thiết trùng tài khoản đăng nhập app) — hệ thống tạo 1 thư mục riêng trên Drive của tài khoản đó.",
@@ -966,6 +979,8 @@
     "doiMay": {
       "headingDoiMay": "Đổi máy",
       "headingKhac": "Khác",
+      "ladaPsChot": "Lada phát sinh chốt đơn",
+      "ladaPsChuaChot": "Chưa chốt đơn",
       "idLadaPhatSinh": "ID Lada phát sinh",
       "maDuyetDoiLinhKien": "Mã duyệt đổi linh kiện",
       "ngayGhiNhanDoiMay": "Ngày ghi nhận đổi máy",

@@ -230,6 +230,19 @@
     }
   },
   "settings": {
+    "ngayNghi": {
+      "title": "Hari libur nasional",
+      "desc": "Digunakan untuk menghitung batas 48 jam aturan pelanggaran (tanpa hari Minggu dan hari libur). Hari Minggu dilewati otomatis. Masukkan libur kalender lunar dan cuti bersama di awal setiap tahun.",
+      "ngay": "Tanggal",
+      "ten": "Nama hari libur",
+      "tenPlaceholder": "Mis. Tahun Baru Imlek",
+      "empty": "Belum ada hari libur di {{nam}}",
+      "xoa": "Hapus",
+      "confirmDelete": "Hapus hari libur {{ngay}} ({{ten}})?",
+      "toastAdded": "Hari libur disimpan",
+      "toastDeleted": "Hari libur dihapus",
+      "toastError": "Gagal: {{code}}"
+    },
     "pageTitle": "Pengaturan katalog",
     "gdriveTitle": "Koneksi Google Drive",
     "gdriveDesc": "Digunakan untuk menyimpan foto/video lampiran saat melaporkan kasus (maks. 5 foto + 3 video/keluhan). Pilih akun Google mana saja (tidak harus sama dengan akun login aplikasi) — sistem akan membuat folder khusus di Drive akun tersebut.",
@@ -966,6 +979,8 @@
     "doiMay": {
       "headingDoiMay": "Penggantian perangkat",
       "headingKhac": "Lainnya",
+      "ladaPsChot": "Pesanan Lada lanjutan ditutup",
+      "ladaPsChuaChot": "Belum ditutup",
       "idLadaPhatSinh": "ID Lada tambahan",
       "maDuyetDoiLinhKien": "Kode persetujuan penggantian komponen",
       "ngayGhiNhanDoiMay": "Tanggal pencatatan penggantian perangkat",

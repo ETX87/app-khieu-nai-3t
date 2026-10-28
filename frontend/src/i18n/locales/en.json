@@ -230,6 +230,19 @@
     }
   },
   "settings": {
+    "ngayNghi": {
+      "title": "Public holidays",
+      "desc": "Used to compute the 48-hour deadline of violation rules (Sundays and holidays excluded). Sundays are skipped automatically. Enter lunar holidays (Tet, Hung Kings) and compensatory days at the start of each year.",
+      "ngay": "Date",
+      "ten": "Holiday name",
+      "tenPlaceholder": "E.g. Lunar New Year",
+      "empty": "No holidays in {{nam}} yet",
+      "xoa": "Delete",
+      "confirmDelete": "Delete holiday {{ngay}} ({{ten}})?",
+      "toastAdded": "Holiday saved",
+      "toastDeleted": "Holiday deleted",
+      "toastError": "Action failed: {{code}}"
+    },
     "pageTitle": "Catalog settings",
     "gdriveTitle": "Google Drive connection",
     "gdriveDesc": "Used to store photos/videos attached to cases (up to 5 photos + 3 videos per complaint). Choose any Google account (not necessarily the one you log in with) — the system creates a dedicated folder on that account's Drive.",
@@ -966,6 +979,8 @@
     "doiMay": {
       "headingDoiMay": "Device replacement",
       "headingKhac": "Other",
+      "ladaPsChot": "Follow-up Lada order closed",
+      "ladaPsChuaChot": "Not closed yet",
       "idLadaPhatSinh": "Additional Lada ID",
       "maDuyetDoiLinhKien": "Component replacement approval code",
       "ngayGhiNhanDoiMay": "Device replacement recorded date",

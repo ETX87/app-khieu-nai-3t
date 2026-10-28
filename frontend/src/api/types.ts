@@ -92,6 +92,8 @@ export interface KhieuNai {
   cskh_tiep_nhan: string | null;
   ghi_chu_ly_do_cham: string | null;
   id_lada_phat_sinh: string | null;
+  lada_ps_ngay_chot: string | null; // Ngay Chot Don cua ID Lada phat sinh (moc loi L2 Cham dong ca)
+  lada_ps_trang_thai: string | null;
   bo_phan_ban_giao: string | null;
   ma_duyet_doi_linh_kien: string | null;
   thong_tin_giai_trinh_dvbh: string | null;

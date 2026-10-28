@@ -2040,6 +2040,14 @@ function DoiMaySection({ kn, editable, onSaved }: { kn: KhieuNai; editable: bool
         <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:text-[11px]">{t("detail.doiMay.headingDoiMay")}</p>
         <div className="grid grid-cols-1 gap-x-3 gap-y-2 lg:grid-cols-3 lg:gap-y-1.5">
           <ReadField label={t("detail.doiMay.idLadaPhatSinh")} value={kn.id_lada_phat_sinh} />
+          {kn.id_lada_phat_sinh && (
+            <ReadField
+              label={t("detail.doiMay.ladaPsChot")}
+              value={kn.lada_ps_ngay_chot
+                ? `${fmtVN.dateTime(kn.lada_ps_ngay_chot)}${kn.lada_ps_trang_thai ? ` · ${kn.lada_ps_trang_thai}` : ""}`
+                : t("detail.doiMay.ladaPsChuaChot")}
+            />
+          )}
           <ReadField label={t("detail.doiMay.maDuyetDoiLinhKien")} value={kn.ma_duyet_doi_linh_kien} />
           <ReadField label={t("detail.doiMay.ngayGhiNhanDoiMay")} value={kn.ngay_ghi_nhan_doi_may} />
           <ReadField label={t("detail.doiMay.ngayDongDoiMay")} value={kn.ngay_dong_doi_may} />

@@ -89,3 +89,61 @@ function parseFirstDataRow(xml: string): Center3tOrderRow | null {
   }
   return row;
 }
+
+// Tra cuu NHIEU ID LADA trong 1 lan goi (API nhan toi 20.000 ma/lan, moi dong co cot "ID LADA" de doi
+// chieu) - dung cho cron dong bo moc chot don cua ID Lada phat sinh (lib/dongBoTuDong.ts). Tra Map theo
+// ID LADA; ID khong ton tai thi khong co trong Map (khong phai loi).
+export async function lookupOrdersByIdLada(
+  env: Env,
+  codes: string[],
+): Promise<{ ok: true; rows: Map<string, Center3tOrderRow> } | { ok: false; warning: string }> {
+  if (!env.CENTER3T_API_TOKEN || !env.CENTER3T_API_BASE) return { ok: false, warning: "CENTER3T_NOT_CONFIGURED" };
+  if (codes.length === 0) return { ok: true, rows: new Map() };
+  let res: Response;
+  try {
+    res = await fetch(`${env.CENTER3T_API_BASE}${API_PATH}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.CENTER3T_API_TOKEN}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ codes }),
+    });
+  } catch {
+    return { ok: false, warning: "CENTER3T_NETWORK_ERROR" };
+  }
+  if (!res.ok || !(res.headers.get("content-type") ?? "").includes("spreadsheet")) {
+    return { ok: false, warning: `CENTER3T_HTTP_${res.status}` };
+  }
+  let xml: string;
+  try {
+    const unzipped = unzipSync(new Uint8Array(await res.arrayBuffer()), { filter: (f) => f.name === "xl/worksheets/sheet1.xml" });
+    const file = unzipped["xl/worksheets/sheet1.xml"];
+    if (!file) return { ok: false, warning: "CENTER3T_PARSE_FAILED" };
+    xml = strFromU8(file);
+  } catch {
+    return { ok: false, warning: "CENTER3T_PARSE_FAILED" };
+  }
+  const rows = new Map<string, Center3tOrderRow>();
+  let headers: Record<string, string> | null = null;
+  for (const rm of xml.matchAll(/<row r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)) {
+    const cells: Record<string, string> = {};
+    for (const m of rm[2].matchAll(CELL_RE)) cells[m[1]] = decodeXmlEntities(m[2] ?? m[3] ?? "");
+    if (!headers) { headers = cells; continue; }
+    const row: Center3tOrderRow = {};
+    for (const [col, v] of Object.entries(cells)) if (headers[col]) row[headers[col]] = v;
+    const id = row["ID LADA"]?.trim();
+    if (id) rows.set(id, row);
+  }
+  return { ok: true, rows };
+}
+
+// "dd/mm/yyyy hh:mm:ss" (dinh dang ngay cua file Ecolada, vd "11/09/2026 21:23:55") -> "yyyy-mm-dd hh:mm:ss".
+// Thieu gio -> 00:00:00. Sai dinh dang -> null.
+export function ngayLadaSangVN(v: string | undefined): string | null {
+  const m = v?.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (!m) return null;
+  const p = (x: string | undefined) => (x ?? "0").padStart(2, "0");
+  return `${m[3]}-${p(m[2])}-${p(m[1])} ${p(m[4])}:${p(m[5])}:${p(m[6])}`;
+}

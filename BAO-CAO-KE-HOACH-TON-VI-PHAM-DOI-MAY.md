@@ -75,7 +75,25 @@ Mọi mốc "48h" dưới đây đều tính **48 giờ bỏ Chủ nhật và ng
 | GĐ4 – Lỗi vi phạm | Cron phát hiện **L1a, L1b, L2** · thẻ CSKH · cảnh báo sớm · giải trình/miễn trừ · màn Lỗi vi phạm · hàng đợi gửi (chưa bật) | 5–6 ngày |
 | GĐ5 – Báo cáo đổi máy | Như mục 3 (vẫn chờ chốt định nghĩa ca đổi máy D1–D4) | 3–4 ngày |
 
-### Câu hỏi còn lại
+### Chốt bổ sung (28/10/2026, lần 2)
+
+| Câu hỏi | Quyết định |
+|---|---|
+| "Có xử lý" cho L1a/L1b | **Mọi dòng tiến trình** do người ghi |
+| Mốc đóng case NSKX trên Lada | Cột **"Ngày Chốt Đơn"** của API Ecolada (có giá trị = đã đóng) |
+| L2 kết thúc khi | TN CSKH bấm **"Đóng ca"** |
+| Phạm vi tính lỗi | **Từ ngày bật tính năng + các ca đang tồn** lúc bật. Ca đã đóng trước đó không tính. Ca tồn lúc bật được xét theo mốc thật, nhưng **tối đa 1 lỗi mỗi loại** ở lần quét đầu (không dồn nhiều lỗi L1b cho các chu kỳ đã qua) |
+| Nhận diện ca đổi máy | Kết hợp **3 nguồn** (bên dưới) |
+| Lỗi chính thức khi nào | **Tự thành lỗi** ngay khi hệ thống phát hiện, không chờ duyệt. CSKH vẫn được ghi giải trình kèm lỗi để lưu vết. Riêng QL/Admin có quyền **miễn trừ** (bắt buộc ghi lý do, có nhật ký) cho trường hợp bắt nhầm |
+
+**Nhận diện ca đổi máy (thay cho D1–D4 ở mục 3.2):**
+1. **"KN đổi máy" từ DVBH:** cột `theo_doi_doi_tra` của case (2 = khớp tự động chờ xác nhận, 1 = đã xác nhận đúng, 3 = bỏ qua). → DVBH bổ sung vào `case-lookup`.
+2. **"Luồng đổi máy" từ DVBH:** luồng trong hệ "Theo dõi đổi máy": trạng thái + các mốc tiếp nhận / đề xuất / duyệt / giao xử lý / kết thúc. DVBH không lưu luồng trong DB mà gọi sang hệ đó → DVBH bổ sung `luongDoiMay` vào `case-lookup` (gọi theo case, có cache).
+3. **Thông tin bên Khiếu nại** (thẻ "Thông tin khác"): **ID Lada phát sinh đổi máy** + **trạng thái/kết quả đổi máy**.
+
+Ca được coi là **ca đổi máy** khi có ít nhất 1 trong 3 nguồn trên: `theo_doi_doi_tra ∈ {1, 2}`, có luồng đổi máy, hoặc có ID Lada phát sinh / kết quả đổi máy khác "Không có". Báo cáo đổi máy hiện rõ **nguồn nhận diện** của từng ca và **so lệch**, ví dụ: CRM có luồng đổi máy nhưng bên Khiếu nại chưa nhập kết quả, để nhắc bổ sung.
+
+### Câu hỏi còn lại (bản trước, đã trả lời 1–5)
 
 1. **"Có xử lý"** cho L1a/L1b tính là **mọi dòng tiến trình** CSKH ghi, hay chỉ dòng có **lý do xử lý chậm** (như luật khóa 24h)? *Đề xuất: mọi dòng tiến trình do người ghi.*
 2. **Ca NSKX:** giá trị "Trạng thái" nào trên Lada = đã đóng? Mốc thời gian lấy từ "Ngày Chốt Đơn" hay cột nào khác?
