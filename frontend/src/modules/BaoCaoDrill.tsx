@@ -7,7 +7,7 @@ import { fmtVN } from "../lib/formatVN";
 import { mucDoTone, MUC_DO_CARD_BG, MUC_DO_CARD_HOVER_BG, vipGlowClass } from "../lib/severity";
 import { Modal } from "../components/ui/Modal";
 import { Btn } from "../components/ui/Btn";
-import { Table, type TableColumn } from "../components/ui/Table";
+import { Clip, Table, type TableColumn } from "../components/ui/Table";
 import { StatusBadge } from "../components/ui/Badge";
 import { KhieuNaiCard } from "./KhieuNaiCard";
 import { NGUON_LABEL } from "./KhieuNaiForm";
@@ -88,25 +88,31 @@ export function BaoCaoDrillModal({
     {
       key: "id",
       header: t("list.col.idModelLada"),
-      render: (r) => (
-        <div className="leading-tight">
-          <div className="font-mono text-xs font-semibold text-link">{r.id}</div>
-          <div className="text-xs text-ink-soft">{[r.model, r.id_lada].filter(Boolean).join(" · ") || "—"}</div>
-        </div>
-      ),
+      render: (r) => {
+        const phu = [r.model, r.id_lada].filter(Boolean).join(" · ");
+        return (
+          <Clip max="max-w-[230px]" title={[r.id, phu].filter(Boolean).join(" · ")} className="text-xs">
+            <span className="font-mono font-semibold text-link">{r.id}</span>
+            {phu && <span className="text-ink-soft"> · {phu}</span>}
+          </Clip>
+        );
+      },
     },
     {
       key: "khach",
       header: t("list.col.customerProvince"),
-      render: (r) => (
-        <div className="leading-tight">
-          <div>{r.ten_khach ?? "—"}</div>
-          <div className="text-xs text-ink-soft">{r.tinh_moi || r.tinh || "—"}</div>
-        </div>
-      ),
+      render: (r) => {
+        const tinh = r.tinh_moi || r.tinh;
+        return (
+          <Clip max="max-w-[200px]" title={[r.ten_khach, tinh].filter(Boolean).join(" · ")}>
+            {r.ten_khach ?? "—"}
+            {tinh && <span className="text-xs text-ink-soft"> · {tinh}</span>}
+          </Clip>
+        );
+      },
     },
     { key: "nguon", header: t("list.col.source"), render: (r) => (r.nguon ? (NGUON_LABEL[r.nguon] ?? r.nguon) : "—") },
-    { key: "nhom_van_de", header: t("list.col.issueGroup"), render: (r) => r.nhom_van_de ?? "—" },
+    { key: "nhom_van_de", header: t("list.col.issueGroup"), render: (r) => <Clip max="max-w-[140px]" title={r.nhom_van_de ?? undefined}>{r.nhom_van_de ?? "—"}</Clip> },
     { key: "trang_thai", header: t("list.col.status"), render: (r) => <StatusBadge trangThai={r.trang_thai} /> },
     {
       key: "ngay",
@@ -173,6 +179,7 @@ export function BaoCaoDrillModal({
               rowKey={(r) => r.id}
               onRowClick={(r) => onOpenDetail(r.id)}
               emptyText={t("common.noData")}
+              nowrap
               rowClassName={(r) =>
                 `${MUC_DO_CARD_BG[mucDoTone(r.muc_do)]} ${MUC_DO_CARD_HOVER_BG[mucDoTone(r.muc_do)]} ${vipGlowClass(r.phan_loai_kh)} ${r.trang_thai === "Huy" ? "line-through opacity-60" : ""}`
               }

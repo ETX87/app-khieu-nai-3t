@@ -17,10 +17,16 @@ interface TableProps<T> {
   sort?: { field: string; dir: "asc" | "desc" };
   onSort?: (field: string) => void;
   rowClassName?: (row: T) => string; // vd nen mau theo muc do, vien vang KH VIP...
+  nowrap?: boolean; // moi dong chi 1 dong chu (khong xuong dong) - o dai dung <Clip> de cat "..."
+}
+
+// Cat chu qua dai thanh "..." trong 1 dong, re chuot xem day du (title). max = class max-w-*.
+export function Clip({ max, title, children, className = "" }: { max: string; title?: string; children: ReactNode; className?: string }) {
+  return <span className={`block truncate ${max} ${className}`} title={title}>{children}</span>;
 }
 
 export function Table<T>({
-  columns, rows, rowKey, onRowClick, emptyText = "Không có dữ liệu", sort, onSort, rowClassName,
+  columns, rows, rowKey, onRowClick, emptyText = "Không có dữ liệu", sort, onSort, rowClassName, nowrap,
 }: TableProps<T>) {
   return (
     <div className="overflow-x-auto">
@@ -63,7 +69,7 @@ export function Table<T>({
               className={`border-b border-line last:border-0 ${onRowClick ? "cursor-pointer" : ""} ${rowClassName ? rowClassName(row) : onRowClick ? "hover:bg-accent-soft/60" : ""}`}
             >
               {columns.map((col) => (
-                <td key={col.key} className={`px-3 py-2 align-middle text-ink-body ${col.className ?? ""}`}>
+                <td key={col.key} className={`px-3 py-2 align-middle text-ink-body ${nowrap ? "whitespace-nowrap" : ""} ${col.className ?? ""}`}>
                   {col.render(row)}
                 </td>
               ))}

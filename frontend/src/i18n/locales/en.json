@@ -192,8 +192,7 @@
       "readyToClose": "Ready to finalize",
       "readyToCloseCase": "Ready to close",
       "pendingSyncCrm": "Pending CRM sync",
-      "awaitingReview": "Awaiting review",
-      "syncedKtvPending": "Synced · technician working"
+      "awaitingReview": "Awaiting review"
     },
     "caseCountReason": "{{n}} case(s) {{reason}}",
     "toast": {
@@ -256,7 +255,7 @@
     },
     "mocTonFilter": "Age bucket:",
     "mocTonClear": "Clear buckets",
-    "ktvInProgress": "Synced · technician working"
+    "ktvInProgress": "Technician working"
   },
   "settings": {
     "ngayNghi": {

@@ -10,7 +10,7 @@ import { Card } from "../components/ui/Card";
 import { Btn } from "../components/ui/Btn";
 import { Select } from "../components/ui/Select";
 import { Input } from "../components/ui/Input";
-import { Table, type TableColumn } from "../components/ui/Table";
+import { Clip, Table, type TableColumn } from "../components/ui/Table";
 import { Badge, StatusBadge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
@@ -205,10 +205,7 @@ function chiBao(r: KhieuNai, t: (k: string) => string): { text: string; tone: "a
   if (r.trang_thai === "Cho chot ket thuc") return { text: t("list.indicator.readyToClose"), tone: "green" };
   if (r.trang_thai === "Dang xu ly") {
     if (sanSangDongCa(r)) return { text: t("list.indicator.readyToCloseCase"), tone: "green" };
-    if (r.id_crm_karofi && !r.ngay_ktv_hoan_thanh) {
-      if (laIdCrmSai(r)) return { text: t("list.crmIdWrong"), tone: "red" };
-      return daDongBo(r) ? { text: t("list.indicator.syncedKtvPending"), tone: "gray" } : { text: t("list.indicator.pendingSyncCrm"), tone: "amber" };
-    }
+    // Trang thai CRM (cho dong bo / ID sai / KTV dang xu ly) chi hien o cot "KTV hoan thanh" - khong lap lai o day.
     return { text: t("list.indicator.awaitingReview"), tone: "amber" };
   }
   return null;
@@ -454,23 +451,29 @@ export function KhieuNaiModule({
       key: "id",
       header: t("list.col.idModelLada"),
       sortKey: "id",
-      render: (r) => (
-        <div className="leading-tight">
-          <div className="font-mono text-xs font-semibold text-link">{r.id}</div>
-          <div className="text-xs text-ink-soft">{[r.model, r.id_lada].filter(Boolean).join(" · ") || "—"}</div>
-        </div>
-      ),
+      render: (r) => {
+        const phu = [r.model, r.id_lada].filter(Boolean).join(" · ");
+        return (
+          <Clip max="max-w-[230px]" title={[r.id, phu].filter(Boolean).join(" · ")} className="text-xs">
+            <span className="font-mono font-semibold text-link">{r.id}</span>
+            {phu && <span className="text-ink-soft"> · {phu}</span>}
+          </Clip>
+        );
+      },
     },
     {
       key: "khach",
       header: t("list.col.customerProvince"),
       sortKey: "ten_khach",
-      render: (r) => (
-        <div className="leading-tight">
-          <div>{r.ten_khach ?? "—"}</div>
-          <div className="text-xs text-ink-soft">{r.tinh || r.tinh_moi || "—"}</div>
-        </div>
-      ),
+      render: (r) => {
+        const tinh = r.tinh_moi || r.tinh;
+        return (
+          <Clip max="max-w-[200px]" title={[r.ten_khach, tinh].filter(Boolean).join(" · ")}>
+            {r.ten_khach ?? "—"}
+            {tinh && <span className="text-xs text-ink-soft"> · {tinh}</span>}
+          </Clip>
+        );
+      },
     },
     {
       key: "nguon",
@@ -483,7 +486,10 @@ export function KhieuNaiModule({
       sortKey: "muc_do",
       render: (r) => (r.muc_do ? <Badge tone={mucDoTone(r.muc_do)}>{r.muc_do}</Badge> : <span className="text-ink-faint">—</span>),
     },
-    { key: "nhom_van_de", header: t("list.col.issueGroup"), sortKey: "nhom_van_de", render: (r) => r.nhom_van_de ?? "—" },
+    {
+      key: "nhom_van_de", header: t("list.col.issueGroup"), sortKey: "nhom_van_de",
+      render: (r) => <Clip max="max-w-[140px]" title={r.nhom_van_de ?? undefined}>{r.nhom_van_de ?? "—"}</Clip>,
+    },
     { key: "trang_thai", header: t("list.col.status"), sortKey: "trang_thai", render: (r) => <StatusBadge trangThai={r.trang_thai} /> },
     {
       key: "gio_xu_ly",
@@ -517,7 +523,8 @@ export function KhieuNaiModule({
       key: "ktv",
       header: t("list.col.ktvDone"),
       sortKey: "ngay_ktv_hoan_thanh",
-      render: (r) =>
+      render: (r) => (
+        <Clip max="max-w-[150px]" className="text-xs">{
         !r.id_crm_karofi ? (
           <span className="text-ink-faint">{t("list.notApplicable")}</span>
         ) : r.ngay_ktv_hoan_thanh ? (
@@ -528,7 +535,8 @@ export function KhieuNaiModule({
           <span className="text-blue-700">{t("list.ktvInProgress")}</span>
         ) : (
           <span className="text-amber-600">{t("list.pendingSync")}</span>
-        ),
+        )}</Clip>
+      ),
     },
   ];
 
@@ -754,6 +762,7 @@ export function KhieuNaiModule({
                 onRowClick={(r) => setDetailId(r.id)}
                 sort={{ field: sortField, dir: sortDir === "asc" ? "asc" : "desc" }}
                 onSort={handleSort}
+                nowrap
                 rowClassName={(r) =>
                   `${MUC_DO_CARD_BG[mucDoTone(r.muc_do)]} ${MUC_DO_CARD_HOVER_BG[mucDoTone(r.muc_do)]} ${vipGlowClass(r.phan_loai_kh)} ${r.trang_thai === "Huy" ? "line-through opacity-60" : ""}`
                 }

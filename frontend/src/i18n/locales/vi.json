@@ -192,8 +192,7 @@
       "readyToClose": "Sẵn sàng chốt",
       "readyToCloseCase": "Sẵn sàng đóng ca",
       "pendingSyncCrm": "Chờ đồng bộ CRM",
-      "awaitingReview": "Chờ đánh giá",
-      "syncedKtvPending": "Đã đồng bộ · KTV đang xử lý"
+      "awaitingReview": "Chờ đánh giá"
     },
     "caseCountReason": "{{n}} ca {{reason}}",
     "toast": {
@@ -256,7 +255,7 @@
     },
     "mocTonFilter": "Mốc tồn:",
     "mocTonClear": "Bỏ chọn mốc",
-    "ktvInProgress": "Đã đồng bộ · KTV đang xử lý"
+    "ktvInProgress": "KTV đang xử lý"
   },
   "settings": {
     "ngayNghi": {

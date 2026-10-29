@@ -15,7 +15,7 @@ const TONE_CLASSES: Record<Tone, string> = {
 // dot: chấm tròn phía trước cho trạng thái "đang chờ người xử lý" (DESIGN_SYSTEM.md 6.2).
 export function Badge({ tone = "gray", dot, children }: { tone?: Tone; dot?: boolean; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${TONE_CLASSES[tone]}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${TONE_CLASSES[tone]}`}>
       {dot && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />}
       {children}
     </span>

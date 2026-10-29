@@ -192,8 +192,7 @@
       "readyToClose": "Siap difinalisasi",
       "readyToCloseCase": "Siap ditutup",
       "pendingSyncCrm": "Menunggu sinkron CRM",
-      "awaitingReview": "Menunggu penilaian",
-      "syncedKtvPending": "Tersinkron · teknisi bekerja"
+      "awaitingReview": "Menunggu penilaian"
     },
     "caseCountReason": "{{n}} kasus {{reason}}",
     "toast": {
@@ -256,7 +255,7 @@
     },
     "mocTonFilter": "Rentang umur:",
     "mocTonClear": "Hapus rentang",
-    "ktvInProgress": "Tersinkron · teknisi bekerja"
+    "ktvInProgress": "Teknisi bekerja"
   },
   "settings": {
     "ngayNghi": {
