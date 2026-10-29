@@ -182,7 +182,8 @@
       "indicator": "Indicator",
       "updated": "Updated",
       "ktvDone": "Technician done",
-      "mocTon": "Age"
+      "mocTon": "Age",
+      "loi": "Errors"
     },
     "notApplicable": "Not applicable",
     "done": "Done",
@@ -255,7 +256,11 @@
     },
     "mocTonFilter": "Age bucket:",
     "mocTonClear": "Clear buckets",
-    "ktvInProgress": "Technician working"
+    "ktvInProgress": "Technician working",
+    "loiIcons": {
+      "title": "{{n}} error(s): {{list}}",
+      "legend": "Error icons:"
+    }
   },
   "settings": {
     "ngayNghi": {

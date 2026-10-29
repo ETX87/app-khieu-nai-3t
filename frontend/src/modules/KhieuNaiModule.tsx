@@ -20,6 +20,7 @@ import { KhieuNaiCard } from "./KhieuNaiCard";
 import { FilterSelect } from "../components/ui/FilterSelect";
 import { daDongBo, laIdCrmSai } from "../lib/crm";
 import { MocTonBadge, MocTonChips } from "../lib/mocTon";
+import { LoiIconLegend, LoiIcons } from "../lib/loiIcons";
 
 function getStatusOptions(t: (k: string) => string) {
   return [
@@ -491,6 +492,7 @@ export function KhieuNaiModule({
       render: (r) => <Clip max="max-w-[140px]" title={r.nhom_van_de ?? undefined}>{r.nhom_van_de ?? "—"}</Clip>,
     },
     { key: "trang_thai", header: t("list.col.status"), sortKey: "trang_thai", render: (r) => <StatusBadge trangThai={r.trang_thai} /> },
+    { key: "loi", header: t("list.col.loi"), render: (r) => <LoiIcons r={r} dash /> },
     {
       key: "gio_xu_ly",
       header: t("list.col.processingHours"),
@@ -768,7 +770,10 @@ export function KhieuNaiModule({
                 }
               />
             </div>
-            <div className="mt-4 flex items-center justify-between text-sm text-ink-soft">
+            <div className="mt-3">
+              <LoiIconLegend />
+            </div>
+            <div className="mt-3 flex items-center justify-between text-sm text-ink-soft">
               <span>
                 {t("list.totalFooter", {
                   total, approx: totalIsApprox ? "+" : "", page, totalPages,

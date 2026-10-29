@@ -12,6 +12,7 @@ import { StatusBadge } from "../components/ui/Badge";
 import { KhieuNaiCard } from "./KhieuNaiCard";
 import { NGUON_LABEL } from "./KhieuNaiForm";
 import { MocTonBadge, MocTonChips } from "../lib/mocTon";
+import { LoiIconLegend, LoiIcons } from "../lib/loiIcons";
 
 // "Drill-down" tu man Bao cao: moi con so bam vao -> mo danh sach dung tap ca tao ra con so do, goi
 // lai GET /khieu-nai voi cac tham so loc tuong ung (xem addDrillConditions o backend).
@@ -114,6 +115,7 @@ export function BaoCaoDrillModal({
     { key: "nguon", header: t("list.col.source"), render: (r) => (r.nguon ? (NGUON_LABEL[r.nguon] ?? r.nguon) : "—") },
     { key: "nhom_van_de", header: t("list.col.issueGroup"), render: (r) => <Clip max="max-w-[140px]" title={r.nhom_van_de ?? undefined}>{r.nhom_van_de ?? "—"}</Clip> },
     { key: "trang_thai", header: t("list.col.status"), render: (r) => <StatusBadge trangThai={r.trang_thai} /> },
+    { key: "loi", header: t("list.col.loi"), render: (r) => <LoiIcons r={r} dash /> },
     {
       key: "ngay",
       header: t("report.dailyCol.date"),
@@ -133,7 +135,7 @@ export function BaoCaoDrillModal({
     <Modal
       open={open}
       onClose={onClose}
-      width="xl"
+      width="full"
       title={
         <span className="flex flex-wrap items-center gap-2">
           {spec.title}
@@ -185,6 +187,7 @@ export function BaoCaoDrillModal({
               }
             />
           </div>
+          <div className="mt-3"><LoiIconLegend /></div>
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between text-sm text-ink-soft">
               <span>{t("report.drill.page", { page, total: totalPages })}</span>

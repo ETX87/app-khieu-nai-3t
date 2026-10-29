@@ -182,7 +182,8 @@
       "indicator": "Indikator",
       "updated": "Diperbarui",
       "ktvDone": "Teknisi selesai",
-      "mocTon": "Umur kasus"
+      "mocTon": "Umur kasus",
+      "loi": "Kesalahan"
     },
     "notApplicable": "Tidak berlaku",
     "done": "Selesai",
@@ -255,7 +256,11 @@
     },
     "mocTonFilter": "Rentang umur:",
     "mocTonClear": "Hapus rentang",
-    "ktvInProgress": "Teknisi bekerja"
+    "ktvInProgress": "Teknisi bekerja",
+    "loiIcons": {
+      "title": "{{n}} kesalahan: {{list}}",
+      "legend": "Ikon kesalahan:"
+    }
   },
   "settings": {
     "ngayNghi": {

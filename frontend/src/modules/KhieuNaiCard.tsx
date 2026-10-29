@@ -1,5 +1,6 @@
 import type { KhieuNai } from "../api/types";
 import { StatusBadge } from "../components/ui/Badge";
+import { LoiIcons } from "../lib/loiIcons";
 import { mucDoTone, MUC_DO_CARD_BG, camCoBorderClass, vipGlowClass } from "../lib/severity";
 
 // Chuoi ngay gio luu boi backend la "VN-local nhung khong co timezone" (xem nowVN()).
@@ -33,6 +34,7 @@ export function KhieuNaiCard({ kn, onClick }: { kn: KhieuNai; onClick: () => voi
     >
       <div className="flex items-center justify-between gap-2">
         <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{kn.ten_khach ?? "—"}</span>
+        <LoiIcons r={kn} />
         <StatusBadge trangThai={kn.trang_thai} />
       </div>
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-ink-soft">

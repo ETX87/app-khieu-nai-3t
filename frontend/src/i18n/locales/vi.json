@@ -182,7 +182,8 @@
       "indicator": "Chỉ báo",
       "updated": "Cập nhật",
       "ktvDone": "KTV hoàn thành",
-      "mocTon": "Mốc tồn"
+      "mocTon": "Mốc tồn",
+      "loi": "Lỗi"
     },
     "notApplicable": "Không áp dụng",
     "done": "Xong",
@@ -255,7 +256,11 @@
     },
     "mocTonFilter": "Mốc tồn:",
     "mocTonClear": "Bỏ chọn mốc",
-    "ktvInProgress": "KTV đang xử lý"
+    "ktvInProgress": "KTV đang xử lý",
+    "loiIcons": {
+      "title": "{{n}} lỗi: {{list}}",
+      "legend": "Chú thích lỗi:"
+    }
   },
   "settings": {
     "ngayNghi": {

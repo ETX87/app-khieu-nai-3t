@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api/client";
 import type { AppUser, DanhGia3, KhieuNai, KhieuNaiDinhKem, LichSu, TienTrinh } from "../api/types";
 import { fmtVN, translateDanhGia } from "../lib/formatVN";
+import { LoiIcons } from "../lib/loiIcons";
 import { mucDoTone, MUC_DO_BG, camCoBorderClass, sortMucDoOptions } from "../lib/severity";
 import { useCreateSettingsOption, useSettingsOptions } from "../api/useSettingsOptions";
 import { Btn } from "../components/ui/Btn";
@@ -575,6 +576,7 @@ export function KhieuNaiDetail({
             <span className="text-ink-soft">{t("detail.header.ketQuaLabel")}</span>
             <span className="font-semibold text-ink">{ketQua}</span>
           </span>
+          <LoiIcons r={kn} size="md" />
           <span className="text-sm">
             <span className="text-ink-soft">{t("detail.header.tocDoLabel")}</span>
             <span className="font-semibold text-ink">{tocDo}</span>
@@ -1666,7 +1668,7 @@ function CrmCaseDetailModal({ idCrm, onClose }: { idCrm: string; onClose: () => 
   }));
 
   return (
-    <Modal open onClose={onClose} title={t("detail.crmModal.title", { id: idCrm })} width="lg">
+    <Modal open onClose={onClose} title={t("detail.crmModal.title", { id: idCrm })} width="full">
       {query.isLoading ? (
         <p className="py-6 text-center text-sm text-ink-soft">{t("detail.crmModal.loading")}</p>
       ) : query.isError ? (
