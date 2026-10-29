@@ -227,6 +227,18 @@
       "CAN_DANH_GIA_QL": "belum ada penilaian QL",
       "INVALID_STATE": "status telah berubah",
       "NOT_FOUND": "tidak ditemukan"
+    },
+    "allProvince": "Semua provinsi",
+    "allDistrict": "Semua distrik · kelurahan",
+    "allErrorType": "Semua jenis kesalahan final",
+    "errOption": {
+      "daChot": "Kesalahan sudah final (semua)",
+      "coLoi": "Ada kesalahan (apa pun)",
+      "khongLoi": "Tidak ada kesalahan",
+      "nsx": "Kesalahan pabrikan",
+      "lapDat": "Kesalahan pemasangan",
+      "thaiDoKtv": "Kesalahan sikap teknisi",
+      "quyTrinhNskx": "Kesalahan proses NSKX"
     }
   },
   "settings": {
@@ -544,7 +556,28 @@
     "periodCol": "Periode",
     "avgCol": "Rata² {{label}}",
     "wholeRange": "Seluruh rentang",
-    "clickPeriodDetail": "Klik setiap periode untuk melihat rincian per kategori."
+    "clickPeriodDetail": "Klik setiap periode untuk melihat rincian per kategori.",
+    "drill": {
+      "hint": "Klik angka mana pun untuk melihat daftar kasusnya.",
+      "total": "{{n}} kasus",
+      "approx": "{{n}}+ kasus",
+      "onlyErr": "Hanya kasus dengan kesalahan",
+      "allFinalized": "Semua kasus final",
+      "unknown": "Tidak diketahui",
+      "page": "Halaman {{page}}/{{total}}",
+      "newCases": "Kasus baru dalam bulan",
+      "done": "Kasus selesai",
+      "processing": "Kasus dalam proses",
+      "within48h": "Kasus selesai dalam 48 jam",
+      "errCases": "Kasus final dengan kesalahan",
+      "finalized": "Kasus final",
+      "slaTotal": "Semua kasus (kecuali batal)",
+      "received": "Kasus diterima",
+      "closed": "Kasus ditutup",
+      "unreceived": "Kasus menunggu diterima",
+      "remaining": "Kasus terbuka",
+      "moc": "Kasus mencapai \"{{moc}}\""
+    }
   },
   "form": {
     "required": {

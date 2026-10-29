@@ -87,6 +87,9 @@ interface Filters {
   nguoiTaoVaiTro: string;
   tonToiThieu: string;
   thangDong: string; // "YYYY-MM" - loc theo thang cua ngay_ket_thuc
+  tinh: string; // khop ca tinh cu lan tinh moi
+  quanHuyen: string; // quan/huyen cu hoac phuong/xa moi thuoc tinh dang chon
+  loi: string; // loai loi da chot - xem getLoiOptions
   q: string;
   sort: string; // "field|dir"
   pageSize: string;
@@ -97,6 +100,19 @@ function getCrmTrangThaiOptions(t: (k: string) => string) {
     { value: "1", label: t("list.crmOption.all") },
     { value: "cho", label: t("list.crmOption.cho") },
     { value: "sai", label: t("list.crmOption.sai") },
+  ];
+}
+
+// Loai loi da chot (ket luan khieu nai da danh gia) - khop tham so "loi" cua GET /khieu-nai.
+function getLoiOptions(t: (k: string) => string) {
+  return [
+    { value: "da_chot", label: t("list.errOption.daChot") },
+    { value: "co_loi", label: t("list.errOption.coLoi") },
+    { value: "khong_loi", label: t("list.errOption.khongLoi") },
+    { value: "nsx", label: t("list.errOption.nsx") },
+    { value: "lap_dat", label: t("list.errOption.lapDat") },
+    { value: "thai_do_ktv", label: t("list.errOption.thaiDoKtv") },
+    { value: "quy_trinh_nskx", label: t("list.errOption.quyTrinhNskx") },
   ];
 }
 
@@ -137,7 +153,7 @@ function getTrangThaiQuickOptions(t: (k: string) => string) {
 const EMPTY_FILTERS: Filters = {
   trangThai: "", nguon: "", loaiKh: "", mucDo: "", nhomVanDe: "", nhomYeuCau: "", tuNgay: "", denNgay: "",
   chuaDongBo: "", choTnCskh: false, quaHanGiaiTrinh: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "", thangDong: "",
-  q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
+  tinh: "", quanHuyen: "", loi: "", q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
 };
 
 // defaultNguon: cong ty nguoi dung da chon (user.cong_ty) - chi ap dung khi CHUA tung co bo loc
@@ -234,6 +250,18 @@ export function KhieuNaiModule({
   const mucDoOpts = useSettingsOptions("muc_do");
   const nhomVanDeOpts = useSettingsOptions("nhom_van_de");
   const nhomYeuCauOpts = useSettingsOptions("nhom_yeu_cau");
+  // Ca luu tinh cu (63 tinh) hoac tinh moi (34 tinh sau sap nhap) -> gop 2 danh muc thanh 1 o loc.
+  const tinhOpts = useSettingsOptions("tinh");
+  const tinhMoiOpts = useSettingsOptions("tinh_moi");
+  const quanHuyenOpts = useSettingsOptions("quan_huyen", f.tinh);
+  const phuongXaMoiOpts = useSettingsOptions("phuong_xa_moi", f.tinh);
+  const gopTen = (...lists: ({ gia_tri: string }[] | undefined)[]) =>
+    [...new Set(lists.flatMap((l) => (l ?? []).map((o) => o.gia_tri)))]
+      .sort((a, b) => a.localeCompare(b, "vi"))
+      .map((v) => ({ value: v, label: v }));
+  const TINH_OPTIONS = gopTen(tinhMoiOpts.data, tinhOpts.data);
+  const QUAN_HUYEN_OPTIONS = gopTen(quanHuyenOpts.data, phuongXaMoiOpts.data);
+  const LOI_OPTIONS = getLoiOptions(t);
 
   // So ca hien tren cac nut loc nhanh trang thai - dung lai dung /khieu-nai/stats (da toi uu, gioi
   // han theo thang hien tai) ma Trang chu dang dung, khong tao thanh 1 truy van rieng ton kem D1.
@@ -346,6 +374,9 @@ export function KhieuNaiModule({
       if (f.nguoiTaoVaiTro) p.set("nguoi_tao_vai_tro", f.nguoiTaoVaiTro);
       if (f.tonToiThieu) p.set("ton_toi_thieu_ngay", f.tonToiThieu);
       if (f.thangDong) p.set("thang_dong", f.thangDong);
+      if (f.tinh) p.set("tinh", f.tinh);
+      if (f.tinh && f.quanHuyen) p.set("quan_huyen", f.quanHuyen);
+      if (f.loi) p.set("loi", f.loi);
       if (f.q) p.set("q", f.q);
       p.set("sort", sortField);
       p.set("dir", sortDir);
@@ -494,7 +525,7 @@ export function KhieuNaiModule({
   const totalPages = Math.max(1, Math.ceil(total / pageSizeN));
 
   const activeFilterCount =
-    [f.trangThai, f.nguon, f.loaiKh, f.mucDo, f.nhomVanDe, f.nhomYeuCau, f.tuNgay, f.denNgay, f.chuaDongBo, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.q].filter(Boolean).length +
+    [f.trangThai, f.nguon, f.loaiKh, f.mucDo, f.nhomVanDe, f.nhomYeuCau, f.tuNgay, f.denNgay, f.chuaDongBo, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.tinh, f.quanHuyen, f.loi, f.q].filter(Boolean).length +
     (f.choTnCskh ? 1 : 0) + (f.quaHanGiaiTrinh ? 1 : 0) + (f.caCuaToi ? 1 : 0);
 
   const handleSort = (field: string) => {
@@ -611,6 +642,14 @@ export function KhieuNaiModule({
             <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">
               {t("list.to")} <input type="date" className={selCls} value={f.denNgay} onChange={(e) => set("denNgay", e.target.value)} />
             </label>
+            <FilterSelect className={selCls} value={f.tinh} onChange={(v) => { setF((p) => ({ ...p, tinh: v, quanHuyen: "" })); setPage(1); }}
+              allLabel={t("list.allProvince")} options={TINH_OPTIONS} />
+            {f.tinh && (
+              <FilterSelect className={selCls} value={f.quanHuyen} onChange={(v) => set("quanHuyen", v)} allLabel={t("list.allDistrict")}
+                options={QUAN_HUYEN_OPTIONS} />
+            )}
+            <FilterSelect className={selCls} value={f.loi} onChange={(v) => set("loi", v)} allLabel={t("list.allErrorType")}
+              options={LOI_OPTIONS} />
             <FilterSelect className={selCls} value={f.chuaDongBo} onChange={(v) => set("chuaDongBo", v)} allLabel={t("list.allCrmStatus")}
               options={CRM_TRANG_THAI_OPTIONS} />
             <label className="flex items-center gap-1 text-sm text-ink-soft lg:text-xs">

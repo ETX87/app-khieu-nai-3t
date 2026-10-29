@@ -227,6 +227,18 @@
       "CAN_DANH_GIA_QL": "chưa có Đánh giá QL",
       "INVALID_STATE": "trạng thái đã thay đổi",
       "NOT_FOUND": "không tìm thấy"
+    },
+    "allProvince": "Mọi tỉnh",
+    "allDistrict": "Mọi quận/huyện · phường/xã",
+    "allErrorType": "Mọi loại lỗi đã chốt",
+    "errOption": {
+      "daChot": "Đã chốt lỗi (tất cả)",
+      "coLoi": "Có lỗi (bất kỳ)",
+      "khongLoi": "Không lỗi",
+      "nsx": "Lỗi nhà sản xuất",
+      "lapDat": "Lỗi lắp đặt",
+      "thaiDoKtv": "Lỗi thái độ KTV",
+      "quyTrinhNskx": "Lỗi quy trình NSKX"
     }
   },
   "settings": {
@@ -544,7 +556,28 @@
     "periodCol": "Kỳ",
     "avgCol": "TB {{label}}",
     "wholeRange": "Cả khoảng",
-    "clickPeriodDetail": "Bấm vào từng kỳ để xem chi tiết theo phân loại."
+    "clickPeriodDetail": "Bấm vào từng kỳ để xem chi tiết theo phân loại.",
+    "drill": {
+      "hint": "Bấm vào từng số liệu để xem danh sách ca tương ứng.",
+      "total": "{{n}} ca",
+      "approx": "{{n}}+ ca",
+      "onlyErr": "Chỉ ca có lỗi",
+      "allFinalized": "Tất cả ca đã chốt",
+      "unknown": "Không rõ",
+      "page": "Trang {{page}}/{{total}}",
+      "newCases": "Ca phát sinh trong tháng",
+      "done": "Ca đã kết thúc",
+      "processing": "Ca đang xử lý",
+      "within48h": "Ca hoàn thành trong 48h",
+      "errCases": "Ca chốt có lỗi",
+      "finalized": "Ca đã chốt lỗi",
+      "slaTotal": "Tất cả ca (trừ Hủy)",
+      "received": "Ca đã tiếp nhận",
+      "closed": "Ca đã đóng",
+      "unreceived": "Ca chờ tiếp nhận",
+      "remaining": "Ca còn tồn",
+      "moc": "Ca đạt mốc \"{{moc}}\""
+    }
   },
   "form": {
     "required": {

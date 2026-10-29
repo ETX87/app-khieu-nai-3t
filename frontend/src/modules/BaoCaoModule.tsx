@@ -1,5 +1,5 @@
-import { Fragment, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { Fragment, useRef, useState, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import type { AppUser } from "../api/types";
@@ -15,6 +15,7 @@ import { NGUON_OPTIONS } from "./KhieuNaiForm";
 import { FilterSelect } from "../components/ui/FilterSelect";
 import { KpiCard } from "../components/ui/KpiCard";
 import { Tabs } from "../components/ui/Tabs";
+import { BaoCaoDrillModal, DrillNum, type DrillSpec, type DrillState } from "./BaoCaoDrill";
 import { Donut, InlineStackedBar, Legend, LineChart, SERIES, STATUS_GOOD, STATUS_WARN, StackedColumns } from "../components/charts/Charts";
 
 interface SlaBucket {
@@ -71,6 +72,7 @@ interface ChotLoiGroup {
   so_loi_quy_trinh_nskx: number;
   ca_co_loi: number;
   ty_le_loi: number;
+  ma?: string; // theo nguoi tao: key = ten hien thi, ma = email (gia tri loc that)
 }
 interface ChotLoiReport {
   tong: ChotLoiGroup;
@@ -120,6 +122,8 @@ interface TheoNguoiTnRow extends TheoNguoiTnSo {
   ten: string | null;
 }
 interface TheoNguoiTnReport {
+  tu_ngay: string;
+  den_ngay: string;
   tong_ca_moi: number;
   tong: TheoNguoiTnSo;
   rows: TheoNguoiTnRow[];
@@ -185,7 +189,7 @@ function kyLabel(ky: TocDoReport["ky"], key: string, t: TFn): string {
   return dmy(key);
 }
 
-function TocDoCells({ v, bold }: { v: TocDoSo; bold?: boolean }) {
+function TocDoCells({ v, bold, onCell }: { v: TocDoSo; bold?: boolean; onCell?: (moc: TocDoMoc) => void }) {
   const { t } = useTranslation();
   const cols = getTocDoMocCols(t);
   return (
@@ -194,7 +198,10 @@ function TocDoCells({ v, bold }: { v: TocDoSo; bold?: boolean }) {
         <td key={c.key} className={`whitespace-nowrap px-2 py-2 ${bold ? "font-semibold text-ink" : ""}`}>
           {v[c.key].sl > 0 ? (
             <>
-              {fmtGio(v[c.key].tb_gio, t)} <span className="font-normal text-ink-faint">· {t("report.casesCount", { n: v[c.key].sl })}</span>
+              {fmtGio(v[c.key].tb_gio, t)}{" "}
+              <span className="font-normal text-ink-faint">
+                · <DrillNum onClick={onCell && (() => onCell(c.key))}>{t("report.casesCount", { n: v[c.key].sl })}</DrillNum>
+              </span>
             </>
           ) : (
             <span className="text-ink-faint">—</span>
@@ -299,19 +306,20 @@ function getTnParts(t: TFn) {
 const tnParts = (v: TheoNguoiTnSo, t: TFn) => getTnParts(t).map((p) => ({ label: p.label, color: p.color, value: v[p.key] }));
 
 // Card mobile cho bang theo nguoi tiep nhan.
-function TheoNguoiTnCard({ ten, v, tong, max }: { ten: string; v: TheoNguoiTnSo; tong?: boolean; max: number }) {
+type TnLoai = "tu_mo" | "nguon_khac" | "ton_cu" | "";
+function TheoNguoiTnCard({ ten, v, tong, max, onDrill }: { ten: string; v: TheoNguoiTnSo; tong?: boolean; max: number; onDrill: (loai: TnLoai, n: number) => (() => void) | undefined }) {
   const { t } = useTranslation();
   return (
     <div className={`rounded-xl border p-3 shadow-card ${tong ? "border-brand-200 bg-accent-soft" : "border-line bg-surface"}`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="min-w-0 truncate text-base font-bold text-ink">{ten}</span>
-        <span className="shrink-0 text-sm text-ink-soft"><b className="text-lg font-extrabold text-ink">{v.tong_tiep_nhan}</b> {t("report.caSuffix")}</span>
+        <span className="shrink-0 text-sm text-ink-soft"><b className="text-lg font-extrabold text-ink"><DrillNum onClick={onDrill("", v.tong_tiep_nhan)}>{v.tong_tiep_nhan}</DrillNum></b> {t("report.caSuffix")}</span>
       </div>
       <InlineStackedBar parts={tnParts(v, t)} max={max} className="mb-2.5" />
       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
-        <TheoNgayStat k={t("report.tnPart.tuMo")} v={v.tu_mo} dot={SERIES[0]} />
-        <TheoNgayStat k={t("report.tnPart.tuNguonKhac")} v={v.tu_nguon_khac} dot={SERIES[1]} />
-        <TheoNgayStat k={t("report.tnPart.tonCu")} v={v.ton_cu} dot={SERIES[2]} />
+        <TheoNgayStat k={t("report.tnPart.tuMo")} v={<DrillNum onClick={onDrill("tu_mo", v.tu_mo)}>{v.tu_mo}</DrillNum>} dot={SERIES[0]} />
+        <TheoNgayStat k={t("report.tnPart.tuNguonKhac")} v={<DrillNum onClick={onDrill("nguon_khac", v.tu_nguon_khac)}>{v.tu_nguon_khac}</DrillNum>} dot={SERIES[1]} />
+        <TheoNgayStat k={t("report.tnPart.tonCu")} v={<DrillNum onClick={onDrill("ton_cu", v.ton_cu)}>{v.ton_cu}</DrillNum>} dot={SERIES[2]} />
         <TheoNgayStat k={t("report.dailyCol.receiveRate")} v={<TyLePill v={v.ty_le} />} />
         <TheoNgayStat k={t("report.dailyCol.avgHourReceive")} v={fmtGio(v.tb_gio_tiep_nhan, t)} />
       </div>
@@ -321,12 +329,16 @@ function TheoNguoiTnCard({ ten, v, tong, max }: { ten: string; v: TheoNguoiTnSo;
 
 // Bang ty le % so ca theo khoang ngay xu ly, tach theo Tong / Da ket thuc / Dang xu ly
 // (giong bang pivot SLA hay dung ngoai Sheet, de xem toc do xu ly nhanh/cham chiem bao nhieu %).
-function SlaTyLeTable({ buckets, tongDaKetThuc, tongDangXuLy }: { buckets: SlaBucket[]; tongDaKetThuc: number; tongDangXuLy: number }) {
+type SlaRowKey = "tong" | "done" | "open";
+function SlaTyLeTable({ buckets, tongDaKetThuc, tongDangXuLy, onCell }: {
+  buckets: SlaBucket[]; tongDaKetThuc: number; tongDangXuLy: number;
+  onCell: (row: SlaRowKey, bucketIdx: number | null) => void; // bucketIdx null = cot "Tong"
+}) {
   const { t } = useTranslation();
   const rows = [
-    { label: t("report.sla.total"), tong: tongDaKetThuc + tongDangXuLy, get: (b: SlaBucket) => b.da_ket_thuc + b.dang_xu_ly, hi: true },
-    { label: t("report.sla.done"), tong: tongDaKetThuc, get: (b: SlaBucket) => b.da_ket_thuc, hi: false },
-    { label: t("report.sla.processing"), tong: tongDangXuLy, get: (b: SlaBucket) => b.dang_xu_ly, hi: false },
+    { key: "tong" as const, label: t("report.sla.total"), tong: tongDaKetThuc + tongDangXuLy, get: (b: SlaBucket) => b.da_ket_thuc + b.dang_xu_ly, hi: true },
+    { key: "done" as const, label: t("report.sla.done"), tong: tongDaKetThuc, get: (b: SlaBucket) => b.da_ket_thuc, hi: false },
+    { key: "open" as const, label: t("report.sla.processing"), tong: tongDangXuLy, get: (b: SlaBucket) => b.dang_xu_ly, hi: false },
   ];
   const pct = (n: number, tong: number) => (tong > 0 ? Math.round((n / tong) * 1000) / 10 : 0);
   return (
@@ -348,9 +360,13 @@ function SlaTyLeTable({ buckets, tongDaKetThuc, tongDangXuLy }: { buckets: SlaBu
           {rows.map((r) => (
             <tr key={r.label} className={`border-b border-line text-ink-body last:border-0 ${r.hi ? "bg-accent-soft/30 font-semibold" : ""}`}>
               <td className="whitespace-nowrap px-2.5 py-2 font-semibold text-ink">{r.label}</td>
-              <td className="whitespace-nowrap px-2.5 py-2 text-right font-bold text-ink">{r.tong}</td>
-              {buckets.map((b) => (
-                <td key={b.label} className="whitespace-nowrap px-2.5 py-2 text-right"><So v={r.get(b)} /></td>
+              <td className="whitespace-nowrap px-2.5 py-2 text-right font-bold text-ink">
+                <DrillNum onClick={r.tong > 0 ? () => onCell(r.key, null) : undefined}>{r.tong}</DrillNum>
+              </td>
+              {buckets.map((b, i) => (
+                <td key={b.label} className="whitespace-nowrap px-2.5 py-2 text-right">
+                  <DrillNum onClick={r.get(b) > 0 ? () => onCell(r.key, i) : undefined}><So v={r.get(b)} /></DrillNum>
+                </td>
               ))}
               {buckets.map((b) => (
                 <td key={`${b.label}-pct`} className="whitespace-nowrap bg-accent-soft/40 px-2.5 py-2 text-right font-semibold text-accent-ink">{pct(r.get(b), r.tong)}%</td>
@@ -364,7 +380,7 @@ function SlaTyLeTable({ buckets, tongDaKetThuc, tongDangXuLy }: { buckets: SlaBu
 }
 
 // Danh sach xep hang co thanh ty le loi (thay bang mini chu thuan).
-function ChotLoiMiniTable({ title, rows }: { title: string; rows: ChotLoiGroup[] }) {
+function ChotLoiMiniTable({ title, rows, onRow }: { title: string; rows: ChotLoiGroup[]; onRow?: (g: ChotLoiGroup) => (() => void) | undefined }) {
   const { t } = useTranslation();
   return (
     <div className="rounded-xl border border-line bg-surface-2/50 p-3">
@@ -376,8 +392,16 @@ function ChotLoiMiniTable({ title, rows }: { title: string; rows: ChotLoiGroup[]
           {rows.map((g) => {
             const bar = g.ca_co_loi === 0 ? "bg-line-strong" : g.ty_le_loi >= 50 ? "bg-red-500" : "bg-amber-400";
             const rate = g.ca_co_loi === 0 ? "text-ink-faint" : g.ty_le_loi >= 50 ? "text-red-600" : "text-amber-700";
+            const open = onRow?.(g);
             return (
-              <div key={g.key} className="text-sm lg:text-xs">
+              <div
+                key={g.ma ?? g.key}
+                role={open ? "button" : undefined}
+                tabIndex={open ? 0 : undefined}
+                onClick={open}
+                onKeyDown={open && ((e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } })}
+                className={`rounded-lg text-sm lg:text-xs ${open ? "-mx-1 cursor-pointer px-1 py-0.5 hover:bg-accent-soft" : ""}`}
+              >
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <span className="min-w-0 flex-1 truncate text-ink-body" title={g.key}>{g.key}</span>
                   <span className="shrink-0 text-ink-soft">{t("report.casesCount", { n: g.so_ca })}</span>
@@ -409,24 +433,25 @@ function TheoNgayStat({ k, v, dot }: { k: string; v: ReactNode; dot?: string }) 
 
 // Card doc cho mobile - mo phong pattern KhieuNaiCard (bang 11 cot khong xem duoc tren man hinh
 // hep, phai cuon ngang - card 1 the/ngay de doc thang khong can cuon).
-function TheoNgayCard({ r }: { r: TheoNgayRow }) {
+type NgayDrillKind = "moi" | "tn" | "dong" | "cho" | "ton";
+function TheoNgayCard({ r, onDrill }: { r: TheoNgayRow; onDrill: (k: NgayDrillKind, r: TheoNgayRow) => (() => void) | undefined }) {
   const { t } = useTranslation();
   return (
     <div className="rounded-xl border border-line bg-surface p-3 shadow-card">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-base font-bold text-ink">{dmy(r.ngay)}</span>
-        <span className="text-sm text-ink-soft">{t("report.dailyCol.remaining")}: <b className="text-brand-700">{r.con_ton ?? "—"}</b></span>
+        <span className="text-sm text-ink-soft">{t("report.dailyCol.remaining")}: <b className="text-brand-700"><DrillNum onClick={onDrill("ton", r)}>{r.con_ton ?? "—"}</DrillNum></b></span>
       </div>
       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
-        <TheoNgayStat k={t("report.dailyCol.newCases")} v={r.ca_moi} dot={SERIES[0]} />
-        <TheoNgayStat k={t("report.dailyCol.received")} v={r.da_tiep_nhan} dot={SERIES[1]} />
-        <TheoNgayStat k={t("report.dailyCol.closed")} v={r.da_dong} dot={SERIES[2]} />
+        <TheoNgayStat k={t("report.dailyCol.newCases")} v={<DrillNum onClick={onDrill("moi", r)}>{r.ca_moi}</DrillNum>} dot={SERIES[0]} />
+        <TheoNgayStat k={t("report.dailyCol.received")} v={<DrillNum onClick={onDrill("tn", r)}>{r.da_tiep_nhan}</DrillNum>} dot={SERIES[1]} />
+        <TheoNgayStat k={t("report.dailyCol.closed")} v={<DrillNum onClick={onDrill("dong", r)}>{r.da_dong}</DrillNum>} dot={SERIES[2]} />
         <TheoNgayStat k={t("report.dailyCol.receiveRate")} v={<TyLePill v={r.ty_le_tiep_nhan} />} />
         <TheoNgayStat k={t("report.dailyCol.oldPendingUnreceived")} v={r.ton_cu_chua_tiep_nhan ?? "—"} />
         <TheoNgayStat k={t("report.dailyCol.oldPendingReceived")} v={r.ton_cu_da_tiep_nhan ?? "—"} />
         <TheoNgayStat k={t("report.dailyCol.avgHourReceive")} v={r.tb_gio_tiep_nhan ?? "—"} />
         <TheoNgayStat k={t("report.dailyCol.avgHourProcess")} v={r.tb_gio_xu_ly ?? "—"} />
-        <TheoNgayStat k={t("report.dailyCol.unreceived")} v={r.cho_tiep_nhan ?? "—"} />
+        <TheoNgayStat k={t("report.dailyCol.unreceived")} v={<DrillNum onClick={onDrill("cho", r)}>{r.cho_tiep_nhan ?? "—"}</DrillNum>} />
       </div>
     </div>
   );
@@ -566,10 +591,10 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
   const cl = chotLoiQuery.data;
   const loiItems = cl
     ? [
-        { label: t("report.errorLabel.nsx"), value: cl.tong.so_loi_nsx, color: SERIES[0] },
-        { label: t("report.errorLabel.lapDat"), value: cl.tong.so_loi_lap_dat, color: SERIES[1] },
-        { label: t("report.errorLabel.thaiDoKtv"), value: cl.tong.so_loi_thai_do_ktv, color: SERIES[2] },
-        { label: t("report.errorLabel.quyTrinhNskx"), value: cl.tong.so_loi_quy_trinh_nskx, color: SERIES[3] },
+        { label: t("report.errorLabel.nsx"), value: cl.tong.so_loi_nsx, color: SERIES[0], loi: "nsx" },
+        { label: t("report.errorLabel.lapDat"), value: cl.tong.so_loi_lap_dat, color: SERIES[1], loi: "lap_dat" },
+        { label: t("report.errorLabel.thaiDoKtv"), value: cl.tong.so_loi_thai_do_ktv, color: SERIES[2], loi: "thai_do_ktv" },
+        { label: t("report.errorLabel.quyTrinhNskx"), value: cl.tong.so_loi_quy_trinh_nskx, color: SERIES[3], loi: "quy_trinh_nskx" },
       ]
     : [];
   const tongLuotLoi = loiItems.reduce((a, b) => a + b.value, 0);
@@ -578,6 +603,103 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
     ? t("report.monthLower", { m: thang.slice(5), y: thang.slice(0, 4) })
     : t("report.currentMonthLower", { suffix: sla ? t("report.currentMonthSuffix", { m: sla.thang.slice(5), y: sla.thang.slice(0, 4) }) : "" });
 
+  // ---- Drill-down: bam so lieu -> popup danh sach ca (BaoCaoDrill.tsx) ----
+  const queryClient = useQueryClient();
+  const [drill, setDrill] = useState<DrillState | null>(null);
+  const moDrill = (spec: DrillSpec, variant = 0) => setDrill({ spec, variant, page: 1 });
+  const trungLapRef = useRef<HTMLDivElement>(null);
+  const RONG = "__rong__";
+  const KHONG_RO = "Không rõ"; // nhan backend gan cho nhom bo trong (xem /bao-cao/chot-loi)
+
+  // Tong quan: pham vi SLA = ton + dong/huy trong thang; chot loi = thang chon hoac 12 thang gan nhat.
+  const thangHieuLuc = thang || sla?.thang || "";
+  const locThang: Record<string, string> = {};
+  if (locNguonThang) locThang.nguon = locNguonThang;
+  if (locNhomYeuCauThang) locThang.nhom_yeu_cau = locNhomYeuCauThang;
+  const chotScope: Record<string, string> = { ...locThang, ...(thang ? { thang_bao_cao: thang } : { chot_12_thang: "1" }) };
+  const sauThang = ` · ${thangNhan}`;
+  const drillSla = (title: string, extra: Record<string, string>) =>
+    moDrill({ title: title + sauThang, params: { ...locThang, thang_bao_cao: thangHieuLuc, ...extra } });
+  const SLA_RANGES: [number | null, number | null][] = [[null, 1], [1, 3], [3, 7], [7, null]]; // khop SLA_BUCKETS backend
+  const onSlaCell = (row: SlaRowKey, idx: number | null) => {
+    const extra: Record<string, string> = row === "done" ? { trang_thai: "Da ket thuc" } : row === "open" ? { chua_dong: "1" } : { bo_huy: "1" };
+    let title = row === "done" ? t("report.drill.done") : row === "open" ? t("report.drill.processing") : t("report.drill.slaTotal");
+    if (idx != null && sla) {
+      const [mn, mx] = SLA_RANGES[idx];
+      if (mn != null) extra.sla_min = String(mn);
+      if (mx != null) extra.sla_max = String(mx);
+      title += ` · ${sla.buckets[idx].label}`;
+    }
+    drillSla(title, extra);
+  };
+  const chotVariants = (extra: Record<string, string>) => [
+    { label: t("report.drill.onlyErr"), params: { ...extra, loi: "co_loi" } },
+    { label: t("report.drill.allFinalized"), params: { ...extra, loi: "da_chot" } },
+  ];
+  const drillChotNhom = (title: string, toParams: (g: ChotLoiGroup) => Record<string, string> | null) => (g: ChotLoiGroup) => {
+    const extra = toParams(g);
+    if (!extra || g.so_ca === 0) return undefined;
+    return () => moDrill({ title: `${title}: ${g.key}${sauThang}`, params: chotScope, variants: chotVariants(extra) }, g.ca_co_loi > 0 ? 0 : 1);
+  };
+  const rongHoac = (key: string) => (key === KHONG_RO ? RONG : key);
+
+  // Van hanh hang ngay: cung bo loc voi bang theo ngay (nguoi tiep nhan -> cskh_tiep_nhan).
+  const locNgay: Record<string, string> = {};
+  if (locNguoiTiepNhan) locNgay.cskh_tiep_nhan = locNguoiTiepNhan;
+  if (locNguoiTao) locNgay.nguoi_tao = locNguoiTao;
+  if (locNguon) locNgay.nguon = locNguon;
+  if (locNhomYeuCau) locNgay.nhom_yeu_cau = locNhomYeuCau;
+  if (locMucDo) locNgay.muc_do = locMucDo;
+  if (locPhanLoaiKh) locNgay.phan_loai_kh = locPhanLoaiKh;
+  const khoangNhan = (tu: string, den: string) => (tu === den ? dmy(tu) : `${dmy(tu)} – ${dmy(den)}`);
+  const drillNgay = (k: NgayDrillKind, tu: string, den: string) => {
+    const cfg: Record<NgayDrillKind, [string, Record<string, string>]> = {
+      moi: [t("report.miniStat.newCases"), { tu_ngay: tu, den_ngay: den }],
+      tn: [t("report.drill.received"), { tiep_nhan_tu: tu, tiep_nhan_den: den }],
+      dong: [t("report.drill.closed"), { trang_thai: "Da ket thuc", dong_tu: tu, dong_den: den }],
+      cho: [t("report.drill.unreceived"), { trang_thai: "Cho tiep nhan" }],
+      ton: [t("report.drill.remaining"), { chua_dong: "1" }],
+    };
+    const [label, extra] = cfg[k];
+    moDrill({ title: `${label} · ${khoangNhan(tu, den)}`, params: { ...locNgay, ...extra } });
+  };
+  // "Cho tiep nhan"/"Con ton" la so lieu tai 1 thoi diem - chi liet ke duoc cho hom nay (tinh song).
+  const onDrillNgay = (k: NgayDrillKind, r: TheoNgayRow) => {
+    const v = { moi: r.ca_moi, tn: r.da_tiep_nhan, dong: r.da_dong, cho: r.cho_tiep_nhan, ton: r.con_ton }[k];
+    if (!v) return undefined;
+    if ((k === "cho" || k === "ton") && r.ngay !== todayISO) return undefined;
+    return () => drillNgay(k, r.ngay, r.ngay);
+  };
+  const onDrillTn = (email: string | null, ten: string) => (loai: TnLoai, n: number) => {
+    if (!n || !nguoiTn) return undefined;
+    const label = { tu_mo: t("report.tnPart.tuMo"), nguon_khac: t("report.tnPart.tuNguonKhac"), ton_cu: t("report.tnPart.tonCu"), "": t("report.byReceiverCol.totalReceived") }[loai];
+    const extra: Record<string, string> = { tiep_nhan_tu: nguoiTn.tu_ngay, tiep_nhan_den: nguoiTn.den_ngay };
+    if (email) extra.tiep_nhan_boi = email;
+    if (loai) extra.tiep_nhan_loai = loai;
+    return () => moDrill({ title: `${label} · ${ten} · ${khoangNhan(nguoiTn.tu_ngay, nguoiTn.den_ngay)}`, params: { ...locNgay, ...extra } });
+  };
+
+  // Toc do xu ly: 1 ky -> khoang ngay (cat theo khoang dang xem), cac ca co moc xay ra trong khoang.
+  const kyRange = (key: string): [string, string] => {
+    if (!td) return [key, key];
+    let tu = key, den = key;
+    if (td.ky === "tuan") den = isoAddDays(key, 6);
+    else if (td.ky === "thang") {
+      tu = `${key}-01`;
+      const d = new Date(`${tu}T00:00:00Z`);
+      d.setUTCMonth(d.getUTCMonth() + 1);
+      den = isoAddDays(d.toISOString().slice(0, 10), -1);
+    }
+    return [tu < td.tu_ngay ? td.tu_ngay : tu, den > td.den_ngay ? td.den_ngay : den];
+  };
+  const drillTocDo = (moc: TocDoMoc, [tu, den]: [string, string], nhan: string, nhomKey?: string) => {
+    const mocLabel = TOC_DO_MOC_COLS.find((c) => c.key === moc)?.label ?? moc;
+    moDrill({
+      title: `${t("report.drill.moc", { moc: mocLabel })} · ${nhan}`,
+      params: { moc, moc_tu: tu, moc_den: den, ...(nhomKey !== undefined && td ? { phan_loai: td.phan_loai, nhom_key: nhomKey } : {}) },
+    });
+  };
+
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center gap-3">
@@ -585,6 +707,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         <div>
           <h2 className="text-xl font-bold text-ink lg:text-[21px]">{t("report.pageTitle")}</h2>
           <p className="text-xs text-ink-soft">{t("report.pageSub")}</p>
+          <p className="text-xs text-accent-ink">{t("report.drill.hint")}</p>
         </div>
       </div>
 
@@ -615,13 +738,17 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
       />
 
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 lg:grid-cols-4">
-        <KpiCard label={t("report.kpi.newCases")} value={sla?.tong_phat_sinh_trong_thang ?? "…"} tone="slate" icon="inbox" sub={t("report.kpi.newCasesSub")} />
-        <KpiCard label={t("report.kpi.done")} value={sla?.tong_da_ket_thuc ?? "…"} tone="green" icon="xong" sub={t("report.kpi.doneSub")} />
-        <KpiCard label={t("report.kpi.processing")} value={sla?.tong_dang_xu_ly ?? "…"} tone="blue" icon="dangXuLy" sub={t("report.kpi.processingSub")} />
-        <KpiCard label={t("report.kpi.avgTime")} value={sla ? <>{fmtSoVN(sla.so_ngay_trung_binh)}<span className="ml-1 text-base font-bold">{t("report.unit.day")}</span></> : "…"} tone="brand" icon="choChot" sub={t("report.kpi.avgTimeSub")} />
-        <KpiCard label={t("report.kpi.completion48h")} value={sla ? `${sla.ty_le_hoan_thanh_48h}%` : "…"} tone="cyan" icon="choChot" sub={t("report.kpi.completion48hSub")} />
-        <KpiCard label={t("report.kpi.errorRate")} value={cl ? `${cl.tong.ty_le_loi}%` : "…"} tone={cl && cl.tong.ty_le_loi >= 50 ? "red" : "amber"} icon="canhBao" sub={cl ? t("report.kpi.errorRateSub", { err: cl.tong.ca_co_loi, total: cl.tong.so_ca }) : undefined} />
-        <KpiCard label={t("report.kpi.recurrence7d")} value={tl?.tong_tai_phat_7_ngay ?? "…"} tone="red" icon="lap" sub={tl ? t("report.kpi.recurrence7dSub", { n: tl.tong_nhom }) : undefined} />
+        <KpiCard label={t("report.kpi.newCases")} value={sla?.tong_phat_sinh_trong_thang ?? "…"} tone="slate" icon="inbox" sub={t("report.kpi.newCasesSub")}
+          onClick={sla && thangHieuLuc ? () => moDrill({ title: t("report.drill.newCases") + sauThang, params: { ...locThang, thang_tiep_nhan: thangHieuLuc } }) : undefined} />
+        <KpiCard label={t("report.kpi.done")} value={sla?.tong_da_ket_thuc ?? "…"} tone="green" icon="xong" sub={t("report.kpi.doneSub")} onClick={sla ? () => onSlaCell("done", null) : undefined} />
+        <KpiCard label={t("report.kpi.processing")} value={sla?.tong_dang_xu_ly ?? "…"} tone="blue" icon="dangXuLy" sub={t("report.kpi.processingSub")} onClick={sla ? () => onSlaCell("open", null) : undefined} />
+        <KpiCard label={t("report.kpi.avgTime")} value={sla ? <>{fmtSoVN(sla.so_ngay_trung_binh)}<span className="ml-1 text-base font-bold">{t("report.unit.day")}</span></> : "…"} tone="brand" icon="choChot" sub={t("report.kpi.avgTimeSub")} onClick={sla ? () => onSlaCell("done", null) : undefined} />
+        <KpiCard label={t("report.kpi.completion48h")} value={sla ? `${sla.ty_le_hoan_thanh_48h}%` : "…"} tone="cyan" icon="choChot" sub={t("report.kpi.completion48hSub")}
+          onClick={sla ? () => drillSla(t("report.drill.within48h"), { trang_thai: "Da ket thuc", sla_max: "2" }) : undefined} />
+        <KpiCard label={t("report.kpi.errorRate")} value={cl ? `${cl.tong.ty_le_loi}%` : "…"} tone={cl && cl.tong.ty_le_loi >= 50 ? "red" : "amber"} icon="canhBao" sub={cl ? t("report.kpi.errorRateSub", { err: cl.tong.ca_co_loi, total: cl.tong.so_ca }) : undefined}
+          onClick={cl && cl.tong.so_ca > 0 ? () => moDrill({ title: t("report.drill.errCases") + sauThang, params: chotScope, variants: chotVariants({}) }) : undefined} />
+        <KpiCard label={t("report.kpi.recurrence7d")} value={tl?.tong_tai_phat_7_ngay ?? "…"} tone="red" icon="lap" sub={tl ? t("report.kpi.recurrence7dSub", { n: tl.tong_nhom }) : undefined}
+          onClick={tl ? () => trungLapRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }) : undefined} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
@@ -643,13 +770,18 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                   { key: "open", label: t("report.sla.processing"), color: STATUS_WARN, values: sla.buckets.map((b) => b.dang_xu_ly) },
                 ]}
               />
-              <SlaTyLeTable buckets={sla.buckets} tongDaKetThuc={sla.tong_da_ket_thuc} tongDangXuLy={sla.tong_dang_xu_ly} />
+              <SlaTyLeTable buckets={sla.buckets} tongDaKetThuc={sla.tong_da_ket_thuc} tongDangXuLy={sla.tong_dang_xu_ly} onCell={onSlaCell} />
               {sla.theo_nhom_van_de.length > 0 && (
                 <div className="mt-4 border-t border-line pt-3">
                   <p className="mb-2.5 text-sm font-bold text-ink lg:text-xs">{t("report.byIssueGroupDone")}</p>
                   <div className="flex flex-col gap-2.5">
                     {sla.theo_nhom_van_de.map((n, i) => (
-                      <div key={n.nhom_van_de} className="flex items-center gap-2.5">
+                      <button
+                        key={n.nhom_van_de}
+                        type="button"
+                        onClick={() => drillSla(`${t("report.drill.done")}: ${n.nhom_van_de}`, { trang_thai: "Da ket thuc", nhom_van_de: n.nhom_van_de })}
+                        className="-mx-1 flex items-center gap-2.5 rounded-lg px-1 py-0.5 text-left hover:bg-accent-soft"
+                      >
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">{i + 1}</span>
                         <div className="min-w-0 flex-1">
                           <div className="mb-1 flex items-center justify-between gap-2 text-sm lg:text-xs">
@@ -660,7 +792,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                             <div className="h-2 rounded-full bg-gradient-to-r from-brand-600 to-brand-400" style={{ width: `${(n.so_ca / maxNhom) * 100}%` }} />
                           </div>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -682,7 +814,9 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                     <div key={it.label} className="flex items-center gap-2 py-2 text-sm lg:text-xs">
                       <i className="h-3 w-3 shrink-0 rounded-full" style={{ background: it.color }} />
                       <span className="min-w-0 flex-1 truncate text-ink-body">{it.label}</span>
-                      <b className="w-8 text-right text-ink">{it.value}</b>
+                      <b className="w-8 text-right text-ink">
+                        <DrillNum onClick={it.value > 0 ? () => moDrill({ title: `${t("report.drill.errCases")}: ${it.label}${sauThang}`, params: { ...chotScope, loi: it.loi } }) : undefined}>{it.value}</DrillNum>
+                      </b>
                       <span className="w-11 text-right text-ink-soft">{tongLuotLoi ? Math.round((it.value / tongLuotLoi) * 100) : 0}%</span>
                     </div>
                   ))}
@@ -699,12 +833,18 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
       {cl && cl.tong.so_ca > 0 && (
         <Card title={<CardTitle icon="nhom">{t("report.cardTitle.errorByGroup")}</CardTitle>}>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <ChotLoiMiniTable title={t("report.errByMonth")} rows={cl.theo_thang.slice(0, 12)} />
-            <ChotLoiMiniTable title={t("report.errByProvince")} rows={cl.theo_tinh} />
-            <ChotLoiMiniTable title={t("report.errByRequestGroup")} rows={cl.theo_nhom_yeu_cau} />
-            <ChotLoiMiniTable title={t("report.errByIssueGroup")} rows={cl.theo_nhom_van_de} />
-            <ChotLoiMiniTable title={t("report.errBySourceCreated")} rows={cl.theo_nguon_tao} />
-            <ChotLoiMiniTable title={t("report.errByCreator")} rows={cl.theo_nguoi_tao} />
+            <ChotLoiMiniTable title={t("report.errByMonth")} rows={cl.theo_thang.slice(0, 12)}
+              onRow={drillChotNhom(t("report.errByMonth"), (g) => ({ thang_ket_thuc: rongHoac(g.key) }))} />
+            <ChotLoiMiniTable title={t("report.errByProvince")} rows={cl.theo_tinh}
+              onRow={drillChotNhom(t("report.errByProvince"), (g) => ({ tinh_chinh: rongHoac(g.key) }))} />
+            <ChotLoiMiniTable title={t("report.errByRequestGroup")} rows={cl.theo_nhom_yeu_cau}
+              onRow={drillChotNhom(t("report.errByRequestGroup"), (g) => ({ nhom_yeu_cau: rongHoac(g.key) }))} />
+            <ChotLoiMiniTable title={t("report.errByIssueGroup")} rows={cl.theo_nhom_van_de}
+              onRow={drillChotNhom(t("report.errByIssueGroup"), (g) => ({ nhom_van_de: rongHoac(g.key) }))} />
+            <ChotLoiMiniTable title={t("report.errBySourceCreated")} rows={cl.theo_nguon_tao}
+              onRow={drillChotNhom(t("report.errBySourceCreated"), (g) => (g.key === KHONG_RO ? null : { nguoi_tao_vai_tro: g.key }))} />
+            <ChotLoiMiniTable title={t("report.errByCreator")} rows={cl.theo_nguoi_tao}
+              onRow={drillChotNhom(t("report.errByCreator"), (g) => ({ nguoi_tao: g.ma || RONG }))} />
           </div>
           <p className="mt-3 flex flex-wrap items-center gap-3 text-xs text-ink-soft">
             <span className="flex items-center gap-1"><i className="h-2 w-4 rounded-full bg-red-500" /> {t("report.legendHighError")}</span>
@@ -713,6 +853,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         </Card>
       )}
 
+      <div ref={trungLapRef} className="scroll-mt-4">
       <Card title={<CardTitle icon="lap" tone="red">{t("report.cardTitle.duplicate")}</CardTitle>}>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           {tl && <Badge tone="violet">{t("report.groupsCount", { n: tl.tong_nhom })}</Badge>}
@@ -765,6 +906,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
           ))}
         </div>
       </Card>
+      </div>
       </>
       )}
 
@@ -819,10 +961,14 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         {tn && (
           <>
             <div className="mb-4 grid grid-cols-2 gap-2.5 md:grid-cols-4">
-              <MiniStat label={t("report.miniStat.newCases")} value={tongNgay.moi} color={SERIES[0]} sub={tnRows.length > 1 ? t("report.miniStat.daysCount", { n: tnRows.length }) : dmy(tn.tu_ngay)} />
-              <MiniStat label={t("report.miniStat.received")} value={tongNgay.tn} color={SERIES[1]} />
-              <MiniStat label={t("report.miniStat.closed")} value={tongNgay.dong} color={SERIES[2]} />
-              <MiniStat label={t("report.miniStat.remaining")} value={conTonCuoi ?? "—"} sub={t("report.miniStat.endOfRange")} />
+              <MiniStat label={t("report.miniStat.newCases")} color={SERIES[0]}
+                value={<DrillNum onClick={tongNgay.moi ? () => drillNgay("moi", tn.tu_ngay, tn.den_ngay) : undefined}>{tongNgay.moi}</DrillNum>} sub={tnRows.length > 1 ? t("report.miniStat.daysCount", { n: tnRows.length }) : dmy(tn.tu_ngay)} />
+              <MiniStat label={t("report.miniStat.received")} color={SERIES[1]}
+                value={<DrillNum onClick={tongNgay.tn ? () => drillNgay("tn", tn.tu_ngay, tn.den_ngay) : undefined}>{tongNgay.tn}</DrillNum>} />
+              <MiniStat label={t("report.miniStat.closed")} color={SERIES[2]}
+                value={<DrillNum onClick={tongNgay.dong ? () => drillNgay("dong", tn.tu_ngay, tn.den_ngay) : undefined}>{tongNgay.dong}</DrillNum>} />
+              <MiniStat label={t("report.miniStat.remaining")} sub={t("report.miniStat.endOfRange")}
+                value={<DrillNum onClick={conTonCuoi && tn.den_ngay === todayISO ? () => drillNgay("ton", todayISO, todayISO) : undefined}>{conTonCuoi ?? "—"}</DrillNum>} />
             </div>
 
             {tnRows.length > 1 && (
@@ -849,7 +995,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
 
             <div className="flex flex-col gap-2 md:hidden">
               {tnRows.length === 0 && <p className="py-4 text-center text-sm text-ink-soft">{t("common.noData")}</p>}
-              {(xemHetNgay ? ngayMoiTruoc : ngayMoiTruoc.slice(0, 5)).map((r) => <TheoNgayCard key={r.ngay} r={r} />)}
+              {(xemHetNgay ? ngayMoiTruoc : ngayMoiTruoc.slice(0, 5)).map((r) => <TheoNgayCard key={r.ngay} r={r} onDrill={onDrillNgay} />)}
               {ngayMoiTruoc.length > 5 && (
                 <button type="button" onClick={() => setXemHetNgay((v) => !v)} className="rounded-lg py-2.5 text-sm font-semibold text-accent-ink hover:bg-accent-soft">
                   {xemHetNgay ? t("report.collapse") : t("report.showMoreDays", { n: ngayMoiTruoc.length - 5 })}
@@ -877,16 +1023,16 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                   {tnRows.map((r) => (
                     <tr key={r.ngay} className="border-b border-line text-ink-body last:border-0 hover:bg-accent-soft/50">
                       <td className="whitespace-nowrap px-2.5 py-2 font-semibold text-ink">{dmy(r.ngay)}</td>
-                      <td className="px-2.5 py-2 font-semibold text-ink"><So v={r.ca_moi} /></td>
+                      <td className="px-2.5 py-2 font-semibold text-ink"><DrillNum onClick={onDrillNgay("moi", r)}><So v={r.ca_moi} /></DrillNum></td>
                       <td className="px-2.5 py-2"><So v={r.ton_cu_chua_tiep_nhan} /></td>
                       <td className="px-2.5 py-2"><So v={r.ton_cu_da_tiep_nhan} /></td>
-                      <td className="px-2.5 py-2"><So v={r.da_tiep_nhan} /></td>
-                      <td className="px-2.5 py-2"><So v={r.da_dong} /></td>
+                      <td className="px-2.5 py-2"><DrillNum onClick={onDrillNgay("tn", r)}><So v={r.da_tiep_nhan} /></DrillNum></td>
+                      <td className="px-2.5 py-2"><DrillNum onClick={onDrillNgay("dong", r)}><So v={r.da_dong} /></DrillNum></td>
                       <td className="px-2.5 py-2">{r.tb_gio_tiep_nhan ?? <span className="text-ink-faint">—</span>}</td>
                       <td className="px-2.5 py-2">{r.tb_gio_xu_ly ?? <span className="text-ink-faint">—</span>}</td>
                       <td className="px-2.5 py-2"><TyLePill v={r.ty_le_tiep_nhan} /></td>
-                      <td className="px-2.5 py-2">{r.cho_tiep_nhan ? <b className="text-red-600">{r.cho_tiep_nhan}</b> : <So v={r.cho_tiep_nhan} />}</td>
-                      <td className="px-2.5 py-2">{r.con_ton != null ? <b className="text-brand-700">{r.con_ton}</b> : <So v={null} />}</td>
+                      <td className="px-2.5 py-2">{r.cho_tiep_nhan ? <b className="text-red-600"><DrillNum onClick={onDrillNgay("cho", r)}>{r.cho_tiep_nhan}</DrillNum></b> : <So v={r.cho_tiep_nhan} />}</td>
+                      <td className="px-2.5 py-2">{r.con_ton != null ? <b className="text-brand-700"><DrillNum onClick={onDrillNgay("ton", r)}>{r.con_ton}</DrillNum></b> : <So v={null} />}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -910,8 +1056,9 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
         {nguoiTn && (
           <>
             <div className="flex flex-col gap-2 md:hidden">
-              <TheoNguoiTnCard ten={t("report.wholeSystem")} v={nguoiTn.tong} tong max={Math.max(1, nguoiTn.tong.tong_tiep_nhan)} />
-              {nguoiTn.rows.map((r) => <TheoNguoiTnCard key={r.email} ten={r.ten || r.email} v={r} max={maxTn} />)}
+              <TheoNguoiTnCard ten={t("report.wholeSystem")} v={nguoiTn.tong} tong max={Math.max(1, nguoiTn.tong.tong_tiep_nhan)}
+                onDrill={onDrillTn(null, t("report.wholeSystem"))} />
+              {nguoiTn.rows.map((r) => <TheoNguoiTnCard key={r.email} ten={r.ten || r.email} v={r} max={maxTn} onDrill={onDrillTn(r.email, r.ten || r.email)} />)}
             </div>
             <div className="hidden overflow-x-auto rounded-xl border border-line md:block">
               <table className="w-full min-w-[820px] border-collapse text-xs">
@@ -929,20 +1076,23 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                 </thead>
                 <tbody>
                   {[{ key: "__tong__", ten: t("report.wholeSystem"), v: nguoiTn.tong, tong: true },
-                    ...nguoiTn.rows.map((r) => ({ key: r.email, ten: r.ten || r.email, v: r as TheoNguoiTnSo, tong: false }))].map((x) => (
+                    ...nguoiTn.rows.map((r) => ({ key: r.email, ten: r.ten || r.email, v: r as TheoNguoiTnSo, tong: false }))].map((x) => {
+                    const dTn = onDrillTn(x.tong ? null : x.key, x.ten);
+                    return (
                     <tr key={x.key} className={`border-b border-line text-ink-body last:border-0 ${x.tong ? "bg-accent-soft font-semibold text-ink" : "hover:bg-accent-soft/50"}`}>
                       <td className="whitespace-nowrap px-2.5 py-2 font-semibold text-ink">{x.ten}</td>
                       <td className="px-2.5 py-2">
                         <InlineStackedBar parts={tnParts(x.v, t)} max={x.tong ? Math.max(1, x.v.tong_tiep_nhan) : maxTn} />
                       </td>
-                      <td className="px-2.5 py-2"><So v={x.v.tu_mo} /></td>
-                      <td className="px-2.5 py-2"><So v={x.v.tu_nguon_khac} /></td>
-                      <td className="px-2.5 py-2"><So v={x.v.ton_cu} /></td>
-                      <td className="px-2.5 py-2 text-sm font-bold text-ink">{x.v.tong_tiep_nhan}</td>
+                      <td className="px-2.5 py-2"><DrillNum onClick={dTn("tu_mo", x.v.tu_mo)}><So v={x.v.tu_mo} /></DrillNum></td>
+                      <td className="px-2.5 py-2"><DrillNum onClick={dTn("nguon_khac", x.v.tu_nguon_khac)}><So v={x.v.tu_nguon_khac} /></DrillNum></td>
+                      <td className="px-2.5 py-2"><DrillNum onClick={dTn("ton_cu", x.v.ton_cu)}><So v={x.v.ton_cu} /></DrillNum></td>
+                      <td className="px-2.5 py-2 text-sm font-bold text-ink"><DrillNum onClick={dTn("", x.v.tong_tiep_nhan)}>{x.v.tong_tiep_nhan}</DrillNum></td>
                       <td className="px-2.5 py-2"><TyLePill v={x.v.ty_le} /></td>
                       <td className="px-2.5 py-2">{fmtGio(x.v.tb_gio_tiep_nhan, t)}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -990,7 +1140,11 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                     {t("report.avgTo", { label: c.label.charAt(0).toLowerCase() + c.label.slice(1) })}
                   </p>
                   <p className="mt-1 text-xl font-extrabold leading-none text-ink sm:text-2xl">{fmtGio(td.tong[c.key].tb_gio, t)}</p>
-                  <p className="mt-1 text-[11px] text-ink-soft">{t("report.wholeRangeCases", { n: td.tong[c.key].sl })}</p>
+                  <p className="mt-1 text-[11px] text-ink-soft">
+                    <DrillNum onClick={td.tong[c.key].sl > 0 ? () => drillTocDo(c.key, [td.tu_ngay, td.den_ngay], t("report.wholeRange")) : undefined}>
+                      {t("report.wholeRangeCases", { n: td.tong[c.key].sl })}
+                    </DrillNum>
+                  </p>
                   {tdRowsTang.length > 1 && (
                     <div className="mt-2">
                       <LineChart
@@ -1029,7 +1183,7 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                 <tbody>
                   <tr className="border-b border-line bg-accent-soft">
                     <td className="sticky left-0 whitespace-nowrap bg-accent-soft px-2 py-2 font-bold text-ink">{t("report.wholeRange")}</td>
-                    <TocDoCells v={td.tong} bold />
+                    <TocDoCells v={td.tong} bold onCell={(m) => drillTocDo(m, [td.tu_ngay, td.den_ngay], t("report.wholeRange"))} />
                   </tr>
                   {td.rows.length === 0 && (
                     <tr><td colSpan={5} className="px-2 py-6 text-center text-ink-soft">{t("common.noData")}</td></tr>
@@ -1051,14 +1205,14 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
                               kyLabel(td.ky, r.ky, t)
                             )}
                           </td>
-                          <TocDoCells v={r} />
+                          <TocDoCells v={r} onCell={(m) => drillTocDo(m, kyRange(r.ky), kyLabel(td.ky, r.ky, t))} />
                         </tr>
                         {mo && r.nhom.map((g) => (
                           <tr key={`${r.ky}-${g.key}`} className="border-b border-line bg-surface-2/60 text-ink-body">
                             <td className="sticky left-0 whitespace-nowrap bg-surface-2 py-2 pl-7 pr-2 text-ink-soft">
                               {td.phan_loai === "nguon" ? nguonLabel(g.key) : g.nhan}
                             </td>
-                            <TocDoCells v={g} />
+                            <TocDoCells v={g} onCell={(m) => drillTocDo(m, kyRange(r.ky), `${kyLabel(td.ky, r.ky, t)} · ${td.phan_loai === "nguon" ? nguonLabel(g.key) : g.nhan}`, g.key)} />
                           </tr>
                         ))}
                       </Fragment>
@@ -1076,6 +1230,12 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
       </>
       )}
 
+      {/* An popup danh sach khi dang mo chi tiet (2 modal cung bay focus/Esc se tranh nhau), dong chi
+          tiet -> popup danh sach hien lai dung trang/bien the dang xem (state giu o day). */}
+      {drill && (
+        <BaoCaoDrillModal state={drill} open={!detailId} onChange={setDrill} onClose={() => setDrill(null)} onOpenDetail={setDetailId} />
+      )}
+
       <Modal open={!!detailId} onClose={() => setDetailId(null)} width="full">
         {detailId && (
           <KhieuNaiDetail
@@ -1083,7 +1243,10 @@ export function BaoCaoModule({ user }: { user: AppUser }) {
             user={user}
             onClose={() => setDetailId(null)}
             onNavigate={setDetailId}
-            onChanged={() => { slaQuery.refetch(); trungLapQuery.refetch(); chotLoiQuery.refetch(); }}
+            onChanged={() => {
+              slaQuery.refetch(); trungLapQuery.refetch(); chotLoiQuery.refetch();
+              queryClient.invalidateQueries({ queryKey: ["bao-cao-drill"] });
+            }}
           />
         )}
       </Modal>

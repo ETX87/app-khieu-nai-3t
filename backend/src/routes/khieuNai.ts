@@ -227,15 +227,143 @@ const SORT_COLUMNS: Record<string, string> = {
   ngay_ktv_hoan_thanh: "ngay_ktv_hoan_thanh",
 };
 
+const GIA_TRI_RONG = "__rong__";
+const THANG_PARAM_RE = /^\d{4}-\d{2}$/;
+// Tinh "chinh" cua 1 ca = tinh moi (sau sap nhap 2025) neu co, khong thi tinh cu - khop cach gom
+// nhom "theo tinh" cua bao cao chot loi + toc do xu ly.
+const TINH_CHINH_SQL = "COALESCE(NULLIF(tinh_moi, ''), NULLIF(tinh, ''), '')";
+const DA_CHOT_LOI_SQL = "ket_luan_khieu_nai IS NOT NULL AND ket_luan_khieu_nai != 'Chua danh gia'";
+const LOI_COT: Record<string, string> = {
+  nsx: "loi_nha_san_xuat", lap_dat: "loi_lap_dat", thai_do_ktv: "loi_thai_do_ktv", quy_trinh_nskx: "loi_quy_trinh_nskx",
+};
+const CO_LOI_SQL = `(${Object.values(LOI_COT).map((col) => `${col} = 'Co'`).join(" OR ")})`;
+// Moc toc do xu ly (khop CTE "m" cua /bao-cao/toc-do-xu-ly) - tinh tren tung dong khieu_nai.
+const TOC_DO_MOC_SQL: Record<string, string> = {
+  tn: "(SELECT MIN(l.thoi_diem) FROM khieu_nai_lich_su l WHERE l.khieu_nai_id = khieu_nai.id AND l.hanh_dong = 'tiep_nhan')",
+  vp: `(CASE WHEN loi_nha_san_xuat != 'Chua danh gia' AND loi_lap_dat != 'Chua danh gia'
+          AND loi_thai_do_ktv != 'Chua danh gia' AND loi_quy_trinh_nskx != 'Chua danh gia'
+          AND COALESCE(ket_luan_khieu_nai, 'Chua danh gia') != 'Chua danh gia'
+        THEN (SELECT MAX(l.thoi_diem) FROM khieu_nai_lich_su l WHERE l.khieu_nai_id = khieu_nai.id AND l.hanh_dong = 'danh_gia_loi') END)`,
+  ql: `COALESCE((SELECT MIN(l.thoi_diem) FROM khieu_nai_lich_su l WHERE l.khieu_nai_id = khieu_nai.id AND l.hanh_dong = 'danh_gia_ql'),
+        ngay_ql_danh_gia)`,
+  kt: "(CASE WHEN trang_thai = 'Da ket thuc' THEN ngay_ket_thuc END)",
+};
+const TOC_DO_NHOM_SQL: Record<string, string> = {
+  nguoi_tiep_nhan: "COALESCE(cskh_tiep_nhan, '')",
+  nguon: "COALESCE(nguon, '')",
+  tinh: TINH_CHINH_SQL,
+};
+
+// Bo loc bo sung cho GET / - (1) bo loc Tinh / Quan-huyen / Loai loi da chot o man Phan anh,
+// (2) cac tham so "drill-down" tu man Bao cao: moi con so tren bao cao bam vao duoc -> mo danh sach
+// dung tap ca da tao ra con so do, nen dieu kien o day phai KHOP voi truy van cua tung bao cao.
+function addDrillConditions(q: (k: string) => string | undefined, conditions: string[], binds: unknown[]) {
+  const dateOk = (v: string | undefined): v is string => !!v && DATE_RE.test(v);
+  const thangOk = (v: string | undefined): v is string => !!v && THANG_PARAM_RE.test(v);
+  const eq = (col: string, v: string | undefined) => {
+    if (!v) return;
+    if (v === GIA_TRI_RONG) conditions.push(`COALESCE(${col}, '') = ''`);
+    else { conditions.push(`${col} = ?`); binds.push(v); }
+  };
+
+  // GIA_TRI_RONG = ca bo trong cot do (nhom "Không rõ" cua bao cao bam sang).
+  eq("nguon", q("nguon"));
+  eq("nhom_van_de", q("nhom_van_de"));
+  eq("nhom_yeu_cau", q("nhom_yeu_cau"));
+  // Tinh: khop ca tinh cu lan tinh moi (nguoi dung chon ten nao cung ra ca cua tinh do).
+  const tinh = q("tinh");
+  if (tinh === GIA_TRI_RONG) conditions.push(`${TINH_CHINH_SQL} = ''`);
+  else if (tinh) { conditions.push("(tinh_moi = ? OR tinh = ?)"); binds.push(tinh, tinh); }
+  const quanHuyen = q("quan_huyen"); // quan/huyen cu hoac phuong/xa moi (cap huyen da bo sau 2025)
+  if (quanHuyen) { conditions.push("(quan_huyen = ? OR phuong_xa_moi = ?)"); binds.push(quanHuyen, quanHuyen); }
+  eq(TINH_CHINH_SQL, q("tinh_chinh"));
+
+  // Loai loi da chot (ket luan khieu nai da danh gia): co_loi | khong_loi | nsx | lap_dat | thai_do_ktv | quy_trinh_nskx.
+  const loi = q("loi");
+  if (loi === "co_loi") conditions.push(`${DA_CHOT_LOI_SQL} AND ${CO_LOI_SQL}`);
+  else if (loi === "khong_loi") conditions.push(`${DA_CHOT_LOI_SQL} AND NOT ${CO_LOI_SQL}`);
+  else if (loi === "da_chot") conditions.push(DA_CHOT_LOI_SQL);
+  else if (loi && LOI_COT[loi]) conditions.push(`${DA_CHOT_LOI_SQL} AND ${LOI_COT[loi]} = 'Co'`);
+
+  eq("nguoi_tao", q("nguoi_tao"));
+  eq("cskh_tiep_nhan", q("cskh_tiep_nhan"));
+  eq("phan_loai_kh", q("phan_loai_kh"));
+  if (q("bo_huy") === "1") conditions.push("trang_thai != 'Huy'");
+
+  // Pham vi thang cua Tong quan bao cao (SLA/chot loi): ton + dong/huy trong thang (buildThangCondition).
+  const thangBaoCao = q("thang_bao_cao");
+  if (thangOk(thangBaoCao)) {
+    const { sql, binds: b } = buildThangCondition(thangBaoCao, currentMonthVN());
+    conditions.push(sql);
+    binds.push(...b);
+  }
+  // Chot loi khi khong chon thang: 12 thang gan nhat (khop /bao-cao/chot-loi).
+  if (q("chot_12_thang") === "1") {
+    conditions.push("(ngay_ket_thuc IS NULL OR ngay_ket_thuc >= datetime(?, '-11 months'))");
+    binds.push(`${currentMonthVN()}-01 00:00:00`);
+  }
+  const thangTiepNhan = q("thang_tiep_nhan"); // ca phat sinh (mo) trong thang
+  if (thangOk(thangTiepNhan)) {
+    conditions.push("ngay_tiep_nhan >= ? AND ngay_tiep_nhan < datetime(?, '+1 month')");
+    binds.push(`${thangTiepNhan}-01 00:00:00`, `${thangTiepNhan}-01 00:00:00`);
+  }
+  const thangKetThuc = q("thang_ket_thuc"); // chi ngay_ket_thuc (khac thang_dong gom ca ngay_huy)
+  if (thangKetThuc === GIA_TRI_RONG) conditions.push("ngay_ket_thuc IS NULL");
+  else if (thangOk(thangKetThuc)) {
+    conditions.push("ngay_ket_thuc >= ? AND ngay_ket_thuc < datetime(?, '+1 month')");
+    binds.push(`${thangKetThuc}-01 00:00:00`, `${thangKetThuc}-01 00:00:00`);
+  }
+
+  // Khoang so ngay xu ly (cot SLA): (sla_min, sla_max], tinh den ket thuc hoac bay gio.
+  const soNgaySql = "(julianday(COALESCE(ngay_ket_thuc, datetime('now','+7 hours'))) - julianday(ngay_tiep_nhan))";
+  const slaMin = parseFloat(q("sla_min") ?? "");
+  const slaMax = parseFloat(q("sla_max") ?? "");
+  if (Number.isFinite(slaMin)) { conditions.push(`${soNgaySql} > ?`); binds.push(slaMin); }
+  if (Number.isFinite(slaMax)) { conditions.push(`${soNgaySql} <= ?`); binds.push(slaMax); }
+
+  const dongTu = q("dong_tu"), dongDen = q("dong_den");
+  if (dateOk(dongTu)) { conditions.push("ngay_ket_thuc >= ?"); binds.push(`${dongTu} 00:00:00`); }
+  if (dateOk(dongDen)) { conditions.push("ngay_ket_thuc < datetime(?, '+1 day')"); binds.push(`${dongDen} 00:00:00`); }
+
+  // Ca duoc tiep nhan trong khoang (khop /bao-cao/theo-ngay + /theo-nguoi-tiep-nhan): bam "Tiep nhan"
+  // (nhat ky 'tiep_nhan') HOAC tu tao va nhan luon luc mo ca (khong co dong nhat ky nao).
+  const tnTu = q("tiep_nhan_tu"), tnDen = q("tiep_nhan_den");
+  if (dateOk(tnTu) && dateOk(tnDen)) {
+    const boi = q("tiep_nhan_boi");
+    const loai = q("tiep_nhan_loai"); // "" | tu_mo | nguon_khac | ton_cu
+    const start = `${tnTu} 00:00:00`, end = `${tnDen} 00:00:00`;
+    const quaNut = `id IN (SELECT khieu_nai_id FROM khieu_nai_lich_su WHERE hanh_dong = 'tiep_nhan'
+      AND thoi_diem >= ? AND thoi_diem < datetime(?, '+1 day')${boi ? " AND nguoi = ?" : ""})`;
+    const quaNutBinds = boi ? [start, end, boi] : [start, end];
+    const tuMo = `(trang_thai != 'Cho tiep nhan' AND cskh_tiep_nhan IS NOT NULL
+      AND id NOT IN (SELECT khieu_nai_id FROM khieu_nai_lich_su WHERE hanh_dong = 'tiep_nhan')
+      AND ngay_tiep_nhan >= ? AND ngay_tiep_nhan < datetime(?, '+1 day')${boi ? " AND cskh_tiep_nhan = ?" : ""})`;
+    if (loai === "tu_mo") { conditions.push(tuMo); binds.push(...quaNutBinds); }
+    else if (loai === "nguon_khac") { conditions.push(`${quaNut} AND ngay_tiep_nhan >= ?`); binds.push(...quaNutBinds, start); }
+    else if (loai === "ton_cu") { conditions.push(`${quaNut} AND ngay_tiep_nhan < ?`); binds.push(...quaNutBinds, start); }
+    else { conditions.push(`(${quaNut} OR ${tuMo})`); binds.push(...quaNutBinds, ...quaNutBinds); }
+  }
+
+  // 1 moc toc do xu ly xay ra trong khoang (+ nhom phan loai) - ca Huy khong tinh.
+  const moc = q("moc"), mocTu = q("moc_tu"), mocDen = q("moc_den");
+  if (moc && TOC_DO_MOC_SQL[moc] && dateOk(mocTu) && dateOk(mocDen)) {
+    conditions.push(`trang_thai != 'Huy' AND ${TOC_DO_MOC_SQL[moc]} >= ? AND ${TOC_DO_MOC_SQL[moc]} < datetime(?, '+1 day')`);
+    binds.push(`${mocTu} 00:00:00`, `${mocDen} 00:00:00`);
+    const phanLoai = q("phan_loai");
+    const nhomKey = q("nhom_key");
+    if (phanLoai && TOC_DO_NHOM_SQL[phanLoai] && nhomKey !== undefined) {
+      conditions.push(`${TOC_DO_NHOM_SQL[phanLoai]} = ?`);
+      binds.push(nhomKey);
+    }
+  }
+}
+
 app.get("/", async (c) => {
   const user = c.get("user");
   const trangThai = c.req.query("trang_thai");
   const idCrmKarofi = chuanHoaIdCrm(c.req.query("id_crm_karofi"));
   const q = c.req.query("q");
   const mucDo = c.req.query("muc_do");
-  const nguon = c.req.query("nguon");
-  const nhomVanDe = c.req.query("nhom_van_de");
-  const nhomYeuCau = c.req.query("nhom_yeu_cau");
   const tuNgay = c.req.query("tu_ngay");
   const denNgay = c.req.query("den_ngay");
   const chuaDongBo = c.req.query("chua_dong_bo");
@@ -256,10 +384,8 @@ app.get("/", async (c) => {
   else if (chuaDong === "1") { conditions.push("trang_thai NOT IN ('Da ket thuc', 'Huy')"); }
   if (idCrmKarofi) { conditions.push("id_crm_karofi = ?"); binds.push(idCrmKarofi); }
   if (mucDo) { conditions.push("muc_do = ?"); binds.push(mucDo); }
-  if (nguon) { conditions.push("nguon = ?"); binds.push(nguon); }
-  if (nhomVanDe) { conditions.push("nhom_van_de = ?"); binds.push(nhomVanDe); }
-  if (nhomYeuCau) { conditions.push("nhom_yeu_cau = ?"); binds.push(nhomYeuCau); }
   if (nguoiPhuTrach) { conditions.push("nguoi_phu_trach = ?"); binds.push(nguoiPhuTrach); }
+  addDrillConditions((k) => c.req.query(k), conditions, binds);
   if (loaiKh === "thuong") conditions.push("COALESCE(phan_loai_kh, '') NOT LIKE '%vip%'");
   else if (loaiKh === "vip") conditions.push("phan_loai_kh LIKE '%vip%'");
   else if (loaiKh === "vip6h") {
@@ -874,6 +1000,7 @@ interface ChotLoiAgg {
   so_loi_thai_do_ktv: number;
   so_loi_quy_trinh_nskx: number;
   ca_co_loi: number;
+  ma?: string; // gia tri loc that khi key chi la nhan hien thi (vd theo nguoi tao: key = ten, ma = email)
 }
 function newChotLoiAgg(key: string): ChotLoiAgg {
   return { key, so_ca: 0, so_loi_nsx: 0, so_loi_lap_dat: 0, so_loi_thai_do_ktv: 0, so_loi_quy_trinh_nskx: 0, ca_co_loi: 0 };
@@ -890,10 +1017,10 @@ function applyChotLoiRow(g: ChotLoiAgg, r: ChotLoiRow) {
   if (isQuyTrinh) g.so_loi_quy_trinh_nskx++;
   if (isNsx || isLapDat || isThaiDo || isQuyTrinh) g.ca_co_loi++;
 }
-function bumpChotLoi(map: Map<string, ChotLoiAgg>, key: string, r: ChotLoiRow) {
-  const g = map.get(key) ?? newChotLoiAgg(key);
+function bumpChotLoi(map: Map<string, ChotLoiAgg>, key: string, r: ChotLoiRow, ma?: string) {
+  const g = map.get(ma ?? key) ?? { ...newChotLoiAgg(key), ...(ma !== undefined ? { ma } : {}) };
   applyChotLoiRow(g, r);
-  map.set(key, g);
+  map.set(ma ?? key, g);
 }
 function finalizeChotLoi(g: ChotLoiAgg) {
   return { ...g, ty_le_loi: g.so_ca > 0 ? Math.round((g.ca_co_loi / g.so_ca) * 1000) / 10 : 0 };
@@ -955,7 +1082,7 @@ app.get("/bao-cao/chot-loi", requireRole("CSKH", "TN CSKH", "QL", "Admin", "View
     bumpChotLoi(theoNhomVanDe, r.nhom_van_de || "Không rõ", r);
     const u = r.nguoi_tao ? userMap.get(r.nguoi_tao) : undefined;
     bumpChotLoi(theoNguonTao, u?.vai_tro || "Không rõ", r);
-    bumpChotLoi(theoNguoiTao, r.nguoi_tao ? (u?.ten || r.nguoi_tao) : "Không rõ", r);
+    bumpChotLoi(theoNguoiTao, r.nguoi_tao ? (u?.ten || r.nguoi_tao) : "Không rõ", r, r.nguoi_tao ?? "");
   }
 
   const sortDesc = (a: ChotLoiAgg, b: ChotLoiAgg) => b.so_ca - a.so_ca;

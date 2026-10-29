@@ -227,6 +227,18 @@
       "CAN_DANH_GIA_QL": "missing QL review",
       "INVALID_STATE": "status has changed",
       "NOT_FOUND": "not found"
+    },
+    "allProvince": "All provinces",
+    "allDistrict": "All districts · wards",
+    "allErrorType": "All finalized error types",
+    "errOption": {
+      "daChot": "Errors finalized (all)",
+      "coLoi": "Has an error (any)",
+      "khongLoi": "No error",
+      "nsx": "Manufacturer error",
+      "lapDat": "Installation error",
+      "thaiDoKtv": "Technician attitude error",
+      "quyTrinhNskx": "NSKX process error"
     }
   },
   "settings": {
@@ -544,7 +556,28 @@
     "periodCol": "Period",
     "avgCol": "Avg {{label}}",
     "wholeRange": "Whole range",
-    "clickPeriodDetail": "Click a period to see the breakdown."
+    "clickPeriodDetail": "Click a period to see the breakdown.",
+    "drill": {
+      "hint": "Click any figure to see the matching cases.",
+      "total": "{{n}} cases",
+      "approx": "{{n}}+ cases",
+      "onlyErr": "Only cases with errors",
+      "allFinalized": "All finalized cases",
+      "unknown": "Unknown",
+      "page": "Page {{page}}/{{total}}",
+      "newCases": "New cases in month",
+      "done": "Closed cases",
+      "processing": "Cases in progress",
+      "within48h": "Cases completed within 48h",
+      "errCases": "Finalized cases with errors",
+      "finalized": "Finalized cases",
+      "slaTotal": "All cases (excl. cancelled)",
+      "received": "Received cases",
+      "closed": "Closed cases",
+      "unreceived": "Cases awaiting receipt",
+      "remaining": "Open cases",
+      "moc": "Cases reaching \"{{moc}}\""
+    }
   },
   "form": {
     "required": {
