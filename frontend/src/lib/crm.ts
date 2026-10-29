@@ -20,6 +20,18 @@ export function laChoCrmMoi(kn: Pick<KhieuNai, "crm_tra_cuu" | "created_at">): b
   return kn.crm_tra_cuu === "SAI_ID" && !laIdCrmSai(kn);
 }
 
+// Da keo duoc thong tin ve tu CRM (hoac Lada phat sinh), chi con cho KTV hoan thanh - khong hien
+// "Cho dong bo CRM" nua. Khop DA_DONG_BO_SQL o backend/src/routes/khieuNai.ts.
+export function daDongBo(
+  kn: Pick<KhieuNai, "crm_tra_cuu" | "ngay_tiep_nhan_crm" | "ket_qua_crm" | "lada_ps_trang_thai">,
+): boolean {
+  return (
+    kn.crm_tra_cuu === "OK" ||
+    (kn.crm_tra_cuu !== "SAI_ID" && (!!kn.ngay_tiep_nhan_crm || !!kn.ket_qua_crm)) ||
+    !!kn.lada_ps_trang_thai
+  );
+}
+
 // ID CRM Karofi: ma so cu (vd "1311618") hoac ma moi tu 2026-10 dang SC + yymmdd + so thu tu
 // (vd "SC261007210"). CRM tra cuu khop chinh xac, moi ma deu viet HOA khong khoang trang -> bo khoang
 // trang + viet hoa ngay khi go. Khop chuanHoaIdCrm o backend/src/routes/khieuNai.ts.

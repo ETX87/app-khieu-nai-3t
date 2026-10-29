@@ -210,7 +210,15 @@ const CRM_SAI_SAU_GIO = 4;
 const TON_CRM_SQL = "id_crm_karofi IS NOT NULL AND ngay_ktv_hoan_thanh IS NULL AND trang_thai NOT IN ('Da ket thuc', 'Huy')";
 const CRM_SAI_SQL =
   `(COALESCE(crm_tra_cuu, '') = 'SAI_ID' AND created_at <= datetime('now', '+7 hours', '-${CRM_SAI_SAU_GIO} hours'))`;
-const CRM_CHO_SQL = `NOT ${CRM_SAI_SQL}`;
+// "Da dong bo" = da keo duoc thong tin ve (tra cuu CRM thanh cong - ca cu truoc khi co cot crm_tra_cuu
+// thi nhan qua cac cot CRM da co du lieu - hoac Lada phat sinh da tra ve trang thai), chi con cho KTV
+// hoan thanh -> KHONG con goi la "Cho dong bo CRM" (de hieu nham la chua lay duoc gi). Khop daDongBo()
+// o frontend/src/lib/crm.ts.
+const DA_DONG_BO_SQL = `(COALESCE(crm_tra_cuu, '') = 'OK'
+  OR (COALESCE(crm_tra_cuu, '') != 'SAI_ID' AND (ngay_tiep_nhan_crm IS NOT NULL OR ket_qua_crm IS NOT NULL))
+  OR lada_ps_trang_thai IS NOT NULL)`;
+const CRM_CHO_SQL = `NOT ${CRM_SAI_SQL} AND NOT ${DA_DONG_BO_SQL}`;
+const CRM_DA_SQL = `NOT ${CRM_SAI_SQL} AND ${DA_DONG_BO_SQL}`;
 // Ca da ket thuc nhung con ket co "ID CRM sai": CRM import case cham hon luc ca dong (vd dot ma SC
 // moi 2026-10 - ca dong 01-02/10, DVBH 03/10 moi co) -> khong con nam trong "ton" nen truoc day khong
 // bao gio duoc tra cuu lai. Cho phep dong bo lai (rieng tung ca + hang loat) de go co sai.
@@ -253,6 +261,15 @@ const TOC_DO_NHOM_SQL: Record<string, string> = {
   nguon: "COALESCE(nguon, '')",
   tinh: TINH_CHINH_SQL,
 };
+
+// Khoang "moc ton" [lo, hi) theo so ngay; hi null = khong gioi han tren. Gia tri so co dinh (khong tu
+// nguoi dung) nen ghep thang vao SQL duoc.
+const MOC_TON: Record<string, [number, number | null]> = {
+  "0-1": [0, 1], "1-3": [1, 3], "3-5": [3, 5], "5-7": [5, 7], "7-10": [7, 10],
+  "10-14": [10, 14], "14-21": [14, 21], "21-30": [21, 30], "30+": [30, null],
+};
+const SO_NGAY_TON_SQL = `(julianday(COALESCE(CASE WHEN trang_thai = 'Da ket thuc' THEN ngay_ket_thuc WHEN trang_thai = 'Huy' THEN ngay_huy END,
+  datetime('now', '+7 hours'))) - julianday(ngay_tiep_nhan))`;
 
 // Bo loc bo sung cho GET / - (1) bo loc Tinh / Quan-huyen / Loai loi da chot o man Phan anh,
 // (2) cac tham so "drill-down" tu man Bao cao: moi con so tren bao cao bam vao duoc -> mo danh sach
@@ -320,6 +337,13 @@ function addDrillConditions(q: (k: string) => string | undefined, conditions: st
   const slaMax = parseFloat(q("sla_max") ?? "");
   if (Number.isFinite(slaMin)) { conditions.push(`${soNgaySql} > ?`); binds.push(slaMin); }
   if (Number.isFinite(slaMax)) { conditions.push(`${soNgaySql} <= ?`); binds.push(slaMax); }
+
+  // Moc ton (chon nhieu, vd "0-1,3-5,30+"): so ngay tu luc tiep nhan den khi ket thuc/huy (ca chua xong
+  // tinh den bay gio) roi vao [lo, hi). Khop MOC_TON + soNgayTon() o KhieuNaiModule.tsx.
+  const mocTon = (q("moc_ton") ?? "").split(",").map((k) => MOC_TON[k]).filter(Boolean);
+  if (mocTon.length) {
+    conditions.push(`(${mocTon.map(([lo, hi]) => (hi == null ? `${SO_NGAY_TON_SQL} >= ${lo}` : `(${SO_NGAY_TON_SQL} >= ${lo} AND ${SO_NGAY_TON_SQL} < ${hi})`)).join(" OR ")})`);
+  }
 
   const dongTu = q("dong_tu"), dongDen = q("dong_den");
   if (dateOk(dongTu)) { conditions.push("ngay_ket_thuc >= ?"); binds.push(`${dongTu} 00:00:00`); }
@@ -401,6 +425,7 @@ app.get("/", async (c) => {
   if (chuaDongBo === "1") conditions.push(TON_CRM_SQL);
   else if (chuaDongBo === "cho") conditions.push(`${TON_CRM_SQL} AND ${CRM_CHO_SQL}`);
   else if (chuaDongBo === "sai") conditions.push(`${TON_CRM_SQL} AND ${CRM_SAI_SQL}`);
+  else if (chuaDongBo === "da") conditions.push(`${TON_CRM_SQL} AND ${CRM_DA_SQL}`);
   const choTnCskh = c.req.query("cho_tn_cskh");
   if (choTnCskh === "1") {
     conditions.push(

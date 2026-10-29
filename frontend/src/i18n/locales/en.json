@@ -181,7 +181,8 @@
       "processingHours": "Processing hours",
       "indicator": "Indicator",
       "updated": "Updated",
-      "ktvDone": "Technician done"
+      "ktvDone": "Technician done",
+      "mocTon": "Age"
     },
     "notApplicable": "Not applicable",
     "done": "Done",
@@ -191,7 +192,8 @@
       "readyToClose": "Ready to finalize",
       "readyToCloseCase": "Ready to close",
       "pendingSyncCrm": "Pending CRM sync",
-      "awaitingReview": "Awaiting review"
+      "awaitingReview": "Awaiting review",
+      "syncedKtvPending": "Synced · technician working"
     },
     "caseCountReason": "{{n}} case(s) {{reason}}",
     "toast": {
@@ -219,7 +221,8 @@
     "crmOption": {
       "all": "All pending CRM sync",
       "cho": "Awaiting sync (correct ID)",
-      "sai": "Wrong CRM ID"
+      "sai": "Wrong CRM ID",
+      "da": "Synced, technician not done"
     },
     "dongCaErr": {
       "QUA_HAN_GIAI_TRINH": "overdue explanation",
@@ -239,7 +242,21 @@
       "lapDat": "Installation error",
       "thaiDoKtv": "Technician attitude error",
       "quyTrinhNskx": "NSKX process error"
-    }
+    },
+    "mocTon": {
+      "0-1": "Under 1 day",
+      "1-3": "1-3 days",
+      "3-5": "3-5 days",
+      "5-7": "5-7 days",
+      "7-10": "7-10 days",
+      "10-14": "10-14 days",
+      "14-21": "14-21 days",
+      "21-30": "21-30 days",
+      "30+": "Over 30 days"
+    },
+    "mocTonFilter": "Age bucket:",
+    "mocTonClear": "Clear buckets",
+    "ktvInProgress": "Synced · technician working"
   },
   "settings": {
     "ngayNghi": {

@@ -181,7 +181,8 @@
       "processingHours": "Jam proses",
       "indicator": "Indikator",
       "updated": "Diperbarui",
-      "ktvDone": "Teknisi selesai"
+      "ktvDone": "Teknisi selesai",
+      "mocTon": "Umur kasus"
     },
     "notApplicable": "Tidak berlaku",
     "done": "Selesai",
@@ -191,7 +192,8 @@
       "readyToClose": "Siap difinalisasi",
       "readyToCloseCase": "Siap ditutup",
       "pendingSyncCrm": "Menunggu sinkron CRM",
-      "awaitingReview": "Menunggu penilaian"
+      "awaitingReview": "Menunggu penilaian",
+      "syncedKtvPending": "Tersinkron · teknisi bekerja"
     },
     "caseCountReason": "{{n}} kasus {{reason}}",
     "toast": {
@@ -219,7 +221,8 @@
     "crmOption": {
       "all": "Tertunda sinkron CRM (semua)",
       "cho": "Menunggu sinkron (ID benar)",
-      "sai": "ID CRM salah"
+      "sai": "ID CRM salah",
+      "da": "Tersinkron, teknisi belum selesai"
     },
     "dongCaErr": {
       "QUA_HAN_GIAI_TRINH": "terlambat penjelasan",
@@ -239,7 +242,21 @@
       "lapDat": "Kesalahan pemasangan",
       "thaiDoKtv": "Kesalahan sikap teknisi",
       "quyTrinhNskx": "Kesalahan proses NSKX"
-    }
+    },
+    "mocTon": {
+      "0-1": "Kurang dari 1 hari",
+      "1-3": "1-3 hari",
+      "3-5": "3-5 hari",
+      "5-7": "5-7 hari",
+      "7-10": "7-10 hari",
+      "10-14": "10-14 hari",
+      "14-21": "14-21 hari",
+      "21-30": "21-30 hari",
+      "30+": "Lebih dari 30 hari"
+    },
+    "mocTonFilter": "Rentang umur:",
+    "mocTonClear": "Hapus rentang",
+    "ktvInProgress": "Tersinkron · teknisi bekerja"
   },
   "settings": {
     "ngayNghi": {

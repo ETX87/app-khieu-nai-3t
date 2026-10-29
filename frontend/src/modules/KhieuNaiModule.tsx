@@ -18,7 +18,8 @@ import { KhieuNaiForm, type KhieuNaiFormHandle, type KhieuNaiFormHeaderState, NG
 import { KhieuNaiDetail } from "./KhieuNaiDetail";
 import { KhieuNaiCard } from "./KhieuNaiCard";
 import { FilterSelect } from "../components/ui/FilterSelect";
-import { laIdCrmSai } from "../lib/crm";
+import { daDongBo, laIdCrmSai } from "../lib/crm";
+import { MocTonBadge, MocTonChips } from "../lib/mocTon";
 
 function getStatusOptions(t: (k: string) => string) {
   return [
@@ -87,6 +88,7 @@ interface Filters {
   nguoiTaoVaiTro: string;
   tonToiThieu: string;
   thangDong: string; // "YYYY-MM" - loc theo thang cua ngay_ket_thuc
+  mocTon: string[]; // cac khoa MOC_TON dang chon (chon nhieu)
   tinh: string; // khop ca tinh cu lan tinh moi
   quanHuyen: string; // quan/huyen cu hoac phuong/xa moi thuoc tinh dang chon
   loi: string; // loai loi da chot - xem getLoiOptions
@@ -99,6 +101,7 @@ function getCrmTrangThaiOptions(t: (k: string) => string) {
   return [
     { value: "1", label: t("list.crmOption.all") },
     { value: "cho", label: t("list.crmOption.cho") },
+    { value: "da", label: t("list.crmOption.da") },
     { value: "sai", label: t("list.crmOption.sai") },
   ];
 }
@@ -152,7 +155,7 @@ function getTrangThaiQuickOptions(t: (k: string) => string) {
 
 const EMPTY_FILTERS: Filters = {
   trangThai: "", nguon: "", loaiKh: "", mucDo: "", nhomVanDe: "", nhomYeuCau: "", tuNgay: "", denNgay: "",
-  chuaDongBo: "", choTnCskh: false, quaHanGiaiTrinh: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "", thangDong: "",
+  chuaDongBo: "", choTnCskh: false, quaHanGiaiTrinh: false, caCuaToi: false, nguoiTaoVaiTro: "", tonToiThieu: "", thangDong: "", mocTon: [],
   tinh: "", quanHuyen: "", loi: "", q: "", sort: "ngay_tiep_nhan|desc", pageSize: "20",
 };
 
@@ -165,6 +168,7 @@ function loadFilters(defaultNguon: string): Filters {
       const saved = { ...EMPTY_FILTERS, ...JSON.parse(raw) };
       // Ban cu luu chuaDongBo dang boolean.
       if (typeof saved.chuaDongBo !== "string") saved.chuaDongBo = saved.chuaDongBo ? "1" : "";
+      if (!Array.isArray(saved.mocTon)) saved.mocTon = [];
       return saved;
     }
   } catch { /* ignore */ }
@@ -202,7 +206,8 @@ function chiBao(r: KhieuNai, t: (k: string) => string): { text: string; tone: "a
   if (r.trang_thai === "Dang xu ly") {
     if (sanSangDongCa(r)) return { text: t("list.indicator.readyToCloseCase"), tone: "green" };
     if (r.id_crm_karofi && !r.ngay_ktv_hoan_thanh) {
-      return laIdCrmSai(r) ? { text: t("list.crmIdWrong"), tone: "red" } : { text: t("list.indicator.pendingSyncCrm"), tone: "amber" };
+      if (laIdCrmSai(r)) return { text: t("list.crmIdWrong"), tone: "red" };
+      return daDongBo(r) ? { text: t("list.indicator.syncedKtvPending"), tone: "gray" } : { text: t("list.indicator.pendingSyncCrm"), tone: "amber" };
     }
     return { text: t("list.indicator.awaitingReview"), tone: "amber" };
   }
@@ -377,6 +382,7 @@ export function KhieuNaiModule({
       if (f.tinh) p.set("tinh", f.tinh);
       if (f.tinh && f.quanHuyen) p.set("quan_huyen", f.quanHuyen);
       if (f.loi) p.set("loi", f.loi);
+      if (f.mocTon.length) p.set("moc_ton", f.mocTon.join(","));
       if (f.q) p.set("q", f.q);
       p.set("sort", sortField);
       p.set("dir", sortDir);
@@ -489,6 +495,11 @@ export function KhieuNaiModule({
       ),
     },
     {
+      key: "moc_ton",
+      header: t("list.col.mocTon"),
+      render: (r) => <MocTonBadge r={r} />,
+    },
+    {
       key: "chi_bao",
       header: t("list.col.indicator"),
       render: (r) => {
@@ -513,6 +524,8 @@ export function KhieuNaiModule({
           <span className="text-green-700">{t("list.done")} · {fmtVN.date(r.ngay_ktv_hoan_thanh)}</span>
         ) : laIdCrmSai(r) ? (
           <span className="font-semibold text-red-600">{t("list.crmIdWrong")}</span>
+        ) : daDongBo(r) ? (
+          <span className="text-blue-700">{t("list.ktvInProgress")}</span>
         ) : (
           <span className="text-amber-600">{t("list.pendingSync")}</span>
         ),
@@ -526,7 +539,7 @@ export function KhieuNaiModule({
 
   const activeFilterCount =
     [f.trangThai, f.nguon, f.loaiKh, f.mucDo, f.nhomVanDe, f.nhomYeuCau, f.tuNgay, f.denNgay, f.chuaDongBo, f.nguoiTaoVaiTro, f.tonToiThieu, f.thangDong, f.tinh, f.quanHuyen, f.loi, f.q].filter(Boolean).length +
-    (f.choTnCskh ? 1 : 0) + (f.quaHanGiaiTrinh ? 1 : 0) + (f.caCuaToi ? 1 : 0);
+    (f.choTnCskh ? 1 : 0) + (f.quaHanGiaiTrinh ? 1 : 0) + (f.caCuaToi ? 1 : 0) + (f.mocTon.length ? 1 : 0);
 
   const handleSort = (field: string) => {
     setF((p) => {
@@ -669,6 +682,7 @@ export function KhieuNaiModule({
               {t("list.closeMonth")}
               <input type="month" className={selCls} value={f.thangDong} onChange={(e) => set("thangDong", e.target.value)} />
             </label>
+            <MocTonChips value={f.mocTon} onChange={(v) => set("mocTon", v)} />
           </div>
         )}
 

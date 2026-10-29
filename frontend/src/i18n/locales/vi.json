@@ -181,7 +181,8 @@
       "processingHours": "Số giờ xử lý",
       "indicator": "Chỉ báo",
       "updated": "Cập nhật",
-      "ktvDone": "KTV hoàn thành"
+      "ktvDone": "KTV hoàn thành",
+      "mocTon": "Mốc tồn"
     },
     "notApplicable": "Không áp dụng",
     "done": "Xong",
@@ -191,7 +192,8 @@
       "readyToClose": "Sẵn sàng chốt",
       "readyToCloseCase": "Sẵn sàng đóng ca",
       "pendingSyncCrm": "Chờ đồng bộ CRM",
-      "awaitingReview": "Chờ đánh giá"
+      "awaitingReview": "Chờ đánh giá",
+      "syncedKtvPending": "Đã đồng bộ · KTV đang xử lý"
     },
     "caseCountReason": "{{n}} ca {{reason}}",
     "toast": {
@@ -219,7 +221,8 @@
     "crmOption": {
       "all": "Tồn đồng bộ CRM (tất cả)",
       "cho": "Chờ đồng bộ (ID đúng)",
-      "sai": "ID CRM sai"
+      "sai": "ID CRM sai",
+      "da": "Đã đồng bộ, KTV chưa xong"
     },
     "dongCaErr": {
       "QUA_HAN_GIAI_TRINH": "quá hạn giải trình",
@@ -239,7 +242,21 @@
       "lapDat": "Lỗi lắp đặt",
       "thaiDoKtv": "Lỗi thái độ KTV",
       "quyTrinhNskx": "Lỗi quy trình NSKX"
-    }
+    },
+    "mocTon": {
+      "0-1": "Dưới 1 ngày",
+      "1-3": "1-3 ngày",
+      "3-5": "3-5 ngày",
+      "5-7": "5-7 ngày",
+      "7-10": "7-10 ngày",
+      "10-14": "10-14 ngày",
+      "14-21": "14-21 ngày",
+      "21-30": "21-30 ngày",
+      "30+": "Trên 30 ngày"
+    },
+    "mocTonFilter": "Mốc tồn:",
+    "mocTonClear": "Bỏ chọn mốc",
+    "ktvInProgress": "Đã đồng bộ · KTV đang xử lý"
   },
   "settings": {
     "ngayNghi": {

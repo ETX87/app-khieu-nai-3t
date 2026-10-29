@@ -11,6 +11,7 @@ import { Table, type TableColumn } from "../components/ui/Table";
 import { StatusBadge } from "../components/ui/Badge";
 import { KhieuNaiCard } from "./KhieuNaiCard";
 import { NGUON_LABEL } from "./KhieuNaiForm";
+import { MocTonBadge, MocTonChips } from "../lib/mocTon";
 
 // "Drill-down" tu man Bao cao: moi con so bam vao -> mo danh sach dung tap ca tao ra con so do, goi
 // lai GET /khieu-nai voi cac tham so loc tuong ung (xem addDrillConditions o backend).
@@ -24,6 +25,7 @@ export interface DrillState {
   spec: DrillSpec;
   variant: number;
   page: number;
+  mocTon?: string[]; // loc them theo moc ton ngay trong popup (chon nhieu)
 }
 
 const PAGE_SIZE = 50;
@@ -59,7 +61,12 @@ export function BaoCaoDrillModal({
 }) {
   const { t } = useTranslation();
   const { spec, variant, page } = state;
-  const params: Record<string, string> = { ...spec.params, ...(spec.variants?.[variant]?.params ?? {}) };
+  const mocTon = state.mocTon ?? [];
+  const params: Record<string, string> = {
+    ...spec.params,
+    ...(spec.variants?.[variant]?.params ?? {}),
+    ...(mocTon.length ? { moc_ton: mocTon.join(",") } : {}),
+  };
 
   const query = useQuery({
     queryKey: ["bao-cao-drill", params, page],
@@ -113,6 +120,7 @@ export function BaoCaoDrillModal({
         <span className="text-xs text-ink">{fmtVN.gioXuLy(r.ngay_tiep_nhan, r.trang_thai === "Da ket thuc" ? r.ngay_ket_thuc : null)}</span>
       ),
     },
+    { key: "moc_ton", header: t("list.col.mocTon"), render: (r) => <MocTonBadge r={r} /> },
   ];
 
   return (
@@ -147,6 +155,9 @@ export function BaoCaoDrillModal({
           ))}
         </div>
       )}
+      <div className="mb-3">
+        <MocTonChips value={mocTon} onChange={(v) => onChange({ ...state, mocTon: v, page: 1 })} />
+      </div>
       {query.isLoading && <p className="py-8 text-center text-sm text-ink-soft">{t("common.loading")}</p>}
       {query.isError && <p className="py-8 text-center text-sm text-red-600">{t("list.loadError")}</p>}
       {query.data && (
