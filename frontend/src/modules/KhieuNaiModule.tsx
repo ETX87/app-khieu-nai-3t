@@ -429,6 +429,7 @@ export function KhieuNaiModule({
       ? [
           {
             key: "chon",
+            noResize: true,
             header: pageCheckbox,
             className: "w-8",
             render: (r: KhieuNai) => {
@@ -765,6 +766,7 @@ export function KhieuNaiModule({
                 sort={{ field: sortField, dir: sortDir === "asc" ? "asc" : "desc" }}
                 onSort={handleSort}
                 nowrap
+                resizeKey="phan-anh"
                 rowClassName={(r) =>
                   `${MUC_DO_CARD_BG[mucDoTone(r.muc_do)]} ${MUC_DO_CARD_HOVER_BG[mucDoTone(r.muc_do)]} ${vipGlowClass(r.phan_loai_kh)} ${r.trang_thai === "Huy" ? "line-through opacity-60" : ""}`
                 }

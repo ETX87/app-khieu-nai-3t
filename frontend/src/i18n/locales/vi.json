@@ -15,7 +15,9 @@
     "delete": "Xóa",
     "search": "Tìm kiếm",
     "noData": "Không có dữ liệu",
-    "loading": "Đang tải..."
+    "loading": "Đang tải...",
+    "resizeColumn": "Kéo để đổi độ rộng cột · nháy đúp để về mặc định",
+    "resetColumnWidths": "Đặt lại độ rộng cột"
   },
   "sidebar": {
     "appTitle": "Tiếp nhận phản ánh",

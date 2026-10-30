@@ -286,6 +286,7 @@ export function HomeModule({ user, onOpenList, onOpenModule }: HomeProps) {
                   rowKey={(r) => r.id}
                   onRowClick={(r) => setDetailId(r.id)}
                   emptyText={t("home.noProcessing")}
+                  resizeKey="trang-chu"
                 />
               </div>
             </>

@@ -15,7 +15,9 @@
     "delete": "Hapus",
     "search": "Cari",
     "noData": "Tidak ada data",
-    "loading": "Memuat..."
+    "loading": "Memuat...",
+    "resizeColumn": "Seret untuk ubah lebar kolom · klik ganda untuk reset",
+    "resetColumnWidths": "Atur ulang lebar kolom"
   },
   "sidebar": {
     "appTitle": "Penerimaan Keluhan",

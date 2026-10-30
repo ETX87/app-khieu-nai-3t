@@ -182,6 +182,7 @@ export function BaoCaoDrillModal({
               onRowClick={(r) => onOpenDetail(r.id)}
               emptyText={t("common.noData")}
               nowrap
+              resizeKey="bao-cao-ds-ca"
               rowClassName={(r) =>
                 `${MUC_DO_CARD_BG[mucDoTone(r.muc_do)]} ${MUC_DO_CARD_HOVER_BG[mucDoTone(r.muc_do)]} ${vipGlowClass(r.phan_loai_kh)} ${r.trang_thai === "Huy" ? "line-through opacity-60" : ""}`
               }

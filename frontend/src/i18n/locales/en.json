@@ -15,7 +15,9 @@
     "delete": "Delete",
     "search": "Search",
     "noData": "No data",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "resizeColumn": "Drag to resize column · double-click to reset",
+    "resetColumnWidths": "Reset column widths"
   },
   "sidebar": {
     "appTitle": "Complaint Intake",
