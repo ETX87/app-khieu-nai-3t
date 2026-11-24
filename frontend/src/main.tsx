@@ -6,6 +6,7 @@ import { ToastProvider } from "./components/ui/Toast";
 import App from "./App";
 import "./index.css";
 import "./i18n";
+import { CuaSoThongTin } from "./components/CuaSoThongTin";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,6 +23,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <ToastProvider>
         <AuthProvider>
           <App />
+          <CuaSoThongTin />
         </AuthProvider>
       </ToastProvider>
     </QueryClientProvider>

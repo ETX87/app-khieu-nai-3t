@@ -67,3 +67,7 @@ DVBH (tra ca CRM, Service Binding `DVBH_SERVICE`) · Ecolada (tra ID Lada) · ET
 ## 9. Tài liệu liên quan
 
 `SRS_tong_hop.md`, `nhat_ky_lam_viec.md`, `DESIGN_SYSTEM.md`, `KE-HOACH-SUA-UX.md`, `BAO-CAO-KE-HOACH-TON-VI-PHAM-DOI-MAY.md`.
+
+## Cửa sổ thông tin eOffice (popup Giám đốc)
+
+`GET /api/cua-so` (không cần đăng nhập) → Worker gọi `csApi` eOffice bằng secret `CUA_SO_KHOA`, đệm 60 giây, kèm tranh SVG. Frontend `CuaSoThongTin` hiện mỗi lần mở app (và khi quay lại sau ≥ 10 phút ẩn), nút "Vào app" khoá theo `khoaNutGiay`. Lỗi / chậm / chưa có khoá → không hiện, vào app bình thường. Cùng 1 bộ mã ở mọi app hệ DVBH (bản gốc ở linh-kien-app).

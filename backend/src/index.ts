@@ -10,12 +10,16 @@ import etxNhanSuSyncRoutes from "./routes/etxNhanSuSync";
 import { runEtxNhanSuSyncWithState } from "./lib/etxNhanSuSync";
 import { writeDailySnapshot } from "./lib/baoCaoSnapshot";
 import { chayDongBoTuDong } from "./lib/dongBoTuDong";
+import { layCuaSoThongTin } from "./lib/cuaSoThongTin";
 
 // Phai KHOP CHINH XAC chuoi cron trong wrangler.jsonc ("triggers.crons") - phut 15 moi gio tu 6h den 22h
 // gio VN (23h-15h UTC), tranh trung phut 0 cua cron 3h sang.
 const CRON_DONG_BO = "15 0-15,23 * * *";
 
 const app = new Hono<{ Bindings: Env }>();
+// Cua so thong tin eOffice (2026-11-24, lib/cuaSoThongTin.ts): khong can dang nhap - hien ca o man dang nhap.
+app.get("/api/cua-so", async (c) => c.json(await layCuaSoThongTin(c.env.CUA_SO_KHOA)));
+
 app.route("/api/auth", authRoutes);
 app.route("/api/khieu-nai", khieuNaiRoutes);
 app.route("/api/settings", settingsRoutes);
